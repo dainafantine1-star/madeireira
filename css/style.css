@@ -1,4 +1,10 @@
 /* ===== TOKENS ===== */
+button:disabled { opacity: .55; cursor: not-allowed; }
+[aria-disabled="true"] { cursor: not-allowed; }
+#companyHours { white-space: pre-line; }
+#commercialTerms, #catalogStatus { margin: 1rem 0; }
+.product__body > .btn, #modalBuy { margin-top: .5rem; }
+
 :root {
     --orange: #FF6B1A;
     --orange-light: #FF8A3D;
@@ -299,7 +305,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 .hero__slide {
     flex: 0 0 100%;
     min-height: 480px;
-    background: var(--slide-bg);
+    background: var(--slide-bg, linear-gradient(135deg, #1a0e08, #3a1f0f, #0a0a0a));
     display: flex;
     align-items: center;
     color: var(--white);

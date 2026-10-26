@@ -1,0 +1,34 @@
+[
+  {
+    "id": "todas",
+    "label": "Todas"
+  },
+  {
+    "id": "portas",
+    "label": "Portas"
+  },
+  {
+    "id": "cancelas",
+    "label": "Cancelas"
+  },
+  {
+    "id": "ripas",
+    "label": "Ripas"
+  },
+  {
+    "id": "tabuas",
+    "label": "Tábuas"
+  },
+  {
+    "id": "decks",
+    "label": "Decks"
+  },
+  {
+    "id": "forros",
+    "label": "Forros"
+  },
+  {
+    "id": "estrutural",
+    "label": "Estrutural"
+  }
+]

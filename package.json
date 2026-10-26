@@ -1,0 +1,29 @@
+{
+  "name": "madeireira-progresso",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "test": "node --test",
+    "admin:create": "node --env-file-if-exists=.env server/create-admin.js",
+    "owner:create": "node --env-file-if-exists=.env server/create-owner.js",
+    "backup:create": "node --env-file-if-exists=.env server/operations-cli.js backup",
+    "backup:restore": "node --env-file-if-exists=.env server/operations-cli.js restore",
+    "metrics:snapshot": "node --env-file-if-exists=.env server/operations-cli.js snapshot",
+    "check:performance": "node scripts/performance.js",
+    "check:deployment": "node --env-file-if-exists=.env scripts/verify-deployment.js",
+    "test:browsers": "node scripts/run-browsers.js",
+    "browsers:install": "node scripts/run-browsers.js install",
+    "images:optimize": "node scripts/optimize-assets.js"
+  },
+  "dependencies": {
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "resultado": "OK",
+  "registros": 35,
+  "permitidos": 32,
+  "pendentes": 3,
+  "imagens_integras": 44,
+  "ocorrencias_transcritas": 70,
+  "codigos_distintos_observados": 36,
+  "nota": "Validação estrutural e de integridade; não certifica dados comerciais.",
+  "revisao_visual": "35 legendas individuais ampliadas e 35 ocorrências nas 9 montagens conferidas; três divergências textuais preservadas e bloqueadas.",
+  "html": "35 registros e 35 imagens; todos os caminhos locais verificados."
+}

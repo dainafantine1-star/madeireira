@@ -1,0 +1,68 @@
+import { test,expect } from '@playwright/test';
+import { once } from 'node:events';
+import { settings } from '../server/db.js';
+import { openDatabase } from '../test/fixtures/database.js';
+import { createApp } from '../server/index.js';
+import { createOwner } from '../server/auth.js';
+let db,app,base;
+test.beforeAll(async()=>{
+  db=openDatabase(':memory:');createOwner(db,{email:'browser@example.com',password:'BrowserPassword12345'});
+  db.prepare('UPDATE company_settings SET public_json=?').run(JSON.stringify({...settings(db),whatsapp:'5571999998888'}));
+  db.prepare("UPDATE products SET image='assets/hero-madeira.webp'").run();
+  app=createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');base=`http://127.0.0.1:${app.address().port}`;
+});
+test.afterAll(async()=>{app.closeAllConnections();await new Promise(r=>app.close(r));db.close();});
+test('storefront keyboard, responsive quote, deduplication, admin and real dashboard',async({page,isMobile},info)=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(base);await expect(page.locator('#productsGrid .product')).toHaveCount(10);
+  await expect(page.locator('#cartDrawer')).toHaveAttribute('inert','');
+  await expect(page.locator('.hero-slide')).toHaveCount(1);
+  await expect(page.locator('#heroPause')).toHaveCount(0);
+  await expect(page.locator('#home figcaption')).toContainText('Não retrata a loja');
+  await expect(page.locator('#companyPhone')).toContainText('em atualização');
+  await expect(page.locator('#companyAddress')).toContainText('aguardando confirmação');
+  await expect(page.locator('#waFloat')).toBeHidden();
+  await expect(page.locator('#quoteWhats')).toBeHidden();
+  await expect(page.locator('#productsGrid .price-disclaimer')).toHaveCount(10);
+  await expect(page.locator('#productsGrid img[src*="unsplash.com"]')).toHaveCount(0);
+  await expect(page.locator('#productsGrid .image-fallback')).toHaveCount(10);
+  await expect(page.locator('#campaigns')).toBeHidden();
+  db.prepare('UPDATE company_settings SET public_json=?').run(JSON.stringify({...settings(db),confirmed:true}));
+  db.prepare('UPDATE banners SET body=? WHERE id=1').run('Informe as medidas na sua lista.');
+  await page.reload();await expect(page.locator('#campaigns')).toContainText('Informe as medidas na sua lista.');
+  await expect(page.locator('#waFloat')).toBeVisible();
+  await expect(page.locator('#productsGrid .price-disclaimer')).toHaveCount(0);
+  await expect(page.locator('#home .hero-photo').first()).toHaveAttribute('srcset',/640w/);
+  expect(await page.evaluate(async()=>{await document.fonts.ready;return document.fonts.check('600 36px Bitter')&&document.fonts.check('400 16px "Source Sans 3"');})).toBe(true);
+  for(const font of ['bitter-latin.woff2','source-sans-3-latin.woff2']){const response=await page.request.get(base+'/assets/fonts/'+font);expect(response.ok()).toBe(true);expect(response.headers()['content-type']).toBe('font/woff2');}
+  const category=page.locator('#categoryTiles [data-cat=portas]');await category.click();await expect(category).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#productsGrid .product')).toHaveCount(2);
+  await page.locator('#categoryTiles [data-cat=todas]').click();await expect(page.locator('#productsGrid .product')).toHaveCount(10);
+  const details=page.locator('#productsGrid .product[data-id="1"] .product__media');await details.focus();await details.press('Enter');
+  await expect(page).toHaveURL(/\/produto\/1\//);await expect(page.locator('#productOrderForm')).toBeVisible();
+  await expect(page.locator('#productPage h1')).toContainText('Porta');
+  await page.reload();await expect(page.locator('#productOrderForm')).toBeVisible();
+  await expect.poll(()=>db.prepare("SELECT count(*) AS n FROM events WHERE name='product_view'").get().n).toBe(1);
+  await page.locator('#productAdd').click();await expect(page.locator('#cartClose')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');expect(await page.evaluate(()=>!!document.activeElement.closest('#cartDrawer'))).toBe(true);
+  await page.locator('#checkoutBtn').click();await page.locator('#quoteForm [name=name]').fill('Cliente do navegador');await page.locator('#quoteForm [name=phone]').fill('71988887777');
+  await page.locator('#quoteForm [name=notes]').fill('Medidas pelo celular');await page.locator('#quoteSubmit').click();
+  await expect(page.locator('#quoteProtocol')).toHaveText(/^MP-/);await expect(page.locator('#quoteProtocol')).toBeFocused();
+  expect(db.prepare('SELECT count(*) AS n FROM orders').get().n).toBe(1);
+  await page.locator('#quoteDone').click();
+  await page.goto(base);await expect(page.locator('#productsGrid .product')).toHaveCount(10);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  for(const selector of ['.hero-copy .primary','.product__btn','.product__dimensions','.benefit p','.category-tile.is-active','.contact-grid strong','.contact-grid p','.footer-bottom']){
+    const contrast=await page.locator(selector).first().evaluate(n=>{const rgb=s=>s.match(/[\d.]+/g).map(Number),lum=a=>a.slice(0,3).map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);let ancestor=n,bg;while(ancestor){const c=rgb(getComputedStyle(ancestor).backgroundColor);if(c.length===3||c[3]===1){bg=c;break;}ancestor=ancestor.parentElement;}const a=lum(rgb(getComputedStyle(n).color)),b=lum(bg);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);});expect(contrast,selector).toBeGreaterThanOrEqual(4.5);
+  }
+  await page.screenshot({path:`screenshot-storefront-${info.project.name}.png`,fullPage:true});
+  await page.goto(base+'/admin');await page.locator('#loginForm [name=email]').fill('browser@example.com');await page.locator('#loginForm [name=password]').fill('BrowserPassword12345');await page.locator('#loginForm button[type=submit]').click();await expect(page.locator('#app')).toBeVisible();
+  if(isMobile){await page.locator('#mobileMore').click();await page.locator('#moreNav [data-page=metrics]').click();}else await page.locator('#desktopNav [data-page=metrics]').click();
+  await expect(page.locator('#metricsRange')).toBeVisible();await expect(page.locator('.metrics-stats').first()).toContainText('1');await expect(page.locator('#pageContent')).toContainText('Produtos mais acionados');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  const exportLink=page.locator('a[href*="type=products"]').first();const response=await page.request.get(base+await exportLink.getAttribute('href'));expect(response.ok()).toBe(true);expect(await response.text()).toContain('views');
+  await page.screenshot({path:`screenshot-metrics-${info.project.name}.png`,fullPage:false});
+  if(isMobile)await page.locator('#mobileNav [data-page=products]').click();else await page.locator('#desktopNav [data-page=products]').click();
+  await page.locator('[data-action=new]').click();await expect(page.locator('#editor')).toBeVisible();await page.locator('#editorForm [name=name]').fill('Produto em revisão');await page.keyboard.press('Tab');expect(await page.evaluate(()=>!!document.activeElement.closest('#editor'))).toBe(true);await page.locator('#cancelEditor').click();
+  expect(errors).toEqual([]);
+});

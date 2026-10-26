@@ -1,0 +1,47 @@
+{
+  "measuredAt": "2026-10-22T15:52:32.227Z",
+  "results": [
+    {
+      "label": "JavaScript público gzip",
+      "bytes": 11846,
+      "limit": 45000,
+      "ok": true
+    },
+    {
+      "label": "CSS público gzip",
+      "bytes": 8508,
+      "limit": 30000,
+      "ok": true
+    },
+    {
+      "label": "JavaScript admin gzip",
+      "bytes": 28672,
+      "limit": 65000,
+      "ok": true
+    },
+    {
+      "label": "hero-madeira-1280.webp",
+      "bytes": 111142,
+      "limit": 350000,
+      "ok": true
+    },
+    {
+      "label": "hero-madeira-640.webp",
+      "bytes": 38094,
+      "limit": 150000,
+      "ok": true
+    },
+    {
+      "label": "hero-madeira-960.webp",
+      "bytes": 71738,
+      "limit": 350000,
+      "ok": true
+    },
+    {
+      "label": "hero-madeira.webp",
+      "bytes": 302102,
+      "limit": 350000,
+      "ok": true
+    }
+  ]
+}

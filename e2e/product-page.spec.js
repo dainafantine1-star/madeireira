@@ -1,0 +1,32 @@
+import { test,expect } from '@playwright/test';
+import { once } from 'node:events';
+import { openDatabase } from '../server/db.js';
+import { createApp } from '../server/index.js';
+import { createOwner } from '../server/auth.js';
+import { saveProduct } from '../server/products.js';
+let db,app,base,product;
+test.beforeAll(async()=>{
+  db=openDatabase(':memory:');const owner=createOwner(db,{email:'product-browser@example.test',password:'BrowserProductTest123'});
+  product=saveProduct(db,owner,{name:'Tábua de teste',sku:'BROWSER-M2',category:'tabuas',price:45.5,unit:'m2',stock:30,shortDescription:'Madeira para o seu projeto.',description:'Descrição longa com aplicações.\nCuidados e acabamento. <script>window.injected=true</script>',image:'assets/hero-madeira-640.webp',images:['assets/hero-madeira-960.webp'],specs:{Acabamento:'Natural'}});
+  app=createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');base=`http://127.0.0.1:${app.address().port}`;
+});
+test.afterAll(async()=>{app.closeAllConnections();await new Promise(r=>app.close(r));db.close();});
+test('same-tab product, photo gallery, live area calculation, cart persistence and registered quote',async({page},info)=>{
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(base);await page.locator('.product__name a').first().click();
+  await expect(page).toHaveURL(/\/produto\/\d+\/tabua-de-teste/);
+  await expect(page.locator('#productPage h1')).toHaveText('Tábua de teste');
+  await expect(page.locator('#productDescription')).toContainText('Cuidados e acabamento.');
+  await expect(page.locator('.pdp-thumbnails button')).toHaveCount(2);
+  await page.locator('[data-photo="1"]').click();await expect(page.locator('#productPhoto')).toHaveAttribute('src','assets/hero-madeira-960.webp');
+  const form=page.locator('#productOrderForm');await form.locator('[name=length]').fill('2.5');await form.locator('[name=width]').fill('0.3');await form.locator('[name=pieces]').fill('4');
+  await expect(page.locator('#measureFormula')).toContainText('3 m²');await expect(page.locator('#productTotal')).toContainText('136,50');
+  await form.locator('[name=width]').fill('-1');await expect(page.locator('#productAdd')).toBeDisabled();await form.locator('[name=width]').fill('0.3');
+  await page.locator('#productAdd').click();await expect(page.locator('#cartDrawer')).toHaveAttribute('aria-hidden','false');await expect(page.locator('#cartItems')).toContainText('2,5 m × 0,3 m × 4');await expect(page.locator('#cartTotal')).toContainText('136,50');
+  await page.locator('#cartClose').click();await page.reload();await page.locator('#cartToggle').click();await expect(page.locator('#cartTotal')).toContainText('136,50');
+  await page.locator('#checkoutBtn').click();await page.locator('#quoteForm [name=name]').fill('Cliente metragem');await page.locator('#quoteForm [name=phone]').fill('71988887777');await page.locator('#quoteSubmit').click();await expect(page.locator('#quoteProtocol')).toContainText('MP-');
+  expect(db.prepare('SELECT known_total_cents FROM orders').get().known_total_cents).toBe(13650);
+  expect(JSON.parse(db.prepare('SELECT calculation_json FROM order_items').get().calculation_json)).toEqual({length:2.5,width:0.3,pieces:4});
+  await page.locator('#quoteDone').click();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);expect(await page.evaluate(()=>window.injected)).toBeUndefined();expect(errors).toEqual([]);
+  await page.screenshot({path:`.cache/product-${info.project.name}.png`,fullPage:true});
+});

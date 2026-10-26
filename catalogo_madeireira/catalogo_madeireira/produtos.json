@@ -1,0 +1,1238 @@
+{
+  "metadados": {
+    "versao": "1.0",
+    "data": "2026-10-25",
+    "escopo": "Somente separadas-20261025T185531Z-1-001.zip e fotos juntas-20261025T185526Z-1-001.zip. Os ZIPs arquivo e esse não foram lidos; exclusão autorizada pelo usuário.",
+    "total_registros": 35,
+    "registros_com_concordancia_textual": 32,
+    "registros_pendentes": 3,
+    "imagens_individuais": 35,
+    "montagens": 9,
+    "ocorrencias_transcritas": 70,
+    "limites": "Concordância textual entre as imagens fornecidas, não validação comercial ou física do produto. Não há preços, estoque, unidade comercial ou descrições longas nesses arquivos. Categorias são agrupamentos editoriais sugeridos.",
+    "politica": "Preservar zeros à esquerda. Valores ausentes são null. Não importar automaticamente registros pendentes. Fotografias/ilustrações preservadas sem edição, recorte ou nova geração."
+  },
+  "produtos": [
+    {
+      "id_registro": "000051",
+      "codigo": "000051",
+      "codigos_observados": [
+        "000051"
+      ],
+      "nome": "ADUELA PORTA MANDIOQUEIRO 13CM (DESMONTADA)",
+      "descricao": "ADUELA PORTA MANDIOQUEIRO 13CM (DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000051.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000051.png",
+          "codigo_lido": "000051",
+          "descricao_literal": "ADUELA PORTA MANDIOQUEIRO 13CM (DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-09.png",
+          "posicao": "inferior esquerdo",
+          "codigo_lido": "000051",
+          "descricao_literal": "ADUELA PORTA MANDIOQUEIRO 13CM (DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000052",
+      "codigo": "000052",
+      "codigos_observados": [
+        "000052"
+      ],
+      "nome": "ADUELA JANELA MANDIOQUEIRO 13CM (DESMONTADA)",
+      "descricao": "ADUELA JANELA MANDIOQUEIRO 13CM (DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000052.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000052.png",
+          "codigo_lido": "000052",
+          "descricao_literal": "ADUELA JANELA MANDIOQUEIRO 13CM (DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-02.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000052",
+          "descricao_literal": "ADUELA JANELA MANDIOQUEIRO 13CM (DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000107",
+      "codigo": "000107",
+      "codigos_observados": [
+        "000107"
+      ],
+      "nome": "ADUELA PORTA MASSARANDUBA 13CM (DESMONTADA)",
+      "descricao": "ADUELA PORTA MASSARANDUBA 13CM (DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000107.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000107.png",
+          "codigo_lido": "000107",
+          "descricao_literal": "ADUELA PORTA MASSARANDUBA 13CM (DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-09.png",
+          "posicao": "inferior direito",
+          "codigo_lido": "000107",
+          "descricao_literal": "ADUELA PORTA MASSARANDUBA 13CM (DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000138",
+      "codigo": "000138",
+      "codigos_observados": [
+        "000138"
+      ],
+      "nome": "ADUELA PORTA ANGELIM PEDRA 13CM (DESMONTADA)",
+      "descricao": "ADUELA PORTA ANGELIM PEDRA 13CM (DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000138.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000138.png",
+          "codigo_lido": "000138",
+          "descricao_literal": "ADUELA PORTA ANGELIM PEDRA 13CM (DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-09.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000138",
+          "descricao_literal": "ADUELA PORTA ANGELIM PEDRA 13CM (DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000145",
+      "codigo": "000145",
+      "codigos_observados": [
+        "000145"
+      ],
+      "nome": "ALISAR PORTA 5CM MASSARANDUBA",
+      "descricao": "ALISAR PORTA 5CM MASSARANDUBA",
+      "categoria_sugerida": "Alisares",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000145.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000145.png",
+          "codigo_lido": "000145",
+          "descricao_literal": "ALISAR PORTA 5CM MASSARANDUBA"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-07.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000145",
+          "descricao_literal": "ALISAR PORTA 5CM MASSARANDUBA"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "As ilustrações das montagens e das individuais diferem na forma/apresentação. A associação usa código e legenda, não semelhança visual. Usar imagem individual sem deduzir medidas adicionais."
+      ]
+    },
+    {
+      "id_registro": "000203",
+      "codigo": "000203",
+      "codigos_observados": [
+        "000203"
+      ],
+      "nome": "ACABAMENTO CANTO INTERNO MAXPLAST",
+      "descricao": "ACABAMENTO CANTO INTERNO MAXPLAST",
+      "categoria_sugerida": "Acabamentos",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000203.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000203.png",
+          "codigo_lido": "000203",
+          "descricao_literal": "ACABAMENTO CANTO INTERNO MAXPLAST"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-01.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000203",
+          "descricao_literal": "ACABAMENTO CANTO INTERNO MAXPLAST"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000213",
+      "codigo": "000213",
+      "codigos_observados": [
+        "000213"
+      ],
+      "nome": "ALISAR PORTA 7CM ANGELIM PEDRA",
+      "descricao": "ALISAR PORTA 7CM ANGELIM PEDRA",
+      "categoria_sugerida": "Alisares",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000213.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000213.png",
+          "codigo_lido": "000213",
+          "descricao_literal": "ALISAR PORTA 7CM ANGELIM PEDRA"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-07.png",
+          "posicao": "inferior esquerdo",
+          "codigo_lido": "000213",
+          "descricao_literal": "ALISAR PORTA 7CM ANGELIM PEDRA"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "As ilustrações das montagens e das individuais diferem na forma/apresentação. A associação usa código e legenda, não semelhança visual. Usar imagem individual sem deduzir medidas adicionais."
+      ]
+    },
+    {
+      "id_registro": "000294",
+      "codigo": "000294",
+      "codigos_observados": [
+        "000294"
+      ],
+      "nome": "ALISAR JANELA 5CM ANGELIM PEDRA",
+      "descricao": "ALISAR JANELA 5CM ANGELIM PEDRA",
+      "categoria_sugerida": "Alisares",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000294.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000294.png",
+          "codigo_lido": "000294",
+          "descricao_literal": "ALISAR JANELA 5CM ANGELIM PEDRA"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-06.png",
+          "posicao": "inferior esquerdo",
+          "codigo_lido": "000294",
+          "descricao_literal": "ALISAR JANELA 5CM ANGELIM PEDRA"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "As ilustrações das montagens e das individuais diferem na forma/apresentação. A associação usa código e legenda, não semelhança visual. Usar imagem individual sem deduzir medidas adicionais."
+      ]
+    },
+    {
+      "id_registro": "000305",
+      "codigo": "000305",
+      "codigos_observados": [
+        "000305"
+      ],
+      "nome": "ACABAMENTO CANTO EXTERNO MAXPLAST",
+      "descricao": "ACABAMENTO CANTO EXTERNO MAXPLAST",
+      "categoria_sugerida": "Acabamentos",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000305.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000305.png",
+          "codigo_lido": "000305",
+          "descricao_literal": "ACABAMENTO CANTO EXTERNO MAXPLAST"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-01.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000305",
+          "descricao_literal": "ACABAMENTO CANTO EXTERNO MAXPLAST"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000391",
+      "codigo": "000391",
+      "codigos_observados": [
+        "000391"
+      ],
+      "nome": "ARAME FARPADO 500MT — NOME A CONFIRMAR",
+      "descricao": null,
+      "categoria_sugerida": "Arames",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000391.png",
+      "status_revisao": "pendente_confirmacao",
+      "importacao_automatica_permitida": false,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000391.png",
+          "codigo_lido": "000391",
+          "descricao_literal": "ARAME FARPADO NELORE 500MT"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-08.png",
+          "posicao": "inferior esquerdo",
+          "codigo_lido": "000391",
+          "descricao_literal": "ARAME FARPADO NEGRE 500MT"
+        }
+      ],
+      "pendencias": [
+        "Nome divergente: NELORE na individual e NEGRE na montagem. Não corrigir por suposição nem publicar antes de confirmar."
+      ],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000448",
+      "codigo": "000448",
+      "codigos_observados": [
+        "000448"
+      ],
+      "nome": "ARAME GERDAU GALVANIZADO N16",
+      "descricao": "ARAME GERDAU GALVANIZADO N16",
+      "categoria_sugerida": "Arames",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000448.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000448.png",
+          "codigo_lido": "000448",
+          "descricao_literal": "ARAME GERDAU GALVANIZADO N16"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-08.png",
+          "posicao": "inferior direito",
+          "codigo_lido": "000448",
+          "descricao_literal": "ARAME GERDAU GALVANIZADO N16"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000449",
+      "codigo": "000449",
+      "codigos_observados": [
+        "000449"
+      ],
+      "nome": "ARAME GERDAU GALVANIZADO N18",
+      "descricao": "ARAME GERDAU GALVANIZADO N18",
+      "categoria_sugerida": "Arames",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000449.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000449.png",
+          "codigo_lido": "000449",
+          "descricao_literal": "ARAME GERDAU GALVANIZADO N18"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-03.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000449",
+          "descricao_literal": "ARAME GERDAU GALVANIZADO N18"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000491",
+      "codigo": "000491",
+      "codigos_observados": [
+        "000491"
+      ],
+      "nome": "ADUELA MASSARANDUBA 13CM MONTADA C/ 80CM",
+      "descricao": "ADUELA MASSARANDUBA 13CM MONTADA C/ 80CM",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000491.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000491.png",
+          "codigo_lido": "000491",
+          "descricao_literal": "ADUELA MASSARANDUBA 13CM MONTADA C/ 80CM"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-04.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000491",
+          "descricao_literal": "ADUELA MASSARANDUBA 13CM MONTADA C/ 80CM"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "A legenda informa MONTADA nas duas fontes; a montagem mostra peças separadas e a imagem individual mostra um canto montado. Usar a individual; não reinterpretar o texto pela ilustração."
+      ]
+    },
+    {
+      "id_registro": "000494",
+      "codigo": "000494",
+      "codigos_observados": [
+        "000494"
+      ],
+      "nome": "ADESIVO PLÁSTICO CONEXÕES PVC 75G",
+      "descricao": "ADESIVO PLÁSTICO CONEXÕES PVC 75G",
+      "categoria_sugerida": "Adesivos",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000494.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000494.png",
+          "codigo_lido": "000494",
+          "descricao_literal": "ADESIVO PLÁSTICO CONEXÕES PVC 75G"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-01.png",
+          "posicao": "inferior esquerdo",
+          "codigo_lido": "000494",
+          "descricao_literal": "ADESIVO PLÁSTICO CONEXÕES PVC 75G"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "A montagem ilustra embalagem KRONA; a individual usa embalagem genérica. Marca não consta na legenda: não atribuir marca ao cadastro com base somente na ilustração."
+      ]
+    },
+    {
+      "id_registro": "000508",
+      "codigo": "000508",
+      "codigos_observados": [
+        "000508"
+      ],
+      "nome": "ARAME OVALADO Z-700 COMP. 1000MT BELGO",
+      "descricao": "ARAME OVALADO Z-700 COMP. 1000MT BELGO",
+      "categoria_sugerida": "Arames",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000508.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000508.png",
+          "codigo_lido": "000508",
+          "descricao_literal": "ARAME OVALADO Z-700 COMP. 1000MT BELGO"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-03.png",
+          "posicao": "inferior",
+          "codigo_lido": "000508",
+          "descricao_literal": "ARAME OVALADO Z-700 COMP. 1000MT BELGO"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000513",
+      "codigo": "000513",
+      "codigos_observados": [
+        "000513"
+      ],
+      "nome": "ALISAR PORTA 7CM MASSARANDUBA",
+      "descricao": "ALISAR PORTA 7CM MASSARANDUBA",
+      "categoria_sugerida": "Alisares",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000513.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000513.png",
+          "codigo_lido": "000513",
+          "descricao_literal": "ALISAR PORTA 7CM MASSARANDUBA"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-07.png",
+          "posicao": "inferior direito",
+          "codigo_lido": "000513",
+          "descricao_literal": "ALISAR PORTA 7CM MASSARANDUBA"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "As ilustrações das montagens e das individuais diferem na forma/apresentação. A associação usa código e legenda, não semelhança visual. Usar imagem individual sem deduzir medidas adicionais."
+      ]
+    },
+    {
+      "id_registro": "000579",
+      "codigo": "000579",
+      "codigos_observados": [
+        "000579"
+      ],
+      "nome": "ADUELA PORTA MASSARANDUBA 15CM (DESMONTADA)",
+      "descricao": "ADUELA PORTA MASSARANDUBA 15CM (DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000579.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000579.png",
+          "codigo_lido": "000579",
+          "descricao_literal": "ADUELA PORTA MASSARANDUBA 15CM (DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-05.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000579",
+          "descricao_literal": "ADUELA PORTA MASSARANDUBA 15CM (DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000580",
+      "codigo": "000580",
+      "codigos_observados": [
+        "000580"
+      ],
+      "nome": "ARAME LISO N 12 1 KG",
+      "descricao": "ARAME LISO N 12 1 KG",
+      "categoria_sugerida": "Arames",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000580.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000580.png",
+          "codigo_lido": "000580",
+          "descricao_literal": "ARAME LISO N 12 1 KG"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-03.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000580",
+          "descricao_literal": "ARAME LISO N 12 1 KG"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "A montagem ilustra embalagem GERDAU, mas a marca não consta na legenda. Não atribuir marca com base somente nessa ilustração."
+      ]
+    },
+    {
+      "id_registro": "000604",
+      "codigo": "000604",
+      "codigos_observados": [
+        "000604"
+      ],
+      "nome": "ADUELA PARA PORTA 16CM (JATOBÁ)",
+      "descricao": "ADUELA PARA PORTA 16CM (JATOBÁ)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000604.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000604.png",
+          "codigo_lido": "000604",
+          "descricao_literal": "ADUELA PARA PORTA 16CM (JATOBÁ)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-04.png",
+          "posicao": "inferior direito",
+          "codigo_lido": "000604",
+          "descricao_literal": "ADUELA PARA PORTA 16CM (JATOBÁ)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000636",
+      "codigo": "000636",
+      "codigos_observados": [
+        "000636"
+      ],
+      "nome": "ADUELA MASSARANDUBA 13CM MONTADA C/ 70CM",
+      "descricao": "ADUELA MASSARANDUBA 13CM MONTADA C/ 70CM",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000636.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000636.png",
+          "codigo_lido": "000636",
+          "descricao_literal": "ADUELA MASSARANDUBA 13CM MONTADA C/ 70CM"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-02.png",
+          "posicao": "inferior direito",
+          "codigo_lido": "000636",
+          "descricao_literal": "ADUELA MASSARANDUBA 13CM MONTADA C/ 70CM"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000637",
+      "codigo": "000637",
+      "codigos_observados": [
+        "000637"
+      ],
+      "nome": "ADUELA MASSARANDUBA 13CM MONTADA C/ 60CM",
+      "descricao": "ADUELA MASSARANDUBA 13CM MONTADA C/ 60CM",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000637.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000637.png",
+          "codigo_lido": "000637",
+          "descricao_literal": "ADUELA MASSARANDUBA 13CM MONTADA C/ 60CM"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-02.png",
+          "posicao": "inferior esquerdo",
+          "codigo_lido": "000637",
+          "descricao_literal": "ADUELA MASSARANDUBA 13CM MONTADA C/ 60CM"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000651",
+      "codigo": "000651",
+      "codigos_observados": [
+        "000651"
+      ],
+      "nome": "ADUELA MASSARANDUBA 14CM MONTADA C/ 70CM",
+      "descricao": "ADUELA MASSARANDUBA 14CM MONTADA C/ 70CM",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000651.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000651.png",
+          "codigo_lido": "000651",
+          "descricao_literal": "ADUELA MASSARANDUBA 14CM MONTADA C/ 70CM"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-04.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000651",
+          "descricao_literal": "ADUELA MASSARANDUBA 14CM MONTADA C/ 70CM"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "A legenda informa MONTADA nas duas fontes; a montagem mostra peças separadas e a imagem individual mostra um canto montado. Usar a individual; não reinterpretar o texto pela ilustração."
+      ]
+    },
+    {
+      "id_registro": "000653",
+      "codigo": "000653",
+      "codigos_observados": [
+        "000653"
+      ],
+      "nome": "ADUELA MASSARANDUBA P/ JANELA",
+      "descricao": "ADUELA MASSARANDUBA P/ JANELA",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000653.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000653.png",
+          "codigo_lido": "000653",
+          "descricao_literal": "ADUELA MASSARANDUBA P/ JANELA"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-04.png",
+          "posicao": "inferior esquerdo",
+          "codigo_lido": "000653",
+          "descricao_literal": "ADUELA MASSARANDUBA P/ JANELA"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000728",
+      "codigo": "000728",
+      "codigos_observados": [
+        "000728"
+      ],
+      "nome": "ALISAR PORTA 5CM TAUARI (LIXADO)",
+      "descricao": "ALISAR PORTA 5CM TAUARI (LIXADO)",
+      "categoria_sugerida": "Alisares",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000728.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000728.png",
+          "codigo_lido": "000728",
+          "descricao_literal": "ALISAR PORTA 5CM TAUARI (LIXADO)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-07.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000728",
+          "descricao_literal": "ALISAR PORTA 5CM TAUARI (LIXADO)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "As ilustrações das montagens e das individuais diferem na forma/apresentação. A associação usa código e legenda, não semelhança visual. Usar imagem individual sem deduzir medidas adicionais."
+      ]
+    },
+    {
+      "id_registro": "000729",
+      "codigo": "000729",
+      "codigos_observados": [
+        "000729"
+      ],
+      "nome": "ADUELA PORTA TAUARI 13CM (LIXADA/DESMONTADA)",
+      "descricao": "ADUELA PORTA TAUARI 13CM (LIXADA/DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000729.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000729.png",
+          "codigo_lido": "000729",
+          "descricao_literal": "ADUELA PORTA TAUARI 13CM (LIXADA/DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-05.png",
+          "posicao": "inferior esquerdo",
+          "codigo_lido": "000729",
+          "descricao_literal": "ADUELA PORTA TAUARI 13CM (LIXADA/DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000730",
+      "codigo": "000730",
+      "codigos_observados": [
+        "000730"
+      ],
+      "nome": "ADUELA PORTA TAUARI 14CM (LIXADA/DESMONTADA)",
+      "descricao": "ADUELA PORTA TAUARI 14CM (LIXADA/DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000730.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000730.png",
+          "codigo_lido": "000730",
+          "descricao_literal": "ADUELA PORTA TAUARI 14CM (LIXADA/DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-05.png",
+          "posicao": "inferior direito",
+          "codigo_lido": "000730",
+          "descricao_literal": "ADUELA PORTA TAUARI 14CM (LIXADA/DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000731",
+      "codigo": "000731",
+      "codigos_observados": [
+        "000731"
+      ],
+      "nome": "ADUELA PORTA ANGELIM PEDRA 14CM (DESMONTADA)",
+      "descricao": "ADUELA PORTA ANGELIM PEDRA 14CM (DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000731.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000731.png",
+          "codigo_lido": "000731",
+          "descricao_literal": "ADUELA PORTA ANGELIM PEDRA 14CM (DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-09.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000731",
+          "descricao_literal": "ADUELA PORTA ANGELIM PEDRA 14CM (DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000744",
+      "codigo": "000744",
+      "codigos_observados": [
+        "000744"
+      ],
+      "nome": "ALISAR PORTA 7CM (LIXADO) — MADEIRA A CONFIRMAR",
+      "descricao": null,
+      "categoria_sugerida": "Alisares",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000744.png",
+      "status_revisao": "pendente_confirmacao",
+      "importacao_automatica_permitida": false,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000744.png",
+          "codigo_lido": "000744",
+          "descricao_literal": "ALISAR PORTA 7CM TAXI (LIXADO)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-08.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000744",
+          "descricao_literal": "ALISAR PORTA 7CM TXI (LIXADO)"
+        }
+      ],
+      "pendencias": [
+        "Texto divergente: TAXI na imagem individual e TXI na montagem. Não escolher nem expandir o nome da madeira por suposição."
+      ],
+      "observacoes": [
+        "As ilustrações das montagens e das individuais diferem na forma/apresentação. A associação usa código e legenda, não semelhança visual. Usar imagem individual sem deduzir medidas adicionais."
+      ]
+    },
+    {
+      "id_registro": "000748",
+      "codigo": "000748",
+      "codigos_observados": [
+        "000748"
+      ],
+      "nome": "ADUELA PORTA TAUARI 20CM (LIXADA/DESMONTADA)",
+      "descricao": "ADUELA PORTA TAUARI 20CM (LIXADA/DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000748.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000748.png",
+          "codigo_lido": "000748",
+          "descricao_literal": "ADUELA PORTA TAUARI 20CM (LIXADA/DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-06.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000748",
+          "descricao_literal": "ADUELA PORTA TAUARI 20CM (LIXADA/DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000776",
+      "codigo": "000776",
+      "codigos_observados": [
+        "000776"
+      ],
+      "nome": "ADUELA JANELA ANGELIM PEDRA 13CM (DESMONTADA)",
+      "descricao": "ADUELA JANELA ANGELIM PEDRA 13CM (DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000776.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000776.png",
+          "codigo_lido": "000776",
+          "descricao_literal": "ADUELA JANELA ANGELIM PEDRA 13CM (DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-01.png",
+          "posicao": "inferior direito",
+          "codigo_lido": "000776",
+          "descricao_literal": "ADUELA JANELA ANGELIM PEDRA 13CM (DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000818",
+      "codigo": "000818",
+      "codigos_observados": [
+        "000818"
+      ],
+      "nome": "ALISAR PORTA 7CM TAUARI (LIXADO)",
+      "descricao": "ALISAR PORTA 7CM TAUARI (LIXADO)",
+      "categoria_sugerida": "Alisares",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000818.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000818.png",
+          "codigo_lido": "000818",
+          "descricao_literal": "ALISAR PORTA 7CM TAUARI (LIXADO)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-08.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000818",
+          "descricao_literal": "ALISAR PORTA 7CM TAUARI (LIXADO)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "As ilustrações das montagens e das individuais diferem na forma/apresentação. A associação usa código e legenda, não semelhança visual. Usar imagem individual sem deduzir medidas adicionais."
+      ]
+    },
+    {
+      "id_registro": "000819",
+      "codigo": "000819",
+      "codigos_observados": [
+        "000819"
+      ],
+      "nome": "ALISAR PORTA 5CM MADEIRA MISTA",
+      "descricao": "ALISAR PORTA 5CM MADEIRA MISTA",
+      "categoria_sugerida": "Alisares",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000819.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000819.png",
+          "codigo_lido": "000819",
+          "descricao_literal": "ALISAR PORTA 5CM MADEIRA MISTA"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-06.png",
+          "posicao": "inferior direito",
+          "codigo_lido": "000819",
+          "descricao_literal": "ALISAR PORTA 5CM MADEIRA MISTA"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": [
+        "As ilustrações das montagens e das individuais diferem na forma/apresentação. A associação usa código e legenda, não semelhança visual. Usar imagem individual sem deduzir medidas adicionais."
+      ]
+    },
+    {
+      "id_registro": "000823",
+      "codigo": "000823",
+      "codigos_observados": [
+        "000823"
+      ],
+      "nome": "ADUELA PORTA MASSARANDUBA 7CM P/ GESSO (MONTADA)",
+      "descricao": "ADUELA PORTA MASSARANDUBA 7CM P/ GESSO (MONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000823.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000823.png",
+          "codigo_lido": "000823",
+          "descricao_literal": "ADUELA PORTA MASSARANDUBA 7CM P/ GESSO (MONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-05.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000823",
+          "descricao_literal": "ADUELA PORTA MASSARANDUBA 7CM P/ GESSO (MONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "000824",
+      "codigo": "000824",
+      "codigos_observados": [
+        "000824"
+      ],
+      "nome": "ADUELA JANELA TAUARI 13CM (LIXADA/DESMONTADA)",
+      "descricao": "ADUELA JANELA TAUARI 13CM (LIXADA/DESMONTADA)",
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/000824.png",
+      "status_revisao": "concordancia_textual",
+      "importacao_automatica_permitida": true,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/000824.png",
+          "codigo_lido": "000824",
+          "descricao_literal": "ADUELA JANELA TAUARI 13CM (LIXADA/DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-02.png",
+          "posicao": "superior direito",
+          "codigo_lido": "000824",
+          "descricao_literal": "ADUELA JANELA TAUARI 13CM (LIXADA/DESMONTADA)"
+        }
+      ],
+      "pendencias": [],
+      "observacoes": []
+    },
+    {
+      "id_registro": "pendente-tauari-15cm",
+      "codigo": null,
+      "codigos_observados": [
+        "000740",
+        "000742"
+      ],
+      "nome": "ADUELA PORTA TAUARI 15CM (LIXADA/DESMONTADA)",
+      "descricao": null,
+      "categoria_sugerida": "Aduelas",
+      "preco": null,
+      "estoque": null,
+      "unidade_venda": null,
+      "descricao_complementar": null,
+      "imagem": "fotos/pendente-tauari-15cm.png",
+      "status_revisao": "pendente_confirmacao",
+      "importacao_automatica_permitida": false,
+      "fontes": [
+        {
+          "tipo": "individual",
+          "arquivo": "fotos/pendente-tauari-15cm.png",
+          "codigo_lido": "000740",
+          "descricao_literal": "ADUELA PORTA TAUARI 15CM (LIXADA/DESMONTADA)"
+        },
+        {
+          "tipo": "montagem",
+          "arquivo": "montagens/montagem-06.png",
+          "posicao": "superior esquerdo",
+          "codigo_lido": "000742",
+          "descricao_literal": "ADUELA PORTA TAUARI 15CM (LIXADA/DESMONTADA)"
+        }
+      ],
+      "pendencias": [
+        "Código divergente: 000740 na individual e 000742 na montagem. Não escolher código nem criar dois produtos sem confirmação."
+      ],
+      "observacoes": []
+    }
+  ]
+}

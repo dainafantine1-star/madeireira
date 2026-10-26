@@ -17,3 +17,19 @@ dist/
 
 # Screenshots de desenvolvimento
 screenshot-*.png
+
+# Server credentials and persistent data
+.env
+.env.*
+!.env.example
+storage/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.mpbackup
+.cache/
+playwright-report/
+test-results/
+
+# Local PowerShell cache
+Microsoft/Windows/PowerShell/ModuleAnalysisCache

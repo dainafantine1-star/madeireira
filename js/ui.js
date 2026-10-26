@@ -1,185 +1,41 @@
-/* ================================================================
-   ui.js — Helpers de UI (formatação, modal, drawer, toast)
-   ================================================================ */
-
-const UI = {
-    /* Formatadores */
-    formatPrice(value) {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL',
-            minimumFractionDigits: 2
-        }).format(value);
-    },
-
-    sanitize(text) {
-        const div = document.createElement('div');
-        div.textContent = text ?? '';
-        return div.innerHTML;
-    },
-
-    /* Toast */
-    toast(message) {
-        const el = document.getElementById('toast');
-        if (!el) return;
-        el.textContent = message;
-        el.classList.add('is-visible');
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => el.classList.remove('is-visible'), 2200);
-    },
-
-    /* Drawer (carrinho) */
-    openDrawer() {
-        document.getElementById('cartDrawer').classList.add('is-open');
-        document.getElementById('overlay').classList.add('is-visible');
-        document.getElementById('cartDrawer').setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-    },
-    closeDrawer() {
-        document.getElementById('cartDrawer').classList.remove('is-open');
-        document.getElementById('overlay').classList.remove('is-visible');
-        document.getElementById('cartDrawer').setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-    },
-
-    /* Modal de produto */
-    openProductModal(product) {
-        const modal = document.getElementById('productModal');
-        const dialog = document.getElementById('modalDialog');
-
-        const specsHtml = Object.entries(product.specs || {}).map(([k, v]) =>
-            `<div class="modal__spec"><span>${this.sanitize(k)}</span><span>${this.sanitize(v)}</span></div>`
-        ).join('');
-
-        const priceHtml = product.oldPrice
-            ? `<div class="modal__price-row">
-                 <span class="modal__price">${this.formatPrice(product.price)}</span>
-                 <span class="modal__price-old">${this.formatPrice(product.oldPrice)}</span>
-               </div>`
-            : `<div class="modal__price-row"><span class="modal__price">${this.formatPrice(product.price)}</span></div>`;
-
-        dialog.innerHTML = `
-            <button class="modal__close" id="modalClose" aria-label="Fechar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
-            </button>
-            <div class="modal__grid">
-                <div class="modal__media">
-                    <img src="${this.sanitize(product.image)}" alt="${this.sanitize(product.name)}" loading="lazy">
-                </div>
-                <div class="modal__body">
-                    <span class="modal__category">${this.sanitize(product.categoryLabel)}</span>
-                    <h2 class="modal__name">${this.sanitize(product.name)}</h2>
-                    ${priceHtml}
-                    <p class="modal__desc">${this.sanitize(product.description)}</p>
-                    <div class="modal__specs">${specsHtml}</div>
-                    <div class="modal__qty">
-                        <span class="modal__qty-label">Quantidade</span>
-                        <div class="qty-control" data-pid="${product.id}">
-                            <button class="qty-dec" aria-label="Diminuir">−</button>
-                            <span class="qty-val">1</span>
-                            <button class="qty-inc" aria-label="Aumentar">+</button>
-                        </div>
-                    </div>
-                    <button class="btn btn--primary btn--lg btn--block" id="modalAdd">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/><path d="M3 4h2.5l2.7 12.3a2 2 0 0 0 2 1.7h7.6a2 2 0 0 0 2-1.6L21 8H6"/></svg>
-                        Adicionar ao carrinho
-                    </button>
-                </div>
-            </div>
-        `;
-
-        modal.classList.add('is-open');
-        modal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-
-        // Bind handlers
-        const closeBtn = document.getElementById('modalClose');
-        closeBtn.addEventListener('click', () => this.closeProductModal());
-
-        let qty = 1;
-        const qtyEl = dialog.querySelector('.qty-val');
-        dialog.querySelector('.qty-dec').addEventListener('click', () => {
-            if (qty > 1) { qty--; qtyEl.textContent = qty; }
-        });
-        dialog.querySelector('.qty-inc').addEventListener('click', () => {
-            if (qty < 99) { qty++; qtyEl.textContent = qty; }
-        });
-
-        document.getElementById('modalAdd').addEventListener('click', () => {
-            App.addToCart(product.id, qty);
-            this.toast(`${product.name} adicionado`);
-            this.closeProductModal();
-        });
-    },
-
-    closeProductModal() {
-        const modal = document.getElementById('productModal');
-        modal.classList.remove('is-open');
-        modal.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-    },
-
-    /* Render do carrinho */
-    renderCart(cart) {
-        const wrap = document.getElementById('cartItems');
-        const totalEl = document.getElementById('cartTotal');
-
-        if (cart.length === 0) {
-            wrap.innerHTML = `
-                <div class="cart-empty">
-                    <p>Seu carrinho está vazio.</p>
-                    <small>Adicione produtos do catálogo para começar.</small>
-                </div>
-            `;
-            totalEl.textContent = this.formatPrice(0);
-            return;
-        }
-
-        let total = 0;
-        wrap.innerHTML = cart.map(item => {
-            const p = item.product;
-            const subtotal = p.price * item.qty;
-            total += subtotal;
-            return `
-                <div class="cart-item">
-                    <img class="cart-item__img" src="${this.sanitize(p.image)}" alt="${this.sanitize(p.name)}" loading="lazy">
-                    <div class="cart-item__info">
-                        <div class="cart-item__name">${this.sanitize(p.name)}</div>
-                        <div class="cart-item__price">${this.formatPrice(p.price)}</div>
-                        <div class="cart-item__qty">
-                            <button class="qty-cart-dec" data-pid="${p.id}" aria-label="Diminuir">−</button>
-                            <span>${item.qty}</span>
-                            <button class="qty-cart-inc" data-pid="${p.id}" aria-label="Aumentar">+</button>
-                        </div>
-                    </div>
-                    <button class="cart-item__remove" data-pid="${p.id}" aria-label="Remover">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-                    </button>
-                </div>
-            `;
-        }).join('');
-
-        totalEl.textContent = this.formatPrice(total);
-
-        // Bindings
-        wrap.querySelectorAll('.qty-cart-inc').forEach(b =>
-            b.addEventListener('click', () => App.incCart(+b.dataset.pid))
-        );
-        wrap.querySelectorAll('.qty-cart-dec').forEach(b =>
-            b.addEventListener('click', () => App.decCart(+b.dataset.pid))
-        );
-        wrap.querySelectorAll('.cart-item__remove').forEach(b =>
-            b.addEventListener('click', () => {
-                App.removeFromCart(+b.dataset.pid);
-                UI.toast('Produto removido');
-            })
-        );
-    },
-
-    /* Badge do carrinho no header */
-    updateBadge(qty) {
-        const badge = document.getElementById('cartBadge');
-        badge.textContent = qty;
-        badge.classList.toggle('is-visible', qty > 0);
+const UI={
+  icon(name){const paths={search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/>',message:'<path d="M20 11.5a8 8 0 0 1-8 8H5l-3 2v-10a9 9 0 0 1 18 0Z"/><path d="M7 10h8M7 14h5"/>',list:'<rect x="5" y="3" width="15" height="18" rx="2"/><path d="M9 8h7M9 12h7M9 16h4"/>',arrow:'<path d="M4 12h15m-6-6 6 6-6 6"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',check:'<path d="m5 12 4 4L19 6"/>',plus:'<path d="M12 5v14M5 12h14"/>',image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/>',home:'<path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',filter:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="18" r="2"/>'};return `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths[name]||paths.arrow}</svg>`;},
+  icons(){document.querySelectorAll('[data-icon]').forEach(node=>node.innerHTML=this.icon(node.dataset.icon));},
+  photoPlaceholder(){return `<span class="image-fallback">${this.icon('image')}<span>Foto indisponível</span></span>`;},
+  responsive(image,sizes='(max-width: 760px) 50vw, 25vw'){const src=StoreCore.image(image);if(src==='assets/hero-madeira.webp')return ' srcset="assets/hero-madeira-640.webp 640w, assets/hero-madeira-960.webp 960w, assets/hero-madeira-1280.webp 1280w, assets/hero-madeira.webp 1942w" sizes="'+StoreCore.escape(sizes)+'"';const variants=(this.media||[]).filter(m=>'uploads/'+m.filename===src&&m.width);if(!variants.length)return '';return ' srcset="'+variants.map(m=>StoreCore.escape(src.replace('.webp','-'+m.width+'.webp'))+' '+m.width+'w').concat([StoreCore.escape(src)+' '+variants[0].original_width+'w']).join(', ')+'" sizes="'+StoreCore.escape(sizes)+'"';},
+  formatPrice(value){return StoreCore.hasPrice(value)?this.amount(value):'Sob consulta';},
+  amount(value){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(value);},
+  sanitize:StoreCore.escape,
+  toast(message){const node=document.getElementById('toast');node.textContent=message;node.classList.add('is-visible');clearTimeout(this.timer);this.timer=setTimeout(()=>node.classList.remove('is-visible'),4500);},
+  images(root=document){root.querySelectorAll('img').forEach(img=>{if(img.dataset.fallbackBound)return;img.dataset.fallbackBound='1';const fallback=()=>{if(img.id==='brandLogo'||img.id==='footerLogo'){img.hidden=true;document.getElementById('brandText').hidden=false;return;}const node=document.createElement('span');node.className='image-fallback';node.innerHTML=this.icon('image')+'<span>Foto indisponível</span>';img.replaceWith(node);};img.onerror=fallback;if(img.complete&&!img.naturalWidth&&img.getAttribute('src'))fallback();});},
+  openDrawer(){document.getElementById('cartDrawer')._opener=document.activeElement;document.getElementById('cartDrawer').classList.add('is-open');document.getElementById('cartDrawer').setAttribute('aria-hidden','false');document.getElementById('overlay').classList.add('is-visible');document.body.style.overflow='hidden';document.getElementById('cartClose').focus();},
+  closeDrawer(){document.getElementById('cartDrawer').classList.remove('is-open');document.getElementById('cartDrawer').setAttribute('aria-hidden','true');document.getElementById('overlay').classList.remove('is-visible');document.body.style.overflow='';},
+  closeProductModal(){document.getElementById('productModal').classList.remove('is-open');document.getElementById('productModal').setAttribute('aria-hidden','true');document.body.style.overflow='';},
+  updateBadge(value){const display=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:3}).format(value);document.getElementById('cartBadge').textContent=display;document.getElementById('mobileCartBadge').textContent=display;},
+  openProductModal(p){
+    const esc=this.sanitize,node=document.getElementById('modalDialog'),image=StorefrontPolicy.productImage(p.image);
+    node.innerHTML=`<button id="modalClose" class="modal__close" aria-label="Fechar detalhes">${this.icon('close')}</button><div class="modal__grid"><div class="modal__media">${image?`<img src="${esc(image)}" alt="${esc(p.name)}">`:this.photoPlaceholder()}</div><div class="modal__body"><span class="modal__category">${esc(p.categoryLabel)} · SKU ${esc(p.sku)}</span><h2 class="modal__name">${esc(p.name)}</h2><div><span class="modal__price">${this.formatPrice(p.price)}</span>${p.offer?`<span class="modal__price-old">${this.formatPrice(p.oldPrice)}</span>`:''}<small> / ${esc(StoreCore.unitLabel(p.unit))}</small></div>${p.price!==null&&!this.confirmed?'<small class="price-disclaimer">Valor de referência · a confirmar</small>':''}<p class="modal__desc">${esc(p.description)}</p><div class="modal__spec"><span>Dimensões</span><span>${esc(StoreCore.dimensions(p))}</span></div><div class="modal__spec"><span>Comprimento</span><span>${esc(StoreCore.length(p))}</span></div>${Object.entries(p.specs||{}).map(([k,v])=>`<div class="modal__spec"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('')}<label>Quantidade (${esc(StoreCore.unitLabel(p.unit))})<input id="modalQty" type="number" value="1" min="${StoreCore.step(p.unit)}" step="${StoreCore.step(p.unit)}" max="${Math.min(p.stock??App.maxQuantity(),App.maxQuantity())}"></label><label>Medidas solicitadas (opcional)<input id="modalMeasures" maxlength="500" placeholder="Ex.: cortar em peças de 1,5 m"></label><label>Outros detalhes do produto<textarea id="modalSpecs" maxlength="1000" placeholder="Acabamento, tipo de corte ou outra necessidade"></textarea></label><button id="modalAdd" class="btn primary block"${p.available?'':' disabled'}>Adicionar ao orçamento</button><button id="modalBuy" class="btn ghost block"${p.available?'':' disabled'}>Solicitar orçamento deste produto</button><p class="modal__desc">${p.available?'Disponível para orçamento':'Produto indisponível'} · ${esc(p.commercialTerms)}</p></div></div>`;
+    const modal=document.getElementById('productModal');modal._opener=document.activeElement;modal.classList.add('is-open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';this.images(node);
+    document.getElementById('modalClose').onclick=()=>this.closeProductModal();
+    const item=()=>({measures:document.getElementById('modalMeasures').value,specifications:document.getElementById('modalSpecs').value});
+    document.getElementById('modalAdd').onclick=()=>{if(App.addToCart(p.id,Number(document.getElementById('modalQty').value),item())){this.closeProductModal();this.toast('Produto adicionado ao orçamento.');}};
+    document.getElementById('modalBuy').onclick=()=>App.requestProduct(p.id,Number(document.getElementById('modalQty').value),item());
+    document.getElementById('modalClose').focus();
+  },
+  renderCart(items){
+    const wrap=document.getElementById('cartItems'),total=document.getElementById('cartTotal'),esc=this.sanitize;
+    if(!items.length){wrap.innerHTML='<div class="cart-empty"><p>Sua lista está vazia.</p><small>Escolha os produtos e informe as medidas para solicitar seu orçamento.</small></div>';total.textContent='Sem itens';return;}
+    let known=0,unknown=false;
+    wrap.innerHTML=items.map(i=>{const p=i.product,key=i.lineKey||`p${p.id}`,image=StorefrontPolicy.productImage(p.image);if(p.price===null)unknown=true;else known+=Math.round(p.price*100*i.qty)/100;
+      return `<article class="cart-item"><div class="cart-item-top">${image?`<img class="cart-item__img" src="${esc(image)}" alt="">`:''}<div class="cart-item-info"><div class="cart-item-name">${esc(p.name)}</div><div class="cart-item-price">${this.formatPrice(p.price)} / ${esc(StoreCore.unitLabel(p.unit))}${p.available?'':' · Indisponível'}</div><small>${esc(StoreCore.dimensions(p))}</small><div class="qty-control"><button data-qty-dec="${esc(key)}" aria-label="Diminuir quantidade">−</button><input data-qty="${esc(key)}" type="number" value="${i.qty}" min="${StoreCore.step(p.unit)}" step="${StoreCore.step(p.unit)}" max="${Math.min(p.stock??App.maxQuantity(),App.maxQuantity())}" aria-label="Quantidade de ${esc(p.name)}"><button data-qty-inc="${esc(key)}" aria-label="Aumentar quantidade">+</button></div></div><button data-remove="${esc(key)}" class="remove-item" aria-label="Remover ${esc(p.name)}">${this.icon('close')}</button></div><details${i.measures||i.specifications?' open':''}><summary>Medidas e detalhes deste produto</summary><label>Medidas solicitadas<input data-measures="${esc(key)}" value="${esc(i.measures||'')}" maxlength="500" placeholder="Ex.: 80 × 210 cm"></label><label>Detalhes para a equipe<textarea data-specifications="${esc(key)}" maxlength="1000">${esc(i.specifications||'')}</textarea></label></details></article>`;
+    }).join('');
+    for(const item of items.filter(i=>i.measurement)){
+      const key=item.lineKey||`p${item.id}`,input=[...wrap.querySelectorAll('[data-qty]')].find(el=>el.dataset.qty===key);if(!input)continue;
+      input.disabled=true;input.parentElement.querySelectorAll('button').forEach(b=>b.disabled=true);
+      const article=input.closest('article'),measures=article.querySelector('[data-measures]');if(measures){measures.readOnly=true;measures.title='Calculado pelas medidas do produto';}
+      const info=document.createElement('p');info.className='cart-measure-summary';info.textContent=item.measures;article.append(info);
+      const link=document.createElement('a');link.href=ProductPage.url(item.product);link.className='text-link';link.textContent='Calcular outra medida';article.append(link);
     }
+    total.textContent=unknown?(known>0?`${this.amount(known)} + itens sob consulta`:'Sob consulta'):this.amount(known);this.images(wrap);
+  }
 };

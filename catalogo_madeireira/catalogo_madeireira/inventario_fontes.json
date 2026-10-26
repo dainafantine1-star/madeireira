@@ -1,0 +1,354 @@
+[
+  {
+    "indice_fonte": 1,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_28-1.png",
+    "arquivo_pacote": "montagens/montagem-01.png",
+    "bytes": 1405508,
+    "sha256": "cecf68b27e415715417bda59b8cd0f0fe3e5582a7dd5e4443d66c241ca18778e"
+  },
+  {
+    "indice_fonte": 2,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_28-2.png",
+    "arquivo_pacote": "montagens/montagem-02.png",
+    "bytes": 1580281,
+    "sha256": "4617ba316dd2381931ad4284cc4cf861181e9563116424956b26853a2ab1839a"
+  },
+  {
+    "indice_fonte": 3,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_29-3.png",
+    "arquivo_pacote": "montagens/montagem-03.png",
+    "bytes": 1880883,
+    "sha256": "3c11ed948c2221ae1e0a189bc0031c218911e15be0f323ca54f0c369ac766ea4"
+  },
+  {
+    "indice_fonte": 4,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_30-4.png",
+    "arquivo_pacote": "montagens/montagem-04.png",
+    "bytes": 1746475,
+    "sha256": "a97058a7414299056e51373526613f126f481e91d106bc3a240535cad6ad3282"
+  },
+  {
+    "indice_fonte": 5,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_30-5.png",
+    "arquivo_pacote": "montagens/montagem-05.png",
+    "bytes": 1721401,
+    "sha256": "d83bf44b2a232afad44dc14eb3794331daada61e267ffedd68f4287d267e7813"
+  },
+  {
+    "indice_fonte": 6,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_31-6.png",
+    "arquivo_pacote": "montagens/montagem-06.png",
+    "bytes": 1771656,
+    "sha256": "a7a31a186b2db642ae6492676f62178c4285f5094777f94e23c3f5b9c789072b"
+  },
+  {
+    "indice_fonte": 7,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_32-7.png",
+    "arquivo_pacote": "montagens/montagem-07.png",
+    "bytes": 1756274,
+    "sha256": "8849902cacd69824c33d9d78b997aebc6205e87b856a0e96134461cae9367c25"
+  },
+  {
+    "indice_fonte": 8,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_36-8.png",
+    "arquivo_pacote": "montagens/montagem-08.png",
+    "bytes": 2148584,
+    "sha256": "15416db454038c6cf7c8210bb7579785aaa61e44968c52d28e84265f905e4a56"
+  },
+  {
+    "indice_fonte": 9,
+    "zip_origem": "fotos juntas-20261025T185526Z-1-001.zip",
+    "nome_original": "fotos juntas/Imagem do ChatGPT 12 de out. de 2026, 16_52_38-9.png",
+    "arquivo_pacote": "montagens/montagem-09.png",
+    "bytes": 1701083,
+    "sha256": "3af980cc280c3a9b0989e02e928f80d25490f71b95e66c5f51e46854e7d22d4d"
+  },
+  {
+    "indice_fonte": 10,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_05-1.png",
+    "arquivo_pacote": "fotos/000391.png",
+    "bytes": 1956839,
+    "sha256": "b8b6e3a6fe4ba60dbc282aef6a39043ced7d66cafda1af7a68d064f30302b160"
+  },
+  {
+    "indice_fonte": 11,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_06-2.png",
+    "arquivo_pacote": "fotos/000448.png",
+    "bytes": 1561127,
+    "sha256": "0fb03755261f505b32c1b7df09ffcedbc1c16fed05a58c600b94e43baf34f670"
+  },
+  {
+    "indice_fonte": 12,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_06-3.png",
+    "arquivo_pacote": "fotos/000449.png",
+    "bytes": 1673377,
+    "sha256": "472db456c2f1ef0b8e935482c8b6984a3b61cd2622c034edbe232a7310d9d270"
+  },
+  {
+    "indice_fonte": 13,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_07-4.png",
+    "arquivo_pacote": "fotos/000580.png",
+    "bytes": 1289393,
+    "sha256": "36f7b3b758c107c2c05d65af61013dad3bd8242ee7a1658988d48d7174058a59"
+  },
+  {
+    "indice_fonte": 14,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_08-5.png",
+    "arquivo_pacote": "fotos/000508.png",
+    "bytes": 1737737,
+    "sha256": "79306d92fea96e0f3a3de73db6a5c2fe2bfbc8fe85326eacbc04700703bc49de"
+  },
+  {
+    "indice_fonte": 15,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_41-1.png",
+    "arquivo_pacote": "fotos/pendente-tauari-15cm.png",
+    "bytes": 1188231,
+    "sha256": "1a5b05ee666f9a716cfffaef03b7d54577a58b5a65b09b2b8dc9d25c43a53a7f"
+  },
+  {
+    "indice_fonte": 16,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_43-2.png",
+    "arquivo_pacote": "fotos/000748.png",
+    "bytes": 1136497,
+    "sha256": "166ef6d06a5f282cd61a28be5a3ca6d9e2aebfe8320caad41d558dda6b871ed4"
+  },
+  {
+    "indice_fonte": 17,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_44-3.png",
+    "arquivo_pacote": "fotos/000294.png",
+    "bytes": 1198654,
+    "sha256": "c098661749cc49e123153c5bd6e44b933872aae7adf59196c37901acd22663eb"
+  },
+  {
+    "indice_fonte": 18,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_45-4.png",
+    "arquivo_pacote": "fotos/000819.png",
+    "bytes": 1040508,
+    "sha256": "9901c6526d7dfdc799281e5b0c5810993a32a5a3b69ef2872d452d0a1b599aff"
+  },
+  {
+    "indice_fonte": 19,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_46-5.png",
+    "arquivo_pacote": "fotos/000145.png",
+    "bytes": 1048010,
+    "sha256": "eb8afd7a1715c0e6d4fd09cf0c85c8b957c46af44070824e19d314a889eb4889"
+  },
+  {
+    "indice_fonte": 20,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_47-6.png",
+    "arquivo_pacote": "fotos/000728.png",
+    "bytes": 1110161,
+    "sha256": "3c61bda93a225b2779e6583732cf6e1148258bac616a50edfb8100020817673b"
+  },
+  {
+    "indice_fonte": 21,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_48-7.png",
+    "arquivo_pacote": "fotos/000213.png",
+    "bytes": 1038093,
+    "sha256": "59766b9a1022ca66ac46ef580f20880be206c50bb4f964fbedf5a5fc2207b8a5"
+  },
+  {
+    "indice_fonte": 22,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_49-8.png",
+    "arquivo_pacote": "fotos/000513.png",
+    "bytes": 1066935,
+    "sha256": "5adabf0d898984f08c1fbc9c3438d47c0dee9e953fc0a6a78f63060e76361ab4"
+  },
+  {
+    "indice_fonte": 23,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_50-9.png",
+    "arquivo_pacote": "fotos/000818.png",
+    "bytes": 1060627,
+    "sha256": "fc22a1873dd94abe4e31f21472967ee18bd4399f87e6fd3110a131d39f525e02"
+  },
+  {
+    "indice_fonte": 24,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_58_51-10.png",
+    "arquivo_pacote": "fotos/000744.png",
+    "bytes": 1049071,
+    "sha256": "d2b3637427d007ed71664a7b1be7c0b4e3323b5fcd471de36740c8e79cf57cd4"
+  },
+  {
+    "indice_fonte": 25,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_48-1.png",
+    "arquivo_pacote": "fotos/000653.png",
+    "bytes": 1379841,
+    "sha256": "ff4add98af832a46e09859b0b60953f5668fcd3b10d5e2451319c31d415db95c"
+  },
+  {
+    "indice_fonte": 26,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_49-2.png",
+    "arquivo_pacote": "fotos/000604.png",
+    "bytes": 1243322,
+    "sha256": "5b17f0258082e94132e57023d7a400bc56d09c98e460a9a583e8f46807d80d0d"
+  },
+  {
+    "indice_fonte": 27,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_50-3.png",
+    "arquivo_pacote": "fotos/000138.png",
+    "bytes": 1324918,
+    "sha256": "2f4f004a3e373074f719763a35c029ac57b9d1a37b207b9038012d7aa6c42763"
+  },
+  {
+    "indice_fonte": 28,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_50-4.png",
+    "arquivo_pacote": "fotos/000731.png",
+    "bytes": 1311779,
+    "sha256": "6f4033892ac0ca3b90cf45a0d02b8a186b2941ece5fd634662814c10993281bb"
+  },
+  {
+    "indice_fonte": 29,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_52-5.png",
+    "arquivo_pacote": "fotos/000051.png",
+    "bytes": 1304856,
+    "sha256": "a8cda562667fd1cba19dcfeede49404cdafeae5dd04b597f88c84829351a8d41"
+  },
+  {
+    "indice_fonte": 30,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_52-6.png",
+    "arquivo_pacote": "fotos/000107.png",
+    "bytes": 1363919,
+    "sha256": "5c77aeaa7e68186f23a11baa9f54bdcfc5a3ce495f954df6f624c2fc858b2224"
+  },
+  {
+    "indice_fonte": 31,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_54-7.png",
+    "arquivo_pacote": "fotos/000579.png",
+    "bytes": 1408669,
+    "sha256": "8c038743956ebe087ced9eb80fe5fdb8c197b72618f8f1ebfbc0fabd44ec7025"
+  },
+  {
+    "indice_fonte": 32,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_55-8.png",
+    "arquivo_pacote": "fotos/000823.png",
+    "bytes": 1197249,
+    "sha256": "b50c338eca17faaaf79282f6db2c7205adbaa02799b99ee1c25b32ba4e5a5c9d"
+  },
+  {
+    "indice_fonte": 33,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_56-9.png",
+    "arquivo_pacote": "fotos/000729.png",
+    "bytes": 1308067,
+    "sha256": "39fbe1c04714391fa70d87ae8c9e21a45de847fdb94c132259429841696d46a2"
+  },
+  {
+    "indice_fonte": 34,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 16_59_57-10.png",
+    "arquivo_pacote": "fotos/000730.png",
+    "bytes": 1238301,
+    "sha256": "f465c53cefc7db12b621256bf30ef5aa82b24403562ed2eeb28c929df29f2234"
+  },
+  {
+    "indice_fonte": 35,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_07-1.png",
+    "arquivo_pacote": "fotos/000305.png",
+    "bytes": 933125,
+    "sha256": "bc2c5af5696287db5b850a2efe41f72f016baaa1b53b78f0fd640b5cfceea4cf"
+  },
+  {
+    "indice_fonte": 36,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_08-2.png",
+    "arquivo_pacote": "fotos/000203.png",
+    "bytes": 899688,
+    "sha256": "2d76ff90d431afc8cf21dff37bc1b601574673d1da4b3f2f63b10202873acaa8"
+  },
+  {
+    "indice_fonte": 37,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_09-3.png",
+    "arquivo_pacote": "fotos/000494.png",
+    "bytes": 1085479,
+    "sha256": "c56218b02b4104135c7b143436ebcdcf0622295e8f3410bfc01c899d9db5603a"
+  },
+  {
+    "indice_fonte": 38,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_10-4.png",
+    "arquivo_pacote": "fotos/000776.png",
+    "bytes": 1275034,
+    "sha256": "097e6a35b4cd73a3e70590f4253378161cd7ecf4e7f7885f96d203c29865e566"
+  },
+  {
+    "indice_fonte": 39,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_11-5.png",
+    "arquivo_pacote": "fotos/000052.png",
+    "bytes": 1153182,
+    "sha256": "ab5484cb8fb9d22b7ef284c155f99bede940c3ffafb61c01937bdd82da14e08f"
+  },
+  {
+    "indice_fonte": 40,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_12-6.png",
+    "arquivo_pacote": "fotos/000824.png",
+    "bytes": 1197609,
+    "sha256": "0e9afce5bb92d79041db33ecb07f51cc10ee3a34da1f617190d31df7a61614ab"
+  },
+  {
+    "indice_fonte": 41,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_13-7.png",
+    "arquivo_pacote": "fotos/000637.png",
+    "bytes": 1178082,
+    "sha256": "4dc68471212e217e19664cbf85794fe628cc3653fabb517e0a573f80231af976"
+  },
+  {
+    "indice_fonte": 42,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_14-8.png",
+    "arquivo_pacote": "fotos/000636.png",
+    "bytes": 1094301,
+    "sha256": "fe312c2af761daf4097836c10209e24b40b9467228889f511b28bc1e7fa8c4e6"
+  },
+  {
+    "indice_fonte": 43,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_15-9.png",
+    "arquivo_pacote": "fotos/000491.png",
+    "bytes": 1110604,
+    "sha256": "ea65f0e45a0fdbb6355c92da2caea836b70e5a0249dedfeb1bc43bdb95806a9d"
+  },
+  {
+    "indice_fonte": 44,
+    "zip_origem": "separadas-20261025T185531Z-1-001.zip",
+    "nome_original": "separadas/Imagem do ChatGPT 12 de out. de 2026, 17_00_16-10.png",
+    "arquivo_pacote": "fotos/000651.png",
+    "bytes": 1183379,
+    "sha256": "2f8d6390bb1db2e1d69c2f991f4411ca79f742428ffa3d47881e15e6485657cb"
+  }
+]

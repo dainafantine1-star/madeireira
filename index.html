@@ -1,285 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <meta name="theme-color" content="#FF6B1A">
-    <meta name="description" content="Madeireira Progresso — portas, cancelas, ripas, tábuas e decks. Qualidade e tradição em madeira para sua obra.">
-    <title>Madeireira Progresso — Madeira de qualidade para sua obra</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230A0A0A'/%3E%3Cpath d='M30 20 L65 20 L65 30 L42 30 L42 50 L60 50 L60 60 L42 60 L42 80 L30 80 Z' fill='%23FF6B1A'/%3E%3C/svg%3E">
+<base href="/">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#fffdf8">
+<meta name="description" content="Portas, tábuas e madeira para sua obra. Escolha os materiais e envie sua lista para orçamento na Madeireira Progresso."><title>Madeireira Progresso · Materiais para sua obra</title>
+<link rel="preload" href="assets/fonts/source-sans-3-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/bitter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/storefront.css"><link rel="stylesheet" href="css/accessibility.css"><link rel="stylesheet" href="css/storefront-refined.css"><link rel="stylesheet" href="css/storefront-essential.css"><link rel="stylesheet" href="css/branding.css">
 </head>
 <body>
-
-    <!-- ===== HEADER ===== -->
-    <header class="header" id="header">
-        <div class="container header__inner">
-            <a href="#home" class="header__logo" aria-label="Madeireira Progresso - Início">
-                <svg class="logo-svg" viewBox="0 0 100 100" aria-hidden="true">
-                    <path d="M25 15 L70 15 C85 15 92 25 92 40 C92 55 85 65 70 65 L40 65 L40 85 L25 85 Z M40 30 L40 50 L65 50 C72 50 76 47 76 40 C76 33 72 30 65 30 Z" fill="currentColor"/>
-                </svg>
-                <div class="header__logo-text">
-                    <span class="header__logo-sub">MADEIREIRA</span>
-                    <span class="header__logo-main">PROGRESSO</span>
-                </div>
-            </a>
-
-            <nav class="nav" id="nav" aria-label="Navegação principal">
-                <a href="#home" class="nav__link">Início</a>
-                <a href="#catalogo" class="nav__link">Catálogo</a>
-                <a href="#sobre" class="nav__link">Sobre</a>
-                <a href="#contato" class="nav__link">Contato</a>
-            </nav>
-
-            <div class="header__actions">
-                <button class="icon-btn" id="searchToggle" aria-label="Buscar produtos">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                </button>
-                <button class="icon-btn cart-btn" id="cartToggle" aria-label="Abrir carrinho">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/><path d="M3 4h2.5l2.7 12.3a2 2 0 0 0 2 1.7h7.6a2 2 0 0 0 2-1.6L21 8H6"/></svg>
-                    <span class="cart-badge" id="cartBadge">0</span>
-                </button>
-                <button class="icon-btn menu-btn" id="menuToggle" aria-label="Abrir menu" aria-expanded="false">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- ===== SEARCH OVERLAY ===== -->
-    <div class="search-overlay" id="searchOverlay" aria-hidden="true">
-        <div class="search-overlay__inner">
-            <svg class="search-overlay__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input type="search" id="searchInput" class="search-overlay__input" placeholder="Buscar portas, cancelas, ripas..." autocomplete="off">
-            <button class="search-overlay__close" id="searchClose" aria-label="Fechar busca">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
-            </button>
-        </div>
-    </div>
-
-    <!-- ===== HERO CARROSSEL ===== -->
-    <section class="hero" id="home">
-        <div class="hero__track" id="heroTrack">
-            <article class="hero__slide" style="--slide-bg: linear-gradient(135deg, #1a0e08 0%, #3a1f0f 50%, #FF6B1A 100%);">
-                <div class="container hero__content">
-                    <span class="hero__tag">🔥 OFERTA DO DIA</span>
-                    <h1 class="hero__title">Portas de Madeira Maciça<br><span>com 15% OFF</span></h1>
-                    <p class="hero__text">Qualidade que você sente na hora de abrir. Estoque limitado, entrega rápida.</p>
-                    <a href="#catalogo" class="btn btn--primary">Ver oferta</a>
-                </div>
-            </article>
-
-            <article class="hero__slide" style="--slide-bg: linear-gradient(135deg, #0a0a0a 0%, #1f1407 100%);">
-                <div class="container hero__content">
-                    <span class="hero__tag">🚛 FRETE GRÁTIS</span>
-                    <h1 class="hero__title">Chapada e região<br><span>sem custo de entrega</span></h1>
-                    <p class="hero__text">Compras acima de R$ 500 com frete por nossa conta. Aproveite.</p>
-                    <a href="#catalogo" class="btn btn--primary">Aproveitar</a>
-                </div>
-            </article>
-
-            <article class="hero__slide" style="--slide-bg: linear-gradient(135deg, #2a1505 0%, #0a0a0a 100%);">
-                <div class="container hero__content">
-                    <span class="hero__tag">💳 PARCELE</span>
-                    <h1 class="hero__title">Em até <span>12x sem juros</span><br>no cartão</h1>
-                    <p class="hero__text">Toda a loja parcelada. Madeira boa cabe no seu bolso.</p>
-                    <a href="#catalogo" class="btn btn--primary">Conferir</a>
-                </div>
-            </article>
-        </div>
-
-        <button class="hero__nav hero__nav--prev" id="heroPrev" aria-label="Slide anterior">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 6 9 12l6 6"/></svg>
-        </button>
-        <button class="hero__nav hero__nav--next" id="heroNext" aria-label="Próximo slide">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
-        </button>
-        <div class="hero__dots" id="heroDots" role="tablist"></div>
-    </section>
-
-    <!-- ===== FEATURES ===== -->
-    <section class="features">
-        <div class="container features__grid">
-            <div class="feature">
-                <svg class="feature__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9 12 3l9 6v12H3z"/><path d="M9 21V12h6v9"/></svg>
-                <div>
-                    <strong>Entrega Rápida</strong>
-                    <span>Chapada e região em 24h</span>
-                </div>
-            </div>
-            <div class="feature">
-                <svg class="feature__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/></svg>
-                <div>
-                    <strong>Compra Segura</strong>
-                    <span>Garantia e procedência</span>
-                </div>
-            </div>
-            <div class="feature">
-                <svg class="feature__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18l-2 12H5z"/><path d="M8 6V4a4 4 0 0 1 8 0v2"/></svg>
-                <div>
-                    <strong>12x Sem Juros</strong>
-                    <span>Em todo o catálogo</span>
-                </div>
-            </div>
-            <div class="feature">
-                <svg class="feature__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-1.7 5.2L12 22l-7.3-5.3A8.4 8.4 0 0 1 3 11.5a8.4 8.4 0 0 1 18 0z"/><circle cx="12" cy="11" r="3"/></svg>
-                <div>
-                    <strong>Atendimento</strong>
-                    <span>WhatsApp direto</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ===== CATÁLOGO ===== -->
-    <section class="catalog" id="catalogo">
-        <div class="container">
-            <header class="section-head">
-                <span class="section-head__eyebrow">NOSSO CATÁLOGO</span>
-                <h2 class="section-head__title">Encontre a madeira certa</h2>
-                <p class="section-head__text">Portas, cancelas, ripas e muito mais — tudo selecionado pra durar.</p>
-            </header>
-
-            <div class="filters" role="tablist" aria-label="Categorias">
-                <button class="chip chip--active" data-cat="todas" role="tab" aria-selected="true">Todas</button>
-                <button class="chip" data-cat="portas" role="tab">Portas</button>
-                <button class="chip" data-cat="cancelas" role="tab">Cancelas</button>
-                <button class="chip" data-cat="ripas" role="tab">Ripas</button>
-                <button class="chip" data-cat="tabuas" role="tab">Tábuas</button>
-                <button class="chip" data-cat="decks" role="tab">Decks</button>
-                <button class="chip" data-cat="forros" role="tab">Forros</button>
-                <button class="chip" data-cat="estrutural" role="tab">Estrutural</button>
-            </div>
-
-            <div class="products" id="productsGrid" aria-live="polite"></div>
-
-            <div class="empty-state" id="emptyState" hidden>
-                <p>Nenhum produto encontrado com esse filtro.</p>
-                <button class="btn btn--ghost" id="clearFilters">Limpar filtros</button>
-            </div>
-        </div>
-    </section>
-
-    <!-- ===== SOBRE ===== -->
-    <section class="about" id="sobre">
-        <div class="container about__grid">
-            <div class="about__media">
-                <svg class="about__svg" viewBox="0 0 400 400" aria-hidden="true">
-                    <defs>
-                        <linearGradient id="woodGrad" x1="0" y1="0" x2="1" y2="1">
-                            <stop offset="0%" stop-color="#FF6B1A"/>
-                            <stop offset="100%" stop-color="#0A0A0A"/>
-                        </linearGradient>
-                    </defs>
-                    <circle cx="200" cy="200" r="180" fill="url(#woodGrad)" opacity="0.15"/>
-                    <path d="M50 200 Q100 100 200 100 T350 200" fill="none" stroke="#FF6B1A" stroke-width="6" opacity="0.4"/>
-                    <path d="M50 250 Q100 150 200 150 T350 250" fill="none" stroke="#FF6B1A" stroke-width="4" opacity="0.3"/>
-                    <text x="200" y="220" font-family="Oswald, sans-serif" font-size="80" font-weight="700" fill="#FF6B1A" text-anchor="middle">P</text>
-                </svg>
-            </div>
-            <div class="about__content">
-                <span class="section-head__eyebrow">QUEM SOMOS</span>
-                <h2 class="section-head__title">Tradição em madeira há anos</h2>
-                <p>A Madeireira Progresso é referência em qualidade e variedade. Trabalhamos com madeiras selecionadas para garantir resistência, beleza e acabamento em cada peça — do deck à cancela, da ripa ao forro.</p>
-                <p>Atendemos obras residenciais, comerciais e rurais com compromisso de entrega rápida e preço justo.</p>
-                <ul class="about__bullets">
-                    <li>Madeiras certificadas e de procedência</li>
-                    <li>Corte sob medida</li>
-                    <li>Entrega em toda a região</li>
-                    <li>Atendimento personalizado pelo WhatsApp</li>
-                </ul>
-            </div>
-        </div>
-    </section>
-
-    <!-- ===== CONTATO ===== -->
-    <section class="contact" id="contato">
-        <div class="container">
-            <header class="section-head">
-                <span class="section-head__eyebrow">FALE CONOSCO</span>
-                <h2 class="section-head__title">Tire suas dúvidas</h2>
-                <p class="section-head__text">Orçamento, medidas especiais ou dúvida sobre o produto — fale direto pelo WhatsApp.</p>
-            </header>
-
-            <div class="contact__grid">
-                <a class="contact__card" id="contactWhats" href="#">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4A10 10 0 0 0 4 17l-2 5 5.2-1.4A10 10 0 1 0 20 4zm-8 18a8 8 0 0 1-4.3-1.3l-.3-.2-3.1.8.8-3-.2-.3a8 8 0 1 1 7.1 4zm4.4-5.7c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.6.1-.2.2-.7.8-.8 1-.2.1-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.2-.4.2-.4.6-1.3.1-.2.1-.4 0-.5l-.7-1.7c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3 4.8 4.2 1.8.7 2.5.8 3.4.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.2-.4-.3z"/></svg>
-                    <strong>WhatsApp</strong>
-                    <span>(XX) XXXXX-XXXX</span>
-                </a>
-                <div class="contact__card">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    <strong>Endereço</strong>
-                    <span>Av. Exemplo, 1234 — Centro</span>
-                </div>
-                <div class="contact__card">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                    <strong>Horário</strong>
-                    <span>Seg a Sex — 7h30 às 18h<br>Sáb — 7h30 às 12h</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ===== FOOTER ===== -->
-    <footer class="footer">
-        <div class="container footer__inner">
-            <div class="footer__brand">
-                <span class="footer__logo">MADEIREIRA <strong>PROGRESSO</strong></span>
-                <p>Madeira de qualidade para sua obra.</p>
-            </div>
-            <p class="footer__copy">© <span id="year"></span> Madeireira Progresso — Todos os direitos reservados.</p>
-        </div>
-    </footer>
-
-    <!-- ===== CART DRAWER ===== -->
-    <aside class="drawer" id="cartDrawer" aria-hidden="true" aria-label="Carrinho de compras">
-        <div class="drawer__head">
-            <h3>Seu carrinho</h3>
-            <button class="icon-btn" id="cartClose" aria-label="Fechar carrinho">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
-            </button>
-        </div>
-        <div class="drawer__body" id="cartItems">
-            <div class="cart-empty">
-                <p>Seu carrinho está vazio.</p>
-                <small>Adicione produtos do catálogo para começar.</small>
-            </div>
-        </div>
-        <div class="drawer__foot">
-            <div class="cart-total">
-                <span>Total</span>
-                <strong id="cartTotal">R$ 0,00</strong>
-            </div>
-            <button class="btn btn--primary btn--block" id="checkoutBtn">
-                Finalizar pelo WhatsApp
-            </button>
-            <button class="btn btn--ghost btn--block" id="clearCart">Limpar carrinho</button>
-        </div>
-    </aside>
-    <div class="overlay" id="overlay" aria-hidden="true"></div>
-
-    <!-- ===== PRODUCT MODAL ===== -->
-    <div class="modal" id="productModal" aria-hidden="true" role="dialog" aria-modal="true">
-        <div class="modal__dialog" id="modalDialog"></div>
-    </div>
-
-    <!-- ===== WHATSAPP FLOAT ===== -->
-    <a class="wa-float" id="waFloat" href="#" target="_blank" rel="noopener" aria-label="Falar pelo WhatsApp">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4A10 10 0 0 0 4 17l-2 5 5.2-1.4A10 10 0 1 0 20 4zm-8 18a8 8 0 0 1-4.3-1.3l-.3-.2-3.1.8.8-3-.2-.3a8 8 0 1 1 7.1 4zm4.4-5.7c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.6.1-.2.2-.7.8-.8 1-.2.1-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.2-.4.2-.4.6-1.3.1-.2.1-.4 0-.5l-.7-1.7c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3 4.8 4.2 1.8.7 2.5.8 3.4.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.2-.4-.3z"/></svg>
-        <span class="wa-float__pulse" aria-hidden="true"></span>
-    </a>
-
-    <!-- ===== TOAST ===== -->
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-    <script src="js/data.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/app.js"></script>
+<a class="skip-link" href="#catalogo">Ir para os produtos</a>
+<div class="service-strip"><div class="container"><span>Escolha os materiais e peça seu orçamento.</span><a href="#como-funciona">Como solicitar</a></div></div>
+<header class="header" id="header"><div class="container header-main">
+<a href="#home" class="brand" aria-label="Madeireira Progresso, início"><img id="brandLogo" src="assets/brand/logo-progresso.png" alt="Madeireira Progresso" width="600" height="200"><span id="brandText" hidden><small>MADEIREIRA</small><strong id="brandName">Progresso</strong></span></a>
+<form id="searchForm" class="header-search" role="search"><label class="sr-only" for="searchInput">Buscar por produto, SKU ou medidas</label><input id="searchInput" type="search" placeholder="Busque portas, tábuas, medidas…" autocomplete="off" maxlength="200"><button type="submit" aria-label="Buscar produtos"><span data-icon="search" aria-hidden="true"></span></button></form>
+<a href="#contato" class="header-service"><span>ATENDIMENTO</span><strong id="headerPhone">Dados em atualização</strong></a>
+<a id="headerWhats" class="header-whats" href="#catalogo"><span data-icon="message" aria-hidden="true"></span><span id="headerWhatsLabel">Solicitar orçamento</span></a>
+<button id="cartToggle" class="quote-toggle" aria-label="Abrir meu orçamento"><span data-icon="list" aria-hidden="true"></span><span>Minha lista</span><b id="cartBadge">0</b></button>
+</div><nav class="desktop-nav container" aria-label="Navegação principal"><a href="#catalogo" data-mode="all">Todos os produtos</a><a href="#categorias">Categorias</a><a href="#destaques" id="featuredNav" hidden>Destaques</a><a href="#promocoes" data-mode="promotions" hidden>Promoções</a><a href="#sobre">Como funciona</a><a href="#contato">Atendimento</a><span class="nav-note">Inclua as medidas na sua lista.</span></nav></header>
+<main id="main" tabindex="-1">
+<section id="home" class="hero container" aria-labelledby="heroTitle"><div class="hero-window"><div id="heroTrack" class="hero-track">
+<article class="hero-slide"><div class="hero-copy"><span class="eyebrow">MADEIREIRA PROGRESSO</span><h1 id="heroTitle">Portas, tábuas e madeira para sua obra.</h1><p>Escolha os materiais e envie sua lista com as medidas para pedir um orçamento.</p><div class="hero-actions"><a class="btn primary" href="#catalogo">Ver produtos <span data-icon="arrow" aria-hidden="true"></span></a><a class="text-link" href="#como-funciona">Como pedir um orçamento</a></div></div><figure class="hero-figure"><img class="hero-photo" src="assets/hero-madeira-640.webp" srcset="assets/hero-madeira-640.webp 640w, assets/hero-madeira-960.webp 960w, assets/hero-madeira-1280.webp 1280w, assets/hero-madeira.webp 1942w" sizes="(max-width: 760px) 100vw, 55vw" width="1942" height="809" fetchpriority="high" alt="Tábuas de madeira empilhadas, fotografia ilustrativa"><figcaption>Fotografia ilustrativa. Não retrata a loja.</figcaption></figure></article>
+</div></div><div class="benefits" id="benefits" aria-label="Etapas do orçamento"></div></section>
+<section class="campaigns container" id="campaigns" aria-label="Novidades e campanhas" hidden></section>
+<section id="catalogo" class="section container catalog" aria-labelledby="catalogTitle" tabindex="-1"><span id="promocoes" class="anchor"></span>
+<div class="section-head"><div><span class="eyebrow" id="catalogEyebrow">ESCOLHA OS MATERIAIS</span><h2 id="catalogTitle">O que você precisa para a obra?</h2><p id="searchSummary">Confira as medidas e adicione os produtos à sua lista.</p></div><span id="productCount" class="product-count" role="status"></span></div>
+<div id="categorias" class="catalog-toolbar"><div id="categoryTiles" class="category-tiles" role="group" aria-label="Filtrar produtos por categoria"></div><button id="promotionFilter" class="filter-offers" aria-pressed="false" hidden>Só promoções</button></div>
+<p id="commercialTerms" class="commercial-terms">Preços e disponibilidade sujeitos à confirmação da equipe.</p><p id="catalogStatus" role="status">Carregando produtos…</p><button id="retryCatalog" class="btn ghost" hidden>Tentar novamente</button><div id="productsGrid" class="products" aria-live="polite"></div><div id="emptyState" class="empty-state" hidden><h3>Nenhum produto encontrado</h3><p>Tente outro nome, código ou medida.</p><button id="clearFilters" class="btn ghost">Ver todos os produtos</button></div></section>
+<section id="destaques" class="section featured-section" hidden><div class="container"><div class="section-head"><div><span class="eyebrow">SELEÇÃO DA LOJA</span><h2>Produtos em destaque</h2></div><a href="#catalogo" class="text-link" data-mode="all">Ver todos os produtos</a></div><div id="featuredGrid" class="products"></div></div></section>
+<section id="sobre" class="about-section"><div class="container about-grid"><div class="about-copy"><span class="eyebrow">COMO PEDIR SEU ORÇAMENTO</span><h2 id="aboutTitle">Peça um orçamento com as medidas da sua obra.</h2><p id="aboutText">Adicione os produtos à lista e informe as medidas de que precisa. Nossa equipe confere os preços e a disponibilidade e combina a entrega com você.</p><a href="#catalogo" class="text-link" data-mode="all">Montar minha lista <span data-icon="arrow" aria-hidden="true"></span></a></div><div class="quote-guide" id="como-funciona"><h3>Como enviar sua lista</h3><ol><li><span class="step-number">01</span><div><h4>Informe as medidas</h4><p>Nos detalhes de cada produto, informe a quantidade, os cortes e o acabamento de que precisa.</p></div></li><li><span class="step-number">02</span><div><h4>Envie sua lista</h4><p>Informe seu contato e envie o pedido. Você recebe um protocolo para acompanhar o atendimento.</p></div></li><li><span class="step-number">03</span><div><h4>Confirme com a equipe</h4><p>A equipe confirma os preços e a disponibilidade e combina com você a retirada ou a entrega.</p></div></li></ol></div></div></section>
+<section id="contato" class="section container" aria-labelledby="contactTitle"><div class="section-head"><div><span class="eyebrow">ATENDIMENTO</span><h2 id="contactTitle">Fale com a nossa equipe</h2><p>Envie as medidas e os detalhes da obra para prepararmos seu orçamento.</p></div><a id="contactWhats" class="btn primary" href="#catalogo">Escolher produtos</a></div><div class="contact-grid"><div><span>CONTATO E HORÁRIOS</span><strong id="companyPhone">Dados de atendimento em atualização</strong><p id="companyHours">Horários aguardando confirmação.</p></div><div><span>RETIRADA E ENTREGA</span><strong id="companyAddress">Endereço aguardando confirmação</strong><p id="companyRegion">Região de entrega a confirmar.</p></div><div><span>CONDIÇÕES DO ORÇAMENTO</span><p id="deliveryTerms"></p><p id="paymentTerms"></p></div></div></section>
+</main>
+<footer class="footer"><div class="container footer-grid"><div><img id="footerLogo" src="assets/brand/logo-progresso.png" alt="Madeireira Progresso" width="600" height="200"><strong id="footerName">Madeireira Progresso</strong><p id="footerText">Envie sua lista de materiais e confirme as condições com a nossa equipe.</p></div><nav aria-label="Links do rodapé"><a href="#catalogo" data-mode="all">Produtos</a><a href="#como-funciona">Como solicitar</a><a href="#promocoes" data-mode="promotions" hidden>Promoções</a><a href="#contato">Atendimento</a></nav><div><span>JÁ ESCOLHEU OS MATERIAIS?</span><p>Confira sua lista e envie as medidas.</p><button class="btn footer-quote" data-open-cart>Abrir meu orçamento <span data-icon="arrow" aria-hidden="true"></span></button></div></div><div class="container footer-bottom"><span>© <span id="year"></span> <span id="copyrightName">Madeireira Progresso</span></span><a href="/admin">Área da equipe</a></div></footer>
+<nav class="mobile-nav" aria-label="Navegação da loja pelo celular"><a href="#home"><span data-icon="home" aria-hidden="true"></span><span>Início</span></a><a href="#catalogo" data-mode="all"><span data-icon="grid" aria-hidden="true"></span><span>Produtos</span></a><a href="#categorias"><span data-icon="filter" aria-hidden="true"></span><span>Categorias</span></a><button data-open-cart><span data-icon="list" aria-hidden="true"></span><span>Minha lista <b id="mobileCartBadge">0</b></span></button></nav>
+<aside id="cartDrawer" inert role="dialog" aria-modal="true" class="drawer" aria-hidden="true" aria-label="Meu orçamento"><header class="drawer-head"><div><span class="eyebrow">MATERIAIS SELECIONADOS</span><h2>Meu orçamento</h2></div><button id="cartClose" class="icon-btn" aria-label="Fechar orçamento"><span data-icon="close" aria-hidden="true"></span></button></header><div id="cartItems" class="drawer-body"></div><footer class="drawer-foot"><p id="cartStorageStatus" class="notice" role="status" hidden>Não foi possível salvar no navegador. As alterações ficam apenas nesta página; envie seu orçamento antes de sair.</p><div class="cart-total"><span>Valor estimado</span><strong id="cartTotal">Sem itens</strong></div><small>Preço, disponibilidade e entrega serão confirmados pela equipe.</small><button id="checkoutBtn" class="btn primary block" disabled>Solicitar orçamento</button><button id="clearCart" class="btn ghost block">Limpar lista</button></footer></aside><div id="overlay" class="overlay"></div>
+<div id="productModal" inert class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Detalhes do produto"><div id="modalDialog" class="modal-dialog"></div></div>
+<dialog id="quoteDialog" class="quote-dialog" aria-labelledby="quoteTitle"><header class="drawer-head"><div><span class="eyebrow">ENVIE SUA LISTA</span><h2 id="quoteTitle">Solicitar orçamento</h2></div><button id="quoteClose" class="icon-btn" aria-label="Fechar solicitação"><span data-icon="close" aria-hidden="true"></span></button></header><form id="quoteForm" method="post" action="/api/quotes"><div id="quoteFields"><p>Informe seu contato para conversarmos sobre o orçamento. Ao enviar, você recebe um protocolo da solicitação.</p><label>Seu nome *<input name="name" required maxlength="200" autocomplete="name"></label><div class="form-grid"><label>WhatsApp / telefone com DDD *<input name="phone" type="tel" required maxlength="40" autocomplete="tel" placeholder="(71) 99999-9999"></label><label>E-mail (opcional)<input name="email" type="email" maxlength="254" autocomplete="email"></label></div><label>Como pretende receber?<select name="fulfillment"><option value="pickup">Retirada na loja</option><option value="delivery">Quero consultar a entrega</option></select></label><label id="deliveryAddressLabel" hidden>Endereço para consultar entrega *<textarea name="deliveryAddress" maxlength="1000" autocomplete="street-address" placeholder="Rua, número, bairro, cidade e CEP"></textarea></label><label>O que mais precisamos saber?<textarea name="notes" maxlength="2000" placeholder="Prazo desejado, cortes ou detalhes da obra"></textarea></label><small>Usaremos esses dados para atender sua solicitação.</small><p id="quoteError" class="error" role="alert"></p><button id="quoteSubmit" type="submit" class="btn primary block">Enviar solicitação</button></div><div id="quoteSuccess" class="quote-success" hidden role="status"><span class="success-mark" aria-hidden="true"><span data-icon="check"></span></span><h3>Lista recebida.</h3><p>Guarde o protocolo abaixo para acompanhar seu atendimento.</p><strong id="quoteProtocol" tabindex="-1"></strong><a id="quoteWhats" class="btn primary block" href="#" target="_blank" rel="noopener">Continuar no WhatsApp</a><button type="button" id="quoteDone" class="btn ghost block">Voltar aos produtos</button></div></form></dialog>
+<a id="waFloat" class="wa-float" href="#contato" target="_blank" rel="noopener" aria-label="Falar com a equipe pelo WhatsApp" hidden><span data-icon="message" aria-hidden="true"></span></a><div id="toast" class="toast" role="status" aria-live="polite"></div>
+<noscript><p>Ative o JavaScript para carregar os produtos e solicitar seu orçamento.</p></noscript>
+<script src="js/measurement.js"></script><script src="js/core.js"></script><script src="js/storefront-policy.js"></script><script src="js/ui.js"></script><script src="js/product-page.js"></script><script src="js/app.js"></script><script src="js/accessibility.js"></script>
 </body>
 </html>
