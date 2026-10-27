@@ -81,6 +81,9 @@ const App=(()=>{
     e.preventDefault();if(sending)return;const form=e.currentTarget;
     const payload={items:quoteItems,customer:{name:form.elements.name.value.trim(),phone:form.elements.phone.value,email:form.elements.email.value.trim()},fulfillment:form.elements.fulfillment.value,deliveryAddress:form.elements.deliveryAddress.value.trim(),notes:form.elements.notes.value.trim()};
     sending=true;$('quoteSubmit').disabled=true;$('quoteError').textContent='';
+    // Reserve the tab during the click so browsers can open WhatsApp after the API responds.
+    let whatsappTab=null;
+    if(company.canWhatsapp)try{whatsappTab=window.open('about:blank','_blank');if(whatsappTab)whatsappTab.opener=null;}catch{}
     try{
       const bytes=new TextEncoder().encode(JSON.stringify(payload));const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
       if(!pending)try{pending=JSON.parse(sessionStorage.getItem('mp_quote_request_v1')||'null');}catch{}
@@ -88,7 +91,40 @@ const App=(()=>{
       const result=await api('quotes',{method:'POST',body:JSON.stringify({...payload,requestKey:pending.key})});
       $('quoteFields').hidden=true;$('quoteSuccess').hidden=false;$('quoteProtocol').textContent=result.protocol;$('quoteWhats').hidden=!company.canWhatsapp||!StoreCore.validWhatsapp(result.whatsapp);if(!$('quoteWhats').hidden)$('quoteWhats').href=whatsappUrl(result.whatsapp,result.message);
       $('quoteWhats').onclick=()=>event('whatsapp_click',undefined,'quote_continue',[...new Set(quoteItems.map(i=>i.id))]);$('quoteProtocol').focus();
-    }catch(error){$('quoteError').textContent=error.message;}finally{sending=false;$('quoteSubmit').disabled=false;saveCart(false);}
+      $('quoteWhatsappStatus').textContent=$('quoteWhats').hidden?'Sua solicitação está registrada para atendimento pela equipe.':'A mensagem contém todos os itens da sua lista. Confirme o envio no WhatsApp. Se a conversa não abrir, use o botão abaixo.';
+      // Very long URLs may be rejected by browsers/apps. Keep the full report available for copying.
+      let fullMessage=$('quoteFullMessage');
+      if(!fullMessage){
+        fullMessage=document.createElement('div');fullMessage.id='quoteFullMessage';
+        const label=document.createElement('label');label.textContent='Lista completa para copiar e enviar';
+        const report=document.createElement('textarea');report.readOnly=true;report.rows=8;label.append(report);
+        const copy=document.createElement('button');copy.type='button';copy.className='btn ghost block';copy.textContent='Copiar lista completa';
+        copy.onclick=async()=>{try{await navigator.clipboard.writeText(report.value);UI.toast('Lista copiada. Cole na conversa do WhatsApp.');}catch{report.focus();report.select();UI.toast('Selecione e copie a lista para colar no WhatsApp.');}};
+        fullMessage.append(label,copy);$('quoteDone').before(fullMessage);
+      }
+      const longMessage=!$('quoteWhats').hidden&&$('quoteWhats').href.length>16000;
+      fullMessage.hidden=!longMessage;fullMessage.querySelector('textarea').value=result.message;
+      if(longMessage){
+        $('quoteWhats').href=`https://wa.me/${result.whatsapp}`;
+        $('quoteWhatsappStatus').textContent='Sua lista é extensa. Copie a lista completa abaixo, abra o WhatsApp e cole na conversa para confirmar o envio. O protocolo e todos os itens estão preservados.';
+      }
+      if(!$('quoteWhats').hidden&&whatsappTab&&!whatsappTab.closed){
+        try{
+          const conversation=whatsappTab;
+          whatsappTab.location.replace($('quoteWhats').href);whatsappTab=null;$('quoteWhats').onclick();
+          const restoreFocus=()=>{
+            if(document.hidden)return;
+            window.removeEventListener('focus',restoreFocus);document.removeEventListener('visibilitychange',restoreFocus);
+            requestAnimationFrame(()=>{if($('quoteDialog').open&&!$('quoteSuccess').hidden)$('quoteProtocol').focus();});
+          };
+          window.addEventListener('focus',restoreFocus);document.addEventListener('visibilitychange',restoreFocus);
+          const returnTimer=setInterval(()=>{
+            if(!$('quoteDialog').open){clearInterval(returnTimer);window.removeEventListener('focus',restoreFocus);document.removeEventListener('visibilitychange',restoreFocus);return;}
+            if(conversation.closed&&!document.hidden&&document.hasFocus()){clearInterval(returnTimer);restoreFocus();}
+          },250);
+        }catch{}
+      }
+    }catch(error){$('quoteError').textContent=error.message;}finally{if(whatsappTab&&!whatsappTab.closed)whatsappTab.close();sending=false;$('quoteSubmit').disabled=false;saveCart(false);}
   }
   function catalogMode(next){mode=next;$('promotionFilter').setAttribute('aria-pressed',String(mode==='promotions'));renderProducts();}
   function init(){

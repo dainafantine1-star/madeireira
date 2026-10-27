@@ -13,6 +13,7 @@ test.beforeAll(async()=>{
 });
 test.afterAll(async()=>{app.closeAllConnections();await new Promise(r=>app.close(r));db.close();});
 test('storefront keyboard, responsive quote, deduplication, admin and real dashboard',async({page,isMobile},info)=>{
+  await page.context().route('https://wa.me/**',route=>route.fulfill({contentType:'text/html',body:'Mensagem pronta para envio'}));
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await expect(page.locator('#productsGrid .product')).toHaveCount(10);
   await expect(page.locator('#cartDrawer')).toHaveAttribute('inert','');
@@ -46,8 +47,13 @@ test('storefront keyboard, responsive quote, deduplication, admin and real dashb
   await page.locator('#productAdd').click();await expect(page.locator('#cartClose')).toBeFocused();
   await page.keyboard.press('Shift+Tab');expect(await page.evaluate(()=>!!document.activeElement.closest('#cartDrawer'))).toBe(true);
   await page.locator('#checkoutBtn').click();await page.locator('#quoteForm [name=name]').fill('Cliente do navegador');await page.locator('#quoteForm [name=phone]').fill('71988887777');
-  await page.locator('#quoteForm [name=notes]').fill('Medidas pelo celular');await page.locator('#quoteSubmit').click();
-  await expect(page.locator('#quoteProtocol')).toHaveText(/^MP-/);await expect(page.locator('#quoteProtocol')).toBeFocused();
+  await page.locator('#quoteForm [name=notes]').fill('Medidas pelo celular');
+  const whatsappPopup=page.waitForEvent('popup');await page.locator('#quoteSubmit').click();
+  const conversation=await whatsappPopup;await expect(conversation).toHaveURL(/^https:\/\/wa.me\/5571999998888\?text=/);
+  await conversation.close();await page.bringToFront();
+  await expect(page.locator('#quoteProtocol')).toHaveText(/^MP-/);
+  // Verify keyboard focus after returning from the WhatsApp conversation.
+  await expect.poll(()=>page.locator('#quoteProtocol').evaluate(node=>node.ownerDocument.activeElement===node)).toBe(true);
   expect(db.prepare('SELECT count(*) AS n FROM orders').get().n).toBe(1);
   await page.locator('#quoteDone').click();
   await page.goto(base);await expect(page.locator('#productsGrid .product')).toHaveCount(10);

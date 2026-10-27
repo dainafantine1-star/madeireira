@@ -17,7 +17,8 @@ globalThis.StorefrontPolicy=Object.freeze({
     const company={...input,confirmed,logo:StoreCore.image(input.logo)||'assets/brand/logo-progresso.png'};
     for(const [key,[previous,next]] of Object.entries(replacements)) if(!company[key]||company[key]===previous) company[key]=next;
     if(!confirmed) Object.assign(company,{phone:'Dados de atendimento em atualização',address:'Endereço aguardando confirmação',hours:'Horários aguardando confirmação.',region:'Retirada e região de entrega a confirmar.',whatsapp:''});
-    company.canWhatsapp=confirmed&&StoreCore.validWhatsapp(company.whatsapp);
+    if(input.whatsappConfirmed===true)company.whatsapp=input.whatsapp;
+    company.canWhatsapp=(confirmed||input.whatsappConfirmed===true)&&StoreCore.validWhatsapp(company.whatsapp);
     return company;
   },
   isSeedBanner(banner) {

@@ -21,6 +21,7 @@ export function company(value) {
   const result = {};
   for (const key of ['name','phone','address','hours','delivery','payment','commercialTerms']) result[key] = text(value[key],2000);
   result.whatsapp = text(value.whatsapp,20,false); result.confirmed = !!flag(value.confirmed);
-  check(!result.confirmed || validWhatsapp(result.whatsapp), 'Informe um WhatsApp válido para confirmar os dados.');
+  result.whatsappConfirmed = !!flag(value.whatsappConfirmed ?? false);
+  check(!(result.confirmed || result.whatsappConfirmed) || validWhatsapp(result.whatsapp), 'Informe um WhatsApp válido para confirmar os dados.');
   return result;
 }

@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 process.env.PLAYWRIGHT_BROWSERS_PATH||=resolve('.cache/playwright');
 export default defineConfig({
   testDir:'./e2e',fullyParallel:false,workers:1,timeout:120000,
+  expect:{timeout:15000},
   reporter:[['list'],['html',{open:'never'}]],
   use:{trace:'retain-on-failure',screenshot:'only-on-failure',actionTimeout:20000,navigationTimeout:30000},
   projects:[

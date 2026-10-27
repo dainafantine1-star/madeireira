@@ -1,0 +1,30 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "public",
+  "regions": ["iad1"],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "includeFiles": "{index.html,admin/**,js/**,css/**,assets/**,server/migrations/**,server/seed-categories.json}"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index?__route=/api/:path*" },
+    { "source": "/uploads/:path*", "destination": "/api/index?__route=/uploads/:path*" },
+    { "source": "/produto/:path*", "destination": "/api/index?__route=/produto/:path*" },
+    { "source": "/admin", "destination": "/admin/index.html" }
+  ],
+  "crons": [{ "path": "/api/cron/backup", "schedule": "0 6 * * *" }],
+  "headers": [{
+    "source": "/(.*)",
+    "headers": [
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+      { "key": "Strict-Transport-Security", "value": "max-age=31536000" },
+      { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+      { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" }
+    ]
+  }]
+}

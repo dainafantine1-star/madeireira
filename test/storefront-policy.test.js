@@ -12,6 +12,10 @@ test('unconfirmed company contacts never appear as verified public contact detai
   const confirmed=StorefrontPolicy.company({...input,confirmed:true});
   assert.equal(confirmed.canWhatsapp,true);assert.equal(confirmed.phone,input.phone);assert.equal(confirmed.address,input.address);
   assert.equal(StorefrontPolicy.company({...input,confirmed:true,whatsapp:'5500000000000'}).canWhatsapp,false);
+  const whatsappOnly=StorefrontPolicy.company({...input,whatsappConfirmed:true});
+  assert.equal(whatsappOnly.canWhatsapp,true);assert.equal(whatsappOnly.whatsapp,input.whatsapp);
+  assert.match(whatsappOnly.address,/confirmação/);assert.match(whatsappOnly.hours,/confirmação/);
+  assert.equal(StorefrontPolicy.company({...input,whatsappConfirmed:true,whatsapp:'5500000000000'}).canWhatsapp,false);
 });
 
 test('demonstration photos are suppressed without blocking uploaded or new external product photos',()=>{

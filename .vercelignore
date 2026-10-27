@@ -1,0 +1,20 @@
+# Local credentials, personal data and development artifacts must never be uploaded.
+.env
+.env.*
+.git/
+.cache/
+.vercel/
+storage/
+node_modules/
+test/
+e2e/
+test-results/
+playwright-report/
+*.sqlite
+*.sqlite-*
+*.mpbackup
+*.log
+previa-*.png
+screenshot-*.png
+catalogo_madeireira/
+LOGO/

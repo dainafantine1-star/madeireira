@@ -22,17 +22,18 @@ async function body(req,max=65536) {
   try { const data=JSON.parse(Buffer.concat(chunks).toString('utf8')); v.check(data && typeof data==='object' && !Array.isArray(data)); return data; }
   catch (e) { if (e.status) throw e; throw new v.HttpError(400,'JSON inválido.'); }
 }
-export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN}={}) {
+export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,backgroundTasks=true,readMedia=null}={}) {
   if (process.env.NODE_ENV==='production') v.check(origin && /^https:\/\//.test(origin),'Configure PUBLIC_ORIGIN com HTTPS.');
   const limits=new Map();
-  snapshot(db);
-  const snapshotTimer=setInterval(()=>{try{snapshot(db);}catch(error){console.error(JSON.stringify({event:'snapshot_failed',code:error.code||error.name}));}},300000);
-  snapshotTimer.unref();
+  if(backgroundTasks)snapshot(db);
+  const snapshotTimer=backgroundTasks?setInterval(()=>{try{snapshot(db);}catch(error){console.error(JSON.stringify({event:'snapshot_failed',code:error.code||error.name}));}},300000):null;
+  snapshotTimer?.unref();
   const server=createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('X-Request-ID',randomUUID());
     if(process.env.NODE_ENV==='production')res.setHeader('Strict-Transport-Security','max-age=31536000');
     res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
     res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
     const send=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
     try {
@@ -51,7 +52,11 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN}={
         if(path==='/api/health' && method==='GET') {db.prepare('SELECT 1').get();return send(200,{status:'ok'});}
         if(path==='/api/catalog' && method==='GET') return send(200,catalog(db));
         if(path==='/api/settings' && method==='GET') return send(200,settings(db));
-        if(path==='/api/quotes' && method==='POST') return send(201,createQuote(db,await body(req)));
+        if(path==='/api/quotes' && method==='POST') {
+          limit.quotes=(limit.quotes || 0)+1;
+          v.check(limit.quotes<=10,'Muitos orçamentos. Aguarde um minuto.',429);
+          return send(201,createQuote(db,await body(req,786432)));
+        }
         if(path==='/api/events' && method==='POST') {
           return send(201,recordEvent(db,await body(req)));
         }
@@ -94,7 +99,7 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN}={
       v.check(!requested.split('/').some(segment=>segment==='.'||segment==='..'),'Página inexistente.',404);
       if(/^\/uploads\/[a-f0-9-]{36}(?:-(?:320|640|960))?\.(?:webp|png)$/.test(requested)) {
         const filename=requested.slice(9);v.check(db.prepare('SELECT 1 FROM media WHERE filename=? UNION SELECT 1 FROM media_variants WHERE filename=?').get(filename,filename),'Imagem inexistente.',404);
-        const bytes=await readFile(resolve(mediaDirectory(),filename));res.writeHead(200,{'Content-Type':filename.endsWith('.png')?'image/png':'image/webp','Cache-Control':'public, max-age=31536000, immutable'});return res.end(method==='HEAD'?undefined:bytes);
+        const bytes=readMedia?await readMedia(filename):await readFile(resolve(mediaDirectory(),filename));res.writeHead(200,{'Content-Type':filename.endsWith('.png')?'image/png':'image/webp','Cache-Control':'public, max-age=31536000, immutable'});return res.end(method==='HEAD'?undefined:bytes);
       }
       const productPage=requested.match(/^\/produto\/(\d+)(?:\/[a-z0-9-]+)?\/?$/);
       if(productPage){

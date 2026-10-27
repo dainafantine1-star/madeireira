@@ -1,5 +1,21 @@
 # Validação local
 
+## Mensagem completa do orçamento — 26/10/2026
+
+O envio do formulário registra o orçamento e abre uma conversa no WhatsApp com todos os itens. A mensagem inclui protocolo, contato do cliente, SKU, referência, nome, especificações, medidas e cortes solicitados, quantidade/unidade, preço unitário, subtotal por item, total estimado, retirada/entrega e observações. Linhas com cortes diferentes do mesmo produto são preservadas. Valores sob consulta continuam sem um preço inventado.
+
+A abertura reserva uma aba durante o clique para evitar o bloqueio após a resposta da API. Se o registro falhar, a aba é fechada e o formulário permite nova tentativa. Se o navegador bloquear a abertura, o botão da confirmação mantém a mensagem completa. O cliente confirma o envio dentro do WhatsApp.
+
+- `npm.cmd test`: 31 testes aprovados na versão final, sem falhas ou testes ignorados, incluindo os fluxos Edge da loja e do painel. A execução exigiu permissão para iniciar navegadores fora do sandbox.
+- `node --test test/browser.test.js`: teste Edge atualizado aprovado em execução isolada, conferindo a abertura automática com a mesma URL do botão de alternativa.
+- Novos testes do servidor verificam três linhas com cortes distintos, quantidades fracionadas, entrega, preço sob consulta, preservação dos dados após edição do produto e geração de mensagem com 100 linhas sem truncamento.
+- A abertura automática da mensagem completa e o cenário de falha/reenvio com pop-up bloqueado passaram em Chromium, Firefox, WebKit, iPhone/WebKit e Android/Chromium. Os cenários de produto, cálculo e persistência também passaram nos cinco projetos. Firefox e WebKit foram repetidos isoladamente sem trace após falhas/timeouts na execução inicial.
+- Os oito limites de `npm.cmd run check:performance` passaram. A verificação de rotas de `scripts/verify-deployment.js` passou contra um servidor isolado com banco em memória. Sintaxe e `git diff --check` aprovados.
+
+Os testes de navegador interceptam a URL do WhatsApp para conferir o texto codificado sem enviar mensagens externas. A entrega efetiva da mensagem e listas extensas dentro do aplicativo WhatsApp ainda dependem de homologação no aplicativo real.
+
+O usuário informou o WhatsApp **(75) 99222-2895**, salvo no banco local como `5575992222895`, com `whatsappConfirmed=true`. A configuração permite confirmar somente o WhatsApp, sem divulgar endereço e horários provisórios como oficiais. O painel inclui a opção correspondente. Os testes validam persistência, rejeição de número inválido e desativação do contato. Os demais dados continuam com `confirmed=false`.
+
 ## Refinamento visual aprovado — 23/10/2026
 
 - `npm.cmd test`: **22 passaram**, sem falhas, cancelamentos ou testes ignorados; inclui Edge, segurança e três cenários novos de apresentação pública.

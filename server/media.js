@@ -6,14 +6,15 @@ import { root, transaction } from './db.js';
 import { audit } from './audit.js';
 import * as v from './validation.js';
 import { withMediaLock } from './media-lock.js';
+import { requestContext } from './request-context.js';
 
-export function mediaDirectory() {return process.env.UPLOAD_DIR || resolve(dirname(process.env.DATABASE_PATH || resolve(root,'storage/store.sqlite')),'uploads');}
+export function mediaDirectory() {return requestContext.getStore()?.uploads || process.env.UPLOAD_DIR || resolve(dirname(process.env.DATABASE_PATH || resolve(root,'storage/store.sqlite')),'uploads');}
 export function uploadImage(db,user,input){return withMediaLock(()=>upload(db,user,input));}
 async function upload(db,user,input) {
   v.check(input.usage===undefined||['photo','logo'].includes(input.usage),'Uso de imagem inválido.');
   v.text(input.name,200);v.check(['image/jpeg','image/png','image/webp'].includes(input.type),'Use JPEG, PNG ou WebP.');
-  v.check(typeof input.data==='string' && input.data.length<=7000000 && /^[a-z0-9+/]*={0,2}$/i.test(input.data),'Arquivo inválido ou maior que 5 MB.');
-  const bytes=Buffer.from(input.data,'base64');v.check(bytes.length>0&&bytes.length<=5*1024*1024,'A imagem deve ter até 5 MB.');
+  v.check(typeof input.data==='string' && input.data.length<=4200000 && /^[a-z0-9+/]*={0,2}$/i.test(input.data),'Arquivo inválido ou maior que 3 MB.');
+  const bytes=Buffer.from(input.data,'base64');v.check(bytes.length>0&&bytes.length<=3*1024*1024,'A imagem deve ter até 3 MB.');
   let output,info;
   try {
     const pipeline=sharp(bytes,{limitInputPixels:24000000,failOn:'warning',animated:false});const meta=await pipeline.metadata();

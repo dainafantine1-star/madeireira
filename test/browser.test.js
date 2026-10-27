@@ -63,9 +63,11 @@ test('browser: storefront, hostile content, cart recovery, storage failure, What
   assert.equal(await evaluate('document.querySelector("#productPage h1").querySelector("b")'),null);
   await evaluate(`document.getElementById('cartClose').click();document.getElementById('productRequest').click()`);
   await waitFor(`document.getElementById('quoteDialog').open`);
+  await evaluate(`window.open=()=>({closed:false,opener:null,location:{replace(url){window.sentQuoteUrl=url;}},close(){this.closed=true;}})`);
   await evaluate(`const form=document.getElementById('quoteForm');form.elements.name.value='Cliente navegador';form.elements.phone.value='71988887777';form.requestSubmit()`);
   await waitFor(`!document.getElementById('quoteSuccess').hidden`);
   const url=await evaluate(`document.getElementById('quoteWhats').href`);assert.ok(url.startsWith('https://wa.me/5571999998888?text='));
+  assert.equal(await evaluate('window.sentQuoteUrl'),url);
   const message=new URL(url).searchParams.get('text');assert.match(message,/Referência: MP-0001/);assert.match(message,/Total: Sob consulta/);assert.doesNotMatch(message,/R\$\s*0,00/);
   assert.equal(db.prepare('SELECT count(*) AS n FROM orders').get().n,1);
   assert.match(await evaluate(`document.getElementById('quoteProtocol').textContent`),/^MP-/);

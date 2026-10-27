@@ -17,6 +17,7 @@ dist/
 
 # Screenshots de desenvolvimento
 screenshot-*.png
+previa-*.png
 
 # Server credentials and persistent data
 .env
@@ -30,6 +31,8 @@ storage/
 .cache/
 playwright-report/
 test-results/
+.vercel/
+public/
 
 # Local PowerShell cache
 Microsoft/Windows/PowerShell/ModuleAnalysisCache

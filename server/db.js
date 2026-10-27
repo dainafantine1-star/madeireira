@@ -49,7 +49,13 @@ function seed(db) {
     banners.forEach((b,i) => db.prepare('INSERT INTO banners(tag,title,body,sort_order) VALUES(?,?,?,?)').run(...b,i));
   });
 }
-export function settings(db) { const row=db.prepare('SELECT public_json,version FROM company_settings WHERE id=1').get();return {...defaults,...JSON.parse(row.public_json),version:row.version}; }
+export function settings(db) {
+  const row=db.prepare('SELECT public_json,version FROM company_settings WHERE id=1').get();
+  const stored=JSON.parse(row.public_json);
+  // Explicit public fields: future internal keys must never leak through catalog/settings APIs.
+  const keys=[...Object.keys(defaults),'name','whatsapp','phone','address','hours','confirmed','delivery','payment','commercialTerms'];
+  return {...defaults,...Object.fromEntries(keys.filter(key=>Object.hasOwn(stored,key)).map(key=>[key,stored[key]])),version:row.version};
+}
 export function productDTO(row) {
   return { id:row.id, reference:row.reference, name:row.name, category:row.category_id, categoryLabel:row.category_label,
     price:row.price_cents === null ? null : row.price_cents/100, oldPrice:row.old_price_cents === null ? null : row.old_price_cents/100,

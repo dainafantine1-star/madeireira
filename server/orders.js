@@ -23,7 +23,11 @@ export function createQuote(db,input,{actor=null}={}) {
   }).sort((a,b)=>a.lineKey.localeCompare(b.lineKey));
   let contact;
   if(actor&&input.customerId){const c=db.prepare('SELECT * FROM customers WHERE id=?').get(v.integer(input.customerId));v.check(c,'Cliente inexistente.',404);contact=customerInput(c);}
-  else {v.check(input.customer&&typeof input.customer==='object','Informe seu nome e contato para receber atendimento.');contact=customerInput(input.customer);}
+  else {
+    v.check(input.customer&&typeof input.customer==='object'&&!Array.isArray(input.customer),'Informe seu nome e contato para receber atendimento.');
+    // The public form needs contact only; documents and internal CRM notes are never accepted here.
+    contact=customerInput(actor?input.customer:{name:input.customer.name,phone:input.customer.phone,email:input.customer.email});
+  }
   const fulfillment=input.fulfillment || 'pickup';v.check(['pickup','delivery'].includes(fulfillment),'Escolha retirada ou entrega.');
   const address=v.text(input.deliveryAddress || '',1000,false);v.check(fulfillment!=='delivery'||address,'Informe o endereço para entrega.');const notes=v.text(input.notes || '',2000,false);
   if(fulfillment==='delivery'&&!contact.address)contact.address=address;
@@ -54,10 +58,13 @@ export function createQuote(db,input,{actor=null}={}) {
 }
 export function quoteResponse(db,id){
   const order=db.prepare('SELECT * FROM orders WHERE id=?').get(id),items=db.prepare('SELECT * FROM order_items WHERE order_id=? ORDER BY id').all(id),contact=JSON.parse(order.customer_snapshot);
-  let message=`${settings(db).whatsappMessage}\nSolicitação de orçamento registrada.\nProtocolo: ${order.protocol}\nNome: ${contact.name || ''}\nContato: ${contact.phone || ''}\n\n`;
-  for(const i of items)message+=`${i.name_snapshot}\nReferência: ${i.reference_snapshot}\nMedidas/especificações: ${Object.entries(JSON.parse(i.specs_snapshot)).map(([k,v])=>`${k}: ${v}`).join('; ')}\nMedidas solicitadas: ${i.custom_measures || 'Conforme catálogo'}\nEspecificações solicitadas: ${i.custom_specs || 'Conforme catálogo'}\nQuantidade: ${i.quantity} ${i.unit_snapshot}\nPreço unitário estimado: ${money(i.unit_price_cents)}\nCondição comercial: ${i.terms_snapshot}\n\n`;
+  let message=`${settings(db).whatsappMessage}\nSolicitação de orçamento registrada.\nProtocolo: ${order.protocol}\nNome: ${contact.name || ''}\nContato: ${contact.phone || ''}${contact.email?'\nE-mail: '+contact.email:''}\n\nLISTA DE PRODUTOS (${items.length} itens)\n\n`;
+  for(const [index,i] of items.entries()){
+    const specs=JSON.parse(i.specs_snapshot);
+    message+=`Item ${index+1}: ${i.name_snapshot}\nSKU: ${specs.SKU || 'Não informado'}\nReferência: ${i.reference_snapshot}\nMedidas/especificações: ${Object.entries(specs).filter(([key])=>key!=='SKU').map(([k,v])=>`${k}: ${v}`).join('; ')}\nMedidas solicitadas: ${i.custom_measures || 'Conforme catálogo'}\nEspecificações solicitadas: ${i.custom_specs || 'Conforme catálogo'}\nQuantidade: ${new Intl.NumberFormat('pt-BR',{maximumFractionDigits:3}).format(i.quantity)} ${i.unit_snapshot}\nPreço unitário estimado: ${money(i.unit_price_cents)}\nSubtotal estimado do item: ${money(i.unit_price_cents===null?null:Math.round(i.unit_price_cents*i.quantity))}\nCondição comercial: ${i.terms_snapshot}\n\n`;
+  }
   message+=order.has_consultation&&order.known_total_cents===0?'Total: Sob consulta':`${order.has_consultation?'Subtotal dos itens com preço':'Total estimado'}: ${money(order.known_total_cents)}`;
-  message+=`${order.has_consultation?'\nHá itens sob consulta; total final a confirmar.':''}\n${order.fulfillment==='delivery'?'Entrega: '+order.delivery_address:'Retirada na loja'}\n${order.notes}\n${order.terms_snapshot}\nAguardando confirmação da equipe.`;
+  message+=`${order.has_consultation?'\nHá itens sob consulta; total final a confirmar.':''}\n${order.fulfillment==='delivery'?'Entrega: '+order.delivery_address:'Retirada na loja'}${order.notes?'\nObservações: '+order.notes:''}\n${order.terms_snapshot}\nAguardando confirmação da equipe.`;
   const company=settings(db);return {id,protocol:order.protocol,message,total:order.has_consultation?null:order.known_total_cents/100,knownSubtotal:order.known_total_cents/100,hasConsultation:!!order.has_consultation,whatsapp:company.whatsapp,registered:true};
 }
 export function orderDetail(db,id){const order=db.prepare('SELECT o.*,u.email AS assignee_email FROM orders o LEFT JOIN admin_users u ON u.id=o.assigned_to WHERE o.id=?').get(id);v.check(order,'Solicitação inexistente.',404);return {...order,customer:JSON.parse(order.customer_snapshot),items:db.prepare('SELECT * FROM order_items WHERE order_id=? ORDER BY id').all(id),history:db.prepare('SELECT h.*,u.email AS actor_email FROM order_history h LEFT JOIN admin_users u ON u.id=h.actor_id WHERE order_id=? ORDER BY h.id').all(id),allowedTransitions:transitions[order.stage]};}
