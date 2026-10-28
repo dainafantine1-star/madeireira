@@ -10,7 +10,11 @@
       "includeFiles": "{index.html,admin/**,js/**,css/**,assets/**,server/migrations/**,server/seed-categories.json}"
     }
   },
+  "redirects": [
+    { "source": "/admin/:path*", "has": [{ "type": "host", "value": "madeireiraprogresso.com" }], "destination": "https://admin.madeireiraprogresso.com/:path*", "permanent": true }
+  ],
   "rewrites": [
+    { "source": "/", "has": [{ "type": "host", "value": "admin.madeireiraprogresso.com" }], "destination": "/admin/index.html" },
     { "source": "/api/:path*", "destination": "/api/index?__route=/api/:path*" },
     { "source": "/uploads/:path*", "destination": "/api/index?__route=/uploads/:path*" },
     { "source": "/produto/:path*", "destination": "/api/index?__route=/produto/:path*" },

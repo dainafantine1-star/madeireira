@@ -47,3 +47,22 @@ Verificações desta revisão:
 - `http://localhost:3000/admin` e a folha de estilo retornaram HTTP 200.
 
 Prévias do painel: `.cache/admin-original-desktop.png`, `.cache/admin-original-mobile.png`, `.cache/admin-original-form.png` e `.cache/admin-original-metrics.png`.
+
+## Refinamento estritamente visual a partir do texto anexado
+
+Esta rodada foi preparada para avaliação em localhost. Não houve publicação nem envio ao GitHub nesta revisão.
+
+- A fonte Anton passou a ser servida localmente, com a licença SIL OFL incluída, para manter a aparência condensada do título em todos os sistemas. O título padrão mantém duas linhas nas seis larguras conferidas.
+- O cabeçalho foi compactado; o logotipo original mantém seus arquivos e proporções, com integração visual do fundo ao grafite por CSS.
+- O banner usa o arquivo de madeira existente, com um enquadramento à esquerda, área central escura e um recorte fotográfico diagonal à direita. A única mudança no JavaScript é a inclusão de um elemento decorativo nesse banner.
+- A vitrine mantém os produtos reais. Há seis colunas no desktop, três na largura estreita de 540 px e duas abaixo de 480 px, preservando a área dos controles de toque. Na captura de 1440 px, o banner mede 255 px e os cartões cerca de 287 px.
+- O acesso “Ver todos os produtos” usa o tratamento de filtros que já existia. O filtro real de promoções foi estilizado como bloco laranja quando há ofertas; a ausência de ofertas não é substituída por uma campanha fictícia.
+- O painel recebeu grafites mais neutros, indicadores menores e linhas de tabela mais baixas. No desktop, os indicadores aparecem antes do título da listagem; os módulos, campos e ações existentes continuam presentes.
+
+Validação: capturas da loja em 1440, 1280, 768, 540, 390 e 360 px, sem transbordamento horizontal ou erros de JavaScript. A navegação completa e o fluxo de produto/cálculo/orçamento passaram nos projetos Chromium desktop, Android/Chromium e iPhone/WebKit. O cenário completo de iPhone exigiu uma repetição isolada após timeout de interação na rodada concorrente; passou nessa repetição. Também foram conferidos os dez módulos administrativos, edição, preço, operação em lote, exportação CSV e logout em banco de teste na memória. Os nove limites de desempenho, sintaxe, build e `git diff --check` passaram.
+
+Capturas: `.cache/layout-faithful-1440.png`, `.cache/layout-faithful-540.png`, `.cache/layout-faithful-390.png`, `.cache/admin-original-desktop.png` e `.cache/admin-original-mobile.png`. Medidas: `.cache/layout-faithful-metrics.json`.
+
+Diferenças remanescentes: a fotografia enviada não contém os arquivos originais do banner ou das imagens dos materiais. A composição foi reproduzida com a fotografia e o catálogo disponíveis, sem trocar fotos de produtos, criar preços ou alterar dados comerciais. Há cinco categorias com produtos publicados no catálogo atual; a faixa mantém essas categorias reais, em vez de inventar a sexta categoria de materiais sugerida pelo recorte. Os botões usam uma variação mais escura do laranja para manter contraste do texto claro; o laranja de referência aparece no título e na seleção do painel.
+
+Loja local: `http://localhost:3000/`. Administrativo local: `http://localhost:3000/admin/`.
