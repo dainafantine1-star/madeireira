@@ -1,5 +1,9 @@
 'use strict';
 (() => {
+  if(location.hostname==='admin.madeireiraprogresso.com'){
+    document.querySelectorAll('a[href="/"]').forEach(link=>{link.href='https://madeireiraprogresso.com/';});
+    document.querySelectorAll('a[href="/admin"]').forEach(link=>{link.href='/';});
+  }
   const $=id=>document.getElementById(id),esc=StoreCore.escape;
   const price=n=>n==null?'Sob consulta':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);
   const labels={metrics:'Métricas e relatórios',products:'Produtos',orders:'Atendimentos',customers:'Clientes',banners:'Banners e campanhas',categories:'Categorias',media:'Imagens',audit:'Histórico de alterações',users:'Equipe e acessos',company:'Dados da empresa',account:'Minha conta',import:'Importar produtos'};

@@ -6,6 +6,25 @@ Projeto: `vercel-madeireira`, equipe `imobiliaria7`. O vínculo local está em `
 
 A conta foi consultada e está no plano Hobby. O proprietário esclareceu que esta publicação é exclusivamente para teste interno, sem uso comercial, e autorizou conectar `crmchapada.com.br`. A conexão desse teste não aguarda ativação do Pro. Para uso comercial futuro, verificar o plano adequado. Referência: [Vercel — uso comercial](https://vercel.com/docs/limits/fair-use-guidelines).
 
+## Domínios Madeireira Progresso — 28/10/2026
+
+Destino atual: loja em `https://madeireiraprogresso.com` e painel em `https://admin.madeireiraprogresso.com/`. Os dois hosts foram adicionados e verificados no projeto existente. `www.madeireiraprogresso.com` redireciona para o domínio principal com HTTP 308. O painel usa a mesma API, autenticação e banco privado; não há migração dos dados. Em localhost, a loja continua em `/` e o painel em `/admin/`.
+
+O rewrite condicionado ao host abre o painel na raiz do subdomínio. O acesso a `/admin` no domínio principal é redirecionado para o subdomínio. Os links de retorno à loja no painel apontam para o domínio principal quando abertos no host administrativo.
+
+Na consulta à API Vercel, o DNS principal ainda apontava para `2.57.91.91`, com servidores `atlas.dns-parking.com` e `hyperion.dns-parking.com`. A Vercel retornou estes registros preferenciais para a zona na Hostinger:
+
+| Tipo | Nome | Valor | TTL |
+| --- | --- | --- | --- |
+| A | @ | 216.198.79.1 | 300 |
+| A | @ | 64.29.17.1 | 300 |
+| CNAME | admin | 596ae90d2ef96671.vercel-dns-017.com | 300 |
+| CNAME | www | 596ae90d2ef96671.vercel-dns-017.com | 300 |
+
+Substituir o registro A antigo e o CNAME `www` mostrado no painel; adicionar o segundo A e o CNAME `admin`. Não criar dois CNAME com o mesmo nome. Preservar MX e TXT de e-mail. Nenhum TXT de verificação foi solicitado pela Vercel. Não é necessário trocar os nameservers da Hostinger.
+
+Não há conexão com a administração DNS da Hostinger nesta sessão; o cadastro acima foi feito na Vercel, e a alteração da zona Hostinger continua pendente. Somente após aplicar os registros, confirmar DNS, emissão do certificado e acesso HTTPS público aos dois hosts. Os registros indicados neste documento são a recomendação retornada para este projeto nessa data.
+
 ## Persistência e segurança
 
 O banco principal da versão web é um snapshot SQLite criptografado com AES-256-GCM, guardado em Vercel Blob **privado**, em `database/store.mpdb`. Cada chamada dinâmica baixa a versão atual diretamente da origem e usa um diretório temporário exclusivo. O disco temporário não é o armazenamento definitivo.
@@ -25,7 +44,8 @@ O login continua usando scrypt e cookies HttpOnly/Secure/SameSite, proteção CS
 | `BLOB_READ_WRITE_TOKEN` | Criada e conectada pela própria Vercel ao armazenamento privado do projeto. |
 | `BACKUP_KEY` | Chave exclusiva da nuvem para criptografar banco e backups. |
 | `CRON_SECRET` | Autenticação do backup agendado. |
-| `PUBLIC_ORIGIN` | Configurada em produção como `https://crmchapada.com.br`. As URLs da implantação e do projeto são reconhecidas pelas variáveis de sistema da Vercel. |
+| `PUBLIC_ORIGIN` | Configurada em produção como `https://madeireiraprogresso.com`. As URLs da implantação e do projeto são reconhecidas pelas variáveis de sistema da Vercel. |
+| `ADMIN_ORIGIN` | Configurada em produção como `https://admin.madeireiraprogresso.com`; aceita a API do painel somente nesse host explicitamente configurado. |
 
 A chave exclusiva da nuvem e o segredo do cron estão em `.env.vercel.local`, ignorado pelo Git e pelo upload. Guardar uma cópia segura e separada desse arquivo é indispensável para recuperar os dados da nuvem. A chave dos backups locais anteriores permanece no `.env` original. O token administrativo da API Vercel não foi incluído nas variáveis da aplicação.
 

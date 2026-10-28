@@ -71,6 +71,10 @@ test('rewritten routes preserve queries and accept only configured deployment ho
   assert.equal(requestPath({url:'/api/index?__route=/api/admin/products&sort=name'}),'/api/admin/products?sort=name');
   assert.throws(()=>requestPath({url:'/api/index?__route=https://example.com'}));
   assert.equal(requestOrigin({headers:{host:'madeira.vercel.app'}},{VERCEL_PROJECT_PRODUCTION_URL:'madeira.vercel.app'}),'https://madeira.vercel.app');
+  const origins={PUBLIC_ORIGIN:'https://madeireiraprogresso.com',ADMIN_ORIGIN:'https://admin.madeireiraprogresso.com'};
+  assert.equal(requestOrigin({headers:{host:'madeireiraprogresso.com'}},origins),origins.PUBLIC_ORIGIN);
+  assert.equal(requestOrigin({headers:{host:'admin.madeireiraprogresso.com'}},origins),origins.ADMIN_ORIGIN);
+  assert.throws(()=>requestOrigin({headers:{host:'attacker.madeireiraprogresso.com'}},origins));
   assert.throws(()=>requestOrigin({headers:{host:'attacker.example'}},{PUBLIC_ORIGIN:'https://madeira.example'}));
 });
 

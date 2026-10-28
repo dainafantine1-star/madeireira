@@ -21,7 +21,7 @@ export function requestPath(req){
 }
 
 export function requestOrigin(req,env=process.env){
-  const candidates=[env.PUBLIC_ORIGIN,env.VERCEL_PROJECT_PRODUCTION_URL&&`https://${env.VERCEL_PROJECT_PRODUCTION_URL}`,env.VERCEL_URL&&`https://${env.VERCEL_URL}`].filter(Boolean);
+  const candidates=[env.PUBLIC_ORIGIN,env.ADMIN_ORIGIN,env.VERCEL_PROJECT_PRODUCTION_URL&&`https://${env.VERCEL_PROJECT_PRODUCTION_URL}`,env.VERCEL_URL&&`https://${env.VERCEL_URL}`].filter(Boolean);
   const host=req.headers.host;
   const match=candidates.find(origin=>new URL(origin).host===host);
   if(!match)throw Error('Unrecognized deployment host.');
