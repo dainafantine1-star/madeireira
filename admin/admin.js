@@ -3,6 +3,27 @@
   const $=id=>document.getElementById(id),esc=StoreCore.escape;
   const price=n=>n==null?'Sob consulta':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);
   const labels={metrics:'Métricas e relatórios',products:'Produtos',orders:'Atendimentos',customers:'Clientes',banners:'Banners e campanhas',categories:'Categorias',media:'Imagens',audit:'Histórico de alterações',users:'Equipe e acessos',company:'Dados da empresa',account:'Minha conta',import:'Importar produtos'};
+  const iconPaths={
+    products:'<path d="m12 3 9 5v8l-9 5-9-5V8zM3 8l9 5 9-5M12 13v8M7 5.8l9 5"/>',
+    metrics:'<path d="M4 3v17h17M8 15V9M13 15V5M18 15v-4"/>',
+    orders:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 10h6M9 14h6M9 18h4"/>',
+    customers:'<circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6M18 15a5 5 0 0 1 3 4v2"/>',
+    banners:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 5 5 3-3 5 5M15 8h2"/>',
+    categories:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    media:'<rect x="3" y="3" width="16" height="16" rx="2"/><path d="M7 22h13a2 2 0 0 0 2-2V7M3 15l5-5 4 4 3-3 4 4M8 7h.01"/>',
+    audit:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    account:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
+    company:'<path d="m12 3 2 3 4-1 1 4 3 3-3 2-1 4-4-1-2 4-2-4-4 1-1-4-3-2 3-3 1-4 4 1z"/><circle cx="12" cy="12" r="3"/>',
+    plus:'<path d="M12 4v16M4 12h16"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+    warning:'<path d="m12 3 10 18H2zM12 9v5M12 17h.01"/>',zero:'<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/>'
+  };
+  const icon=name=>`<svg class="admin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${iconPaths[name==='users'?'customers':name]||iconPaths.products}</svg>`;
+  function navigationIcons(){
+    document.querySelectorAll('#desktopNav button,#mobileNav button').forEach(button=>{
+      const label=button.querySelector('span');if(!label)return;
+      button.innerHTML=icon(button.dataset.page||(button.id==='mobileNew'?'plus':'menu'))+`<span>${esc(label.textContent)}</span>`;
+    });
+  }
   const state={user:null,csrf:'',page:'products',categories:[],products:[],selected:new Map(),filters:{q:'',category:'',status:'',featured:'',stock:'',price:'',sort:'newest',size:'20',page:1},preview:null};
   let submitEditor=null,editProduct=null,saveBusy=false,searchTimer;
   function toast(message){$('toast').textContent=message;$('toast').classList.add('visible');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('visible'),4500);}
@@ -69,7 +90,7 @@
     const newButton='<button class="primary" data-action="new">＋ Novo produto</button>';
     const more='<details class="more-actions"><summary>Mais ações ⋯</summary><div><button data-action="export">Exportar todos · WooCommerce CSV</button><button data-page="import">Importar planilha CSV</button><button data-action="template">Baixar modelo CSV</button><button data-action="reload">Atualizar lista</button></div></details>';
     $('pageContent').innerHTML=header(`Produtos <span class="count-pill">${data.total}</span>`,'Organize seu catálogo e acompanhe a disponibilidade.',more+newButton)+
-      `<div class="stats"><div class="stat"><span>PRODUTOS NO CATÁLOGO</span><strong>${totalAll}</strong></div><div class="stat warning"><span>ESTOQUE BAIXO</span><strong>${data.alerts.low || 0}</strong></div><div class="stat danger"><span>ESTOQUE ZERADO</span><strong>${data.alerts.zero || 0}</strong></div></div>
+      `<div class="stats catalog-stats"><div class="stat"><div><span>PRODUTOS NO CATÁLOGO</span><strong>${totalAll}</strong></div><span class="stat-icon">${icon('products')}</span></div><div class="stat"><div><span>CATEGORIAS</span><strong>${categories.length}</strong></div><span class="stat-icon">${icon('categories')}</span></div><div class="stat warning"><div><span>ESTOQUE BAIXO</span><strong>${data.alerts.low || 0}</strong></div><span class="stat-icon">${icon('warning')}</span></div><div class="stat danger"><div><span>ESTOQUE ZERADO</span><strong>${data.alerts.zero || 0}</strong></div><span class="stat-icon">${icon('zero')}</span></div></div>
       <div class="category-tabs" aria-label="Categorias"><button data-category="" class="${!f.category?'active':''}">Todos <b>${totalAll}</b></button>${categories.map(c=>`<button data-category="${esc(c.id)}" class="${f.category===c.id?'active':''}">${esc(c.icon)} ${esc(c.label)} <b>${c.product_count}</b></button>`).join('')}</div>
       <section class="panel"><div class="filters"><input id="productSearch" aria-label="Buscar por nome, SKU ou código" placeholder="⌕  Buscar por nome, SKU ou código…" value="${esc(f.q)}" maxlength="200"><select data-filter="status" aria-label="Status">${[['','Todos os status'],['active','Disponível'],['promotion','Promoção'],['unavailable','Indisponível'],['inactive','Não publicado']].map(x=>option(...x,f.status)).join('')}</select><select data-filter="featured" aria-label="Destaque">${[['','Todos os destaques'],['1','Em destaque'],['0','Sem destaque']].map(x=>option(...x,f.featured)).join('')}</select>
       <div class="filter-extra"><select data-filter="stock" aria-label="Estoque">${[['','Todo o estoque'],['low','Estoque baixo'],['zero','Estoque zerado'],['unmanaged','Sem controle']].map(x=>option(...x,f.stock)).join('')}</select><select data-filter="price" aria-label="Condição de preço">${[['','Todos os preços'],['defined','Preço definido'],['consultation','Sob consulta']].map(x=>option(...x,f.price)).join('')}</select><select data-filter="sort" aria-label="Ordenar">${[['newest','Mais recentes'],['name','Nome A–Z'],['stock','Menor estoque'],['price','Menor preço']].map(x=>option(...x,f.sort)).join('')}</select><button data-action="clear-filters">Limpar filtros</button></div></div>
@@ -235,6 +256,7 @@
   $('editorForm').onsubmit=async e=>{e.preventDefault();if(saveBusy||!submitEditor)return;saveBusy=true;$('saveEditor').disabled=true;$('formError').textContent='';try{await submitEditor(e.currentTarget);}catch(error){$('formError').textContent=error.message;}finally{saveBusy=false;$('saveEditor').disabled=false;}};
   $('loginForm').onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button');button.disabled=true;$('loginError').textContent='';try{const result=await api('login','POST',{email:form.elements.email.value.trim(),password:form.elements.password.value,session:'cookie'});state.csrf=result.csrfToken;form.elements.password.value='';await session();}catch(error){$('loginError').textContent=error.message;}finally{button.disabled=false;}};
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&state.user)api('me').then(user=>{state.user=user;state.csrf=user.csrfToken;}).catch(()=>{});});
+  navigationIcons();
   AnalyticsUI.init({$,esc,api,header,toast});
   CommerceUI.init({$,esc,api,state,header,field,checkField,value,number,price,toast,confirmed,showEditor,navigate,uploadFile});
   session().catch(()=>showLogin()).finally(()=>{$('loginForm').querySelector('button[type="submit"]').disabled=false;});

@@ -19,7 +19,7 @@ const App=(()=>{
   function renderProducts(){
     const filtered=products.filter(p=>(category==='todas'||p.category===category)&&(mode!=='promotions'||p.offer)&&StoreCore.matches(p,search));
     $('productsGrid').innerHTML=productCards(filtered);$('emptyState').hidden=!ready||!!filtered.length;$('productCount').textContent=`${filtered.length} produto(s)`;
-    $('catalogTitle').textContent=mode==='promotions'?'Produtos em promoção':search?'Resultados da busca':'O que você precisa para a obra?';$('searchSummary').textContent=search?`Resultados para “${search}”.`:'Confira as medidas e adicione os produtos à sua lista.';$('promotionFilter').setAttribute('aria-pressed',String(mode==='promotions'));
+    $('catalogTitle').textContent=mode==='promotions'?'Produtos em promoção':search?'Resultados da busca':category==='todas'?'Produtos em destaque':categories.find(c=>c.id===category)?.label||'Produtos';$('searchSummary').textContent=search?`Resultados para “${search}”.`:'Confira as medidas e adicione os produtos à sua lista.';$('searchSummary').classList.toggle('is-search',!!search);$('promotionFilter').setAttribute('aria-pressed',String(mode==='promotions'));
     const featured=products.filter(p=>p.featured);$('destaques').hidden=!featured.length;$('featuredGrid').innerHTML=productCards(featured);UI.images($('productsGrid'));UI.images($('featuredGrid'));
     $('featuredNav').hidden=!featured.length;
     const promotions=products.some(p=>p.offer);$('promotionFilter').hidden=!promotions;
@@ -43,7 +43,7 @@ const App=(()=>{
     const steps=[{title:'Escolha os produtos',text:'Compare medidas e unidades.'},{title:'Monte sua lista',text:'Inclua cortes e quantidades.'},{title:'Peça seu orçamento',text:'A equipe confirma as condições.'}];
     const configured=company.benefits||[],seedBenefits=configured.length===2&&configured[0].title==='Atendimento próximo'&&configured[0].text==='Converse com nossa equipe.'&&configured[1].title==='Orçamento personalizado'&&configured[1].text==='Informe suas medidas e necessidades.';
     const benefits=company.confirmed&&configured.length&&!seedBenefits?configured:steps;
-    $('benefits').innerHTML=benefits.map((b,i)=>`<div class="benefit"><span class="benefit-symbol" aria-hidden="true">0${i+1}</span><div><strong>${esc(b.title)}</strong><p>${esc(b.text)}</p></div></div>`).join('');
+    $('benefits').innerHTML=benefits.map((b,i)=>`<div class="benefit"><span class="benefit-symbol" aria-hidden="true">${UI.icon(['check','list','message'][i%3])}</span><div><strong>${esc(b.title)}</strong><p>${esc(b.text)}</p></div></div>`).join('');
     for(const id of ['headerWhats','waFloat','contactWhats']){const link=$(id);link.href=company.canWhatsapp?whatsappUrl(company.whatsapp,company.whatsappMessage):'#catalogo';link.removeAttribute('aria-disabled');if(company.canWhatsapp){link.target='_blank';link.rel='noopener';}else{link.removeAttribute('target');link.removeAttribute('rel');}}
     $('headerWhatsLabel').textContent=company.canWhatsapp?'WhatsApp':'Solicitar orçamento';$('contactWhats').textContent=company.canWhatsapp?'Falar com a equipe':'Escolher produtos';$('waFloat').hidden=!company.canWhatsapp;
     $('headerPhone').textContent=company.confirmed?company.phone:'Dados em atualização';
@@ -51,9 +51,18 @@ const App=(()=>{
   }
   function renderHero(){
     const image=StoreCore.image(company.heroImage),illustrative=image==='assets/hero-madeira.webp';
-    $('heroTrack').innerHTML=`<article class="hero-slide"><div class="hero-copy"><span class="eyebrow">${esc(company.name)}</span><h1 id="heroTitle">${esc(company.heroTitle)}</h1><p>${esc(company.heroText)}</p><div class="hero-actions"><a class="btn primary" href="#catalogo">Ver produtos ${UI.icon('arrow')}</a><a class="text-link" href="#como-funciona">Como pedir um orçamento</a></div></div><figure class="hero-figure">${image?`<img class="hero-photo" src="${esc(image)}" ${UI.responsive(image,'(max-width: 760px) 100vw, 55vw')} width="1942" height="809" fetchpriority="high" alt="${illustrative?'Tábuas empilhadas, fotografia ilustrativa':'Imagem institucional fornecida pela loja'}">`:UI.photoPlaceholder()}<figcaption>${illustrative?'Fotografia ilustrativa. Não retrata a loja.':image?'Imagem fornecida pela loja.':'Foto institucional ainda não disponível.'}</figcaption></figure></article>`;
+    $('heroTrack').innerHTML=`<article class="hero-slide"><div class="hero-copy"><h1 id="heroTitle">${esc(company.heroTitle)}</h1></div><figure class="hero-figure">${image?`<img class="hero-photo" src="${esc(image)}" ${UI.responsive(image,'(max-width: 760px) 100vw, 100vw')} width="1942" height="809" fetchpriority="high" alt="${illustrative?'Tábuas empilhadas, fotografia ilustrativa':'Imagem institucional fornecida pela loja'}">`:UI.photoPlaceholder()}<figcaption>${illustrative?'Fotografia ilustrativa. Não retrata a loja.':image?'Imagem fornecida pela loja.':'Foto institucional ainda não disponível.'}</figcaption></figure></article>`;
     const campaigns=banners.filter(b=>!StorefrontPolicy.isSeedBanner(b));$('campaigns').hidden=!campaigns.length;
     $('campaigns').innerHTML=campaigns.map(b=>`<article class="campaign"><div><span class="eyebrow">${esc(b.tag||'NOVIDADES')}</span><h2>${esc(b.title)}</h2><p>${esc(b.body)}</p><a class="text-link" href="${esc(b.destination||'#catalogo')}">${esc(b.cta||'Ver produtos')} ${UI.icon('arrow')}</a></div>${b.image?`<img src="${esc(StoreCore.image(b.image))}" alt="Imagem da campanha ${esc(b.title)}" loading="lazy">`:''}</article>`).join('');
+    const title=$('heroTitle');
+    if(['Portas, tábuas e madeira para sua obra.','A madeira certa para cada projeto.'].includes(company.heroTitle)){
+      title.replaceChildren(document.createTextNode('Madeira de verdade '));
+      const line=document.createElement('span');line.textContent='para grandes projetos';title.append(line);
+    }
+    const callout=document.createElement('div');callout.className='hero-quote';
+    const defaultText=['Portas, tábuas, ripas e estruturas. Encontre o que precisa e converse com nossa equipe.','Escolha os materiais e envie sua lista com as medidas para pedir um orçamento.'];
+    callout.innerHTML=`<p>${esc(defaultText.includes(company.heroText)?'Soluções completas em madeiras e materiais para construção.':company.heroText)}</p><a class="btn primary" href="#catalogo">Ver produtos</a>`;
+    $('heroTrack').querySelector('.hero-slide').append(callout);
     UI.images($('heroTrack'));UI.images($('campaigns'));
   }
   function applyCatalog(data,initial=false){
