@@ -58,7 +58,7 @@ test('storefront keyboard, responsive quote, deduplication, admin and real dashb
   await page.locator('#quoteDone').click();
   await page.goto(base);await expect(page.locator('#productsGrid .product')).toHaveCount(10);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
-  for(const selector of ['.hero-copy .primary','.product__btn','.product__dimensions','.benefit p','.category-tile.is-active','.contact-grid strong','.contact-grid p','.footer-bottom']){
+  for(const selector of ['.hero-quote .primary','.product__btn','.product__dimensions','.benefit p','.category-tile.is-active','.contact-grid strong','.contact-grid p','.footer-bottom']){
     const contrast=await page.locator(selector).first().evaluate(n=>{const rgb=s=>s.match(/[\d.]+/g).map(Number),lum=a=>a.slice(0,3).map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4;}).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);let ancestor=n,bg;while(ancestor){const c=rgb(getComputedStyle(ancestor).backgroundColor);if(c.length===3||c[3]===1){bg=c;break;}ancestor=ancestor.parentElement;}const a=lum(rgb(getComputedStyle(n).color)),b=lum(bg);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);});expect(contrast,selector).toBeGreaterThanOrEqual(4.5);
   }
   await page.screenshot({path:`screenshot-storefront-${info.project.name}.png`,fullPage:true});
