@@ -20,43 +20,37 @@ async function prepare(page){
     {id:product,qty:0.125,lineKey:'B',measures:'Corte menor'},
     {id:consultation,qty:2,lineKey:'C'}
   ])),{product:product.id,consultation:consultation.id});
-  await page.reload();await page.locator('#cartToggle').click();await page.locator('#checkoutBtn').click();
-  await page.locator('#quoteForm [name=name]').fill('João & Maria');await page.locator('#quoteForm [name=phone]').fill('71988887777');
-  await page.locator('#quoteForm [name=email]').fill('cliente@example.test');await page.locator('#quoteForm [name=fulfillment]').selectOption('delivery');
-  await page.locator('#quoteForm [name=deliveryAddress]').fill('Rua São José, 10');await page.locator('#quoteForm [name=notes]').fill('Avisar antes & entregar à tarde.');
+  await page.reload();await page.locator('#cartToggle').click();
 }
+
 function checkMessage(url){
   const parsed=new URL(url);expect(parsed.origin+parsed.pathname).toBe('https://wa.me/5571999998888');
   const message=parsed.searchParams.get('text');
-  for(const text of ['LISTA DE PRODUTOS (3 itens)','SKU: SKU-M2','Referência: REF-M2','SKU: SKU-PORTA','Tábua São José & Cia','2,5 m × 0,3 m × 4','Corte liso','Corte menor','Quantidade: 0,125 m2','Subtotal estimado do item: Sob consulta','142,19','João & Maria','cliente@example.test','Rua São José, 10','Avisar antes & entregar à tarde.'])expect(message).toContain(text);
+  for(const text of ['LISTA DE PRODUTOS (3 itens)','SKU: SKU-M2','Referência: REF-M2','SKU: SKU-PORTA','Tábua São José & Cia','2,5 m × 0,3 m × 4','Corte liso','Corte menor','Quantidade: 0,125 m2','Subtotal estimado do item: Sob consulta','142,19'])expect(message).toContain(text);
 }
-test('submit opens WhatsApp with the entire multi-product report',async({page,context})=>{
-  await context.route('https://wa.me/**',route=>route.fulfill({contentType:'text/html',body:'<p>Mensagem pronta para envio</p>'}));
-  await prepare(page);const popupPromise=page.waitForEvent('popup');await page.locator('#quoteSubmit').click();const popup=await popupPromise;
-  await expect(popup).toHaveURL(/^https:\/\/wa.me\//);checkMessage(popup.url());
+test('one click opens the complete WhatsApp list without form or registration',async({page,context})=>{
+  let submissions=0;page.on('request',r=>{if(r.url().endsWith('/api/quotes'))submissions++;});
+  await context.route('https://wa.me/**',route=>route.fulfill({contentType:'text/html',body:'<p>Mensagem pronta</p>'}));
+  await prepare(page);const popupPromise=page.waitForEvent('popup');await page.locator('#checkoutBtn').click();const popup=await popupPromise;
+  await expect(popup).toHaveURL(url=>url.origin==='https://wa.me');checkMessage(popup.url());
   expect(await popup.evaluate(()=>window.opener===null)).toBe(true);
-  await expect(page.locator('#quoteProtocol')).toContainText('MP-');checkMessage(await page.locator('#quoteWhats').getAttribute('href'));
-  await popup.close();
+  await expect(page.locator('#quoteDialog')).not.toBeVisible();await expect(page.locator('#quoteForm')).toHaveCount(0);
+  const message=new URL(popup.url()).searchParams.get('text');expect(message).not.toMatch(/Protocolo:|Retirada na loja|Nome:|Contato:/);
+  expect(submissions).toBe(0);expect(db.prepare('SELECT count(*) n FROM orders').get().n).toBe(0);expect(db.prepare('SELECT count(*) n FROM customers').get().n).toBe(0);await popup.close();
+  await expect.poll(()=>db.prepare("SELECT count(*) n FROM events WHERE name='whatsapp_click' AND origin='quote_continue'").get().n).toBeGreaterThan(0);
 });
-test('API errors close reserved tab; retry and popup blocking retain full WhatsApp link',async({page})=>{
-  await page.addInitScript(()=>{window.quoteTabs=[];window.open=()=>{const tab={closed:false,close(){this.closed=true;},location:{replace(url){window.quoteDestination=url;}}};window.quoteTabs.push(tab);return tab;};});
-  await prepare(page);await page.route('**/api/quotes',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Falha temporária. Tente novamente.'})}));
-  await page.locator('#quoteSubmit').click();await expect(page.locator('#quoteError')).toContainText('Falha temporária');
-  expect(await page.evaluate(()=>window.quoteTabs[0].closed)).toBe(true);await expect(page.locator('#quoteSubmit')).toBeEnabled();
-  await page.unroute('**/api/quotes');await page.evaluate(()=>{window.open=()=>null;});
-  await page.locator('#quoteSubmit').click();await expect(page.locator('#quoteWhats')).toBeVisible();checkMessage(await page.locator('#quoteWhats').getAttribute('href'));
-  await expect(page.locator('#quoteWhatsappStatus')).toContainText('use o botão abaixo');
+test('blocked popup redirects the current page directly to WhatsApp',async({page,context})=>{
+  await context.route('https://wa.me/**',route=>route.fulfill({contentType:'text/html',body:'Mensagem pronta'}));
+  await prepare(page);await page.evaluate(()=>{window.open=()=>null;});await page.locator('#checkoutBtn').click();
+  await expect(page).toHaveURL(url=>url.origin==='https://wa.me');checkMessage(page.url());
 });
-
-test('long reports retain the entire message for copying and open the configured conversation',async({page})=>{
-  await page.addInitScript(()=>{window.open=()=>null;Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>{window.copiedQuote=text;}}});});
+test('extensive lists keep every item available to copy without collecting personal data',async({page})=>{
+  await page.addInitScript(()=>{window.open=url=>{window.openedUrl=url;return {opener:null};};Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>{window.copiedQuote=text;}}});});
   await prepare(page);
-  const message='Orçamento completo\nSKU: MADEIRA-001\n'+'Corte de madeira com medidas: 2,5 × 0,3 m\n'.repeat(1000)+'ÚLTIMO ITEM';
-  await page.route('**/api/quotes',route=>route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({protocol:'MP-LISTA-LONGA',whatsapp:'5575992222895',message})}));
-  await page.locator('#quoteSubmit').click();
-  await expect(page.locator('#quoteFullMessage textarea')).toHaveValue(message);
-  await expect(page.locator('#quoteWhats')).toHaveAttribute('href','https://wa.me/5575992222895');
-  await expect(page.locator('#quoteWhatsappStatus')).toContainText('Copie a lista completa');
-  await page.getByRole('button',{name:'Copiar lista completa'}).click();
-  expect(await page.evaluate(()=>window.copiedQuote)).toBe(message);
+  await page.evaluate(id=>localStorage.setItem('mp_cart_v1',JSON.stringify(Array.from({length:40},(_,i)=>({id,qty:1,lineKey:'L'+i,specifications:'Detalhes do corte '.repeat(50)+(i===39?'ÚLTIMO ITEM':'')})))),consultation.id);
+  await page.reload();await page.locator('#cartToggle').click();await page.locator('#checkoutBtn').click();
+  await expect(page.locator('#quoteDialog')).toBeVisible();await expect(page.locator('#quoteFullMessage')).toHaveValue(/ÚLTIMO ITEM/);
+  expect(await page.evaluate(()=>window.openedUrl)).toBe('https://wa.me/5571999998888');
+  await expect(page.locator('#quoteDialog input,#quoteDialog select')).toHaveCount(0);
+  await page.getByRole('button',{name:'Copiar lista completa'}).click();expect(await page.evaluate(()=>window.copiedQuote)).toContain('ÚLTIMO ITEM');
 });

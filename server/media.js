@@ -11,7 +11,7 @@ import { requestContext } from './request-context.js';
 export function mediaDirectory() {return requestContext.getStore()?.uploads || process.env.UPLOAD_DIR || resolve(dirname(process.env.DATABASE_PATH || resolve(root,'storage/store.sqlite')),'uploads');}
 export function uploadImage(db,user,input){return withMediaLock(()=>upload(db,user,input));}
 async function upload(db,user,input) {
-  v.check(input.usage===undefined||['photo','logo'].includes(input.usage),'Uso de imagem inválido.');
+  v.check(input.usage===undefined||['photo','logo','banner'].includes(input.usage),'Uso de imagem inválido.');
   v.text(input.name,200);v.check(['image/jpeg','image/png','image/webp'].includes(input.type),'Use JPEG, PNG ou WebP.');
   v.check(typeof input.data==='string' && input.data.length<=4200000 && /^[a-z0-9+/]*={0,2}$/i.test(input.data),'Arquivo inválido ou maior que 3 MB.');
   const bytes=Buffer.from(input.data,'base64');v.check(bytes.length>0&&bytes.length<=3*1024*1024,'A imagem deve ter até 3 MB.');
@@ -20,7 +20,7 @@ async function upload(db,user,input) {
     const pipeline=sharp(bytes,{limitInputPixels:24000000,failOn:'warning',animated:false});const meta=await pipeline.metadata();
     v.check(['jpeg','png','webp'].includes(meta.format)&&(!meta.pages||meta.pages===1),'Formato de imagem não permitido.');
     v.check({'image/jpeg':'jpeg','image/png':'png','image/webp':'webp'}[input.type]===meta.format,'O conteúdo não corresponde ao formato declarado.');
-    ({data:output,info}=await pipeline.rotate().resize({width:1800,height:1800,fit:'inside',withoutEnlargement:true}).webp(input.usage==='logo'?{lossless:true}:{quality:85}).toBuffer({resolveWithObject:true}));
+    ({data:output,info}=await pipeline.rotate().resize({width:input.usage==='banner'?2560:1800,height:input.usage==='banner'?2560:1800,fit:'inside',withoutEnlargement:true}).webp(input.usage==='logo'?{lossless:true}:{quality:85}).toBuffer({resolveWithObject:true}));
   }catch(error){if(error.status)throw error;throw new v.HttpError(400,'Imagem inválida, incompleta ou com dimensões excessivas.');}
   const id=randomUUID(),filename=`${id}.webp`;await mkdir(mediaDirectory(),{recursive:true});const path=resolve(mediaDirectory(),filename);
   await writeFile(path,output,{flag:'wx'});

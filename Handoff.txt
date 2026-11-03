@@ -1,0 +1,295 @@
+# Handoff técnico — Madeireira Progresso
+
+Data de corte: 28/10/2026, fuso America/Bahia. Documento preparado para continuidade em outra conversa. É um retrato das evidências desta sessão, não uma consulta contínua aos serviços externos.
+
+Revisão de continuidade: inclui migração Hostinger e configuração do Claude. Nesta revisão foram relidos documentos e relatórios locais, conferidos HEAD e arquivos pendentes e regenerado o Word; não houve nova consulta DNS, teste de produção, instalação ou deploy. Resultados históricos abaixo mantêm esse limite.
+
+## 1. Ponto exato em que paramos
+
+Atualização posterior ao Word original: o usuário solicitou fazer backup do projeto NAC na Hostinger e hospedar a Madeireira na Hostinger. A nova referência operacional é `MIGRACAO-HOSTINGER.md`. Faltam domínio do NAC, tipo de hospedagem e confirmação do acesso correto. Foi encontrada conexão SSH local para `187.127.32.214`, usuário root, mas não foi confirmado que corresponda à Hostinger/NAC; nenhuma conexão foi realizada nesse host. Não houve backup remoto do NAC nem deploy Hostinger.
+
+O código da loja e do painel segue integrado no GitHub e publicado na Vercel. A exportação criptografada da Madeireira foi concluída e restaurada isoladamente para verificação; relatório em `.cache/hostinger-migration/madeireira-export-verification.json`, com restored=true, encrypted=true e remoteWrites=false. A cópia tem 32 produtos publicados e 44 linhas brutas em products (inclui exclusões lógicas). A primeira tentativa teve timeout na leitura de mídias; o leitor de exportação recebeu timeout maior e tentativas limitadas, sem alterar o runtime de produção. O backup do NAC e a instalação na Hostinger continuam pendentes.
+
+O incidente CNAME anterior permanece sem causa confirmada: `CNAME record content is not valid! (and 1 more error)`, com valores confirmados pelo usuário. Não insistir no apontamento Vercel como objetivo atual: a estratégia pedida agora é migrar de hospedagem. O Word desta revisão foi atualizado a partir deste Markdown.
+
+A frente mais recente registrada é a configuração do Claude Code: o usuário confirmou teste remoto e instalação da versão 2.1.312. O erro de campo `env` ausente foi corrigido e validado localmente em quatro cenários. A última captura documentada mostra a seleção inicial de tema; onboarding completo e uma resposta dentro do Claude continuam sem confirmação. Consultar a seção 17 e `DEBUG-TERMINAL.md`.
+
+## 2. Objetivos e restrições do usuário
+
+- Reproduzir o layout da referência fotográfica com a maior fidelidade possível, incluindo estrutura do banner e visual do administrativo.
+- Trabalhar no layout preservando funcionalidades, módulos, autenticação, produtos, preços, imagens, clientes e pedidos. Não substituir os dados por demonstrações.
+- Disponibilizar prévia localhost; a máquina já desligou e interrompeu o trabalho anteriormente, portanto não presumir que um processo antigo continua em execução.
+- Atualizar o GitHub de colaboração e a Vercel quando solicitado. A atualização de aplicação mais recente já foi concluída.
+- Loja principal: `https://madeireiraprogresso.com/`. Painel: `https://admin.madeireiraprogresso.com/`. `www` deve redirecionar ao domínio principal.
+- Manter memória de engenharia e documentação de debug. A regra foi registrada neste projeto; não foi instalada globalmente em outros projetos.
+
+## 3. Workspace e leitura inicial obrigatória
+
+Workspace Windows:
+
+```text
+C:\Users\daina\OneDrive\Documentos\MADEIREIRA\Madeireira Progresso - Site
+```
+
+Shell: PowerShell. Node verificado na sessão: 24.21.0. Usar Node 24, conforme package.json. No PowerShell, preferir `npm.cmd`, pois `npm` pode selecionar npm.ps1 e ser bloqueado pela política de execução.
+
+Ler nesta ordem: `AGENTS.md`, `.memory/lessonsLearned.md`, `DEBUG.md` e este handoff. Para a frente recente, ler `DEBUG-TERMINAL.md`; para hospedagem, `MIGRACAO-HOSTINGER.md`; para DNS, `DEBUG-DNS.md`. Para publicação, consultar também `PUBLICACAO-VERCEL.md`; para contexto visual, `LAYOUT-ORIGINAL.md`.
+
+O protocolo de memória exige registro após erro, funcionalidade validada ou decisão importante e revisão antes de concluir. Cada registro usa somente Causa/Contexto, Solução Aplicada e Regra de Prevenção. Não duplicar incidentes nem incluir segredos.
+
+## 4. GitHub e estado do código
+
+| Item | Valor confirmado nesta sessão |
+| --- | --- |
+| Repositório de colaboração | https://github.com/dainafantine1-star/madeireira |
+| Remote origin | https://github.com/dainafantine1-star/madeireira.git |
+| Branch local atual | main |
+| Commit integrado e publicado | b860cd795b6cc73150495df438e67f9f5047b6da |
+| PR mais recente, integrado | https://github.com/dainafantine1-star/madeireira/pull/2 |
+| Branch de origem do PR #2 | configuracao/dominios-madeireira |
+| Commit da branch do PR #2 | 1e31ce7193f85525df6359ad9bbdae7d4c13cb8f |
+| PR anterior de layout | https://github.com/dainafantine1-star/madeireira/pull/1 |
+| Merge anterior | 46a685c54c9bf47e5cdc6f11e728b16b0090dc2e |
+
+Os dois jobs de CI associados ao PR #2 concluíram com sucesso antes do merge. O fluxo inclui npm ci, testes Node, instalação de navegadores, Playwright, limites de desempenho e build Docker. A branch principal local foi sincronizada por fast-forward antes do upload à Vercel.
+
+`COLABORACAO.md` orienta usar branch e pull request. A conversa teve uma tentativa anterior de identificar um GitHub de Rick/LuizRickston, mas o destino efetivamente escolhido pelo usuário foi o repositório Daina acima. Não transferir para outro proprietário com base no pedido antigo.
+
+Estado local conferido nesta revisão: HEAD em `b860cd795b6cc73150495df438e67f9f5047b6da`; `git status --short` mostrou somente arquivos não rastreados: `.memory/`, `AGENTS.md`, `DEBUG.md`, `DEBUG-DNS.md`, `DEBUG-TERMINAL.md`, `MIGRACAO-HOSTINGER.md`, este handoff e `instalar-claude.ps1`. Os arquivos Word e os auxiliares ficam em `.cache/`, ignorado pelo Git. Uma nova clonagem não receberá esses arquivos enquanto não forem compartilhados ou versionados. Este pedido de documentação não inclui um novo push ou deploy automático.
+
+## 5. Arquitetura e dados
+
+Frontend em HTML, CSS e JavaScript, sem framework de frontend. Backend Node 24 com SQLite. Servidor local em `server/index.js`; entrada serverless em `api/index.js`; adaptação de nuvem em `server/cloud-runtime.js`; persistência privada em `server/blob-storage.js`.
+
+O banco local fica em `storage/store.sqlite`. A versão publicada usa snapshot SQLite criptografado AES-256-GCM em Vercel Blob privado, objeto `database/store.mpdb`. Cada chamada baixa a versão atual, trabalha em diretório temporário próprio e publica alterações com If-Match/ETag forte. Conflitos permitem até cinco tentativas. Não liberar sucesso de uma gravação antes da persistência.
+
+O banco remoto já existe e pode ter evoluído desde a migração. Não executar `scripts/migrate-vercel.js` para sobrescrevê-lo; não reenviar o banco local como se fosse a versão atual da produção. Local e nuvem não sincronizam automaticamente.
+
+Referência histórica da interface: 42 produtos administrativos e 32 publicados na vitrine. Na exportação posterior, foram verificadas 44 linhas brutas em products (incluindo exclusões lógicas), 32 produtos publicados e 12 categorias cadastradas. Contagem da interface e linhas brutas não são métricas equivalentes. Há cinco categorias com produtos publicados na conferência visual; não inventar uma sexta categoria para imitar a imagem.
+
+Autenticação usa scrypt, cookies HttpOnly/Secure/SameSite, CSRF, permissões e revogação de sessões. Mídias são objetos imutáveis e somente arquivos registrados no banco podem ser servidos por `/uploads/`. Uploads aceitam JPEG/PNG/WebP até 3 MB e são otimizados.
+
+Backups são criptografados. O cron publicado chama `/api/cron/backup` às 06h UTC, 03h na Bahia, autenticado por CRON_SECRET. A chave da nuvem é distinta da chave dos backups locais antigos. Consultar o documento de publicação antes de restaurar; usar destino novo e isolado.
+
+## 6. Alterações visuais entregues
+
+Cabeçalho grafite, busca central, marca original, atendimento, lista de orçamento e navegação compacta. Banner horizontal com madeira à esquerda, texto branco/laranja central e recorte diagonal de madeira à direita. Fonte Anton servida localmente com licença SIL OFL. Na captura desktop de 1440 px, banner de aproximadamente 255 px e cards de aproximadamente 287 px.
+
+Vitrine em seis colunas no desktop, três na largura de 540 px e duas abaixo de 480 px. Botões usam laranja mais escuro para contraste. A chamada “Ver todos os produtos” usa o tratamento de filtros existente. Promoções continuam dependentes dos dados reais.
+
+Painel grafite/laranja com ícones, menu lateral compacto, quatro indicadores reais, filtros e tabela mais compactos. Login, produtos, pedidos/orçamentos, clientes, banners, categorias, biblioteca de mídias, histórico, equipe, empresa, relatórios e conta permanecem disponíveis. No celular, controles de toque e navegação inferior foram preservados.
+
+Principais arquivos: `css/storefront-original.css`, `css/admin-original.css`, `index.html`, `admin/index.html`, `admin/admin.js`, `js/app.js`, `assets/fonts/anton-latin.woff2` e `assets/fonts/anton-OFL.txt`. As folhas de estilo de referência são carregadas após as anteriores.
+
+A referência é uma fotografia de tela, não um arquivo editável de design. Não foram recebidos os arquivos originais das fotos do banner; a composição foi aproximada com os ativos disponíveis. A marca e as fotos reais dos produtos não foram substituídas. As mudanças na composição dinâmica do banner incluem um elemento decorativo hero-timber.
+
+## 7. Domínios, rotas e origens
+
+`vercel.json` reescreve a raiz do host `admin.madeireiraprogresso.com` para `/admin/index.html`. O acesso `/admin/:path*` no host principal redireciona permanentemente ao subdomínio administrativo. APIs, uploads e páginas de produto passam pela função em api/index com parâmetro interno __route.
+
+`server/cloud-runtime.js` permite somente hosts de origens configuradas: PUBLIC_ORIGIN, ADMIN_ORIGIN e URLs de sistema da Vercel. ADMIN_ORIGIN foi adicionada e testada; não liberar hosts arbitrários para contornar erro de domínio ou CSRF.
+
+`admin/admin.js` ajusta os links “Abrir a loja” e “Voltar para a loja” para o domínio principal quando executado no host admin. No localhost, mantém os caminhos locais. Assets do painel e chamadas à API usam caminhos absolutos, adequados à abertura na raiz do subdomínio.
+
+Origens de produção configuradas:
+
+```text
+PUBLIC_ORIGIN=https://madeireiraprogresso.com
+ADMIN_ORIGIN=https://admin.madeireiraprogresso.com
+```
+
+O servidor local restringe os arquivos públicos. A folha de tema do painel deve permanecer em `css/admin-original.css`: o caminho alternativo `/admin/original.css` não é aceito pela whitelist local. Não abrir a whitelist para servir arquivos arbitrários.
+
+## 8. Vercel: publicação confirmada e limites da evidência
+
+| Item | Valor |
+| --- | --- |
+| Projeto | vercel-madeireira |
+| Equipe | imobiliaria7 |
+| Project ID | prj_o8M5chcNb6cN1LswgOxSeWHjLOSr |
+| Org ID | team_UkbjeXx4Ks2RnfPMjQoGiaO1 |
+| Deployment ID | dpl_6Ejq52WgxfZQgYLw4BgfqKXEzwkz |
+| Deployment publicado | https://vercel-madeireira-g5fk64puc-imobiliaria7.vercel.app |
+| Estado final observado | READY, produção, aliases atribuídos sem erro |
+| Build | npm run build:vercel |
+| Output | public |
+| Região da função | iad1 |
+| Proteção | all_except_custom_domains |
+
+As URLs de deployment podem exigir autenticação Vercel, além do login próprio do admin. A conferência remota usou bypass de automação em memória, sem divulgá-lo. Responderam HTTP 200: `/`, `/admin/`, CSS da loja e do painel, `/admin/admin.js`, `/api/health` e `/api/catalog` (32 produtos).
+
+Evidência final: `.cache/layout-vercel-verification.json`, com estado READY. Atenção: `.cache/layout-vercel-deployment.json` foi gravado na criação e ainda contém INITIALIZING; esse arquivo isolado não representa o estado final.
+
+Domínios cadastrados: principal, admin e www da Madeireira. Os domínios antigos crmchapada.com.br e www.crmchapada.com.br também permanecem no projeto; não removê-los por suposição. O alias curto `vercel-madeireira.vercel.app` havia sido retirado a pedido do usuário: não reativá-lo. O alias longo da equipe não é o mesmo endereço curto.
+
+Não há integração Git automática configurada no projeto (git/link era nulo). Push no GitHub não implica novo deploy. A publicação foi realizada por API REST, com upload de fontes do commit exato e whitelist de arquivos. `.cache/publish-vercel-session.mjs` exige SHA esperado e working tree limpo; revisar o script e o estado remoto antes de reutilizar. Ele não envia banco, .env ou cache.
+
+Tentativas de testar os hosts customizados antes do DNS usando Host diferente do SNI falharam com ECONNRESET/421; fetch com Host retornou proteção 302. Esses resultados não comprovam erro no rewrite do aplicativo. Não marcar a raiz do domínio admin como validada externamente até DNS e TLS permitirem a verificação real.
+
+`PUBLICACAO-VERCEL.md` contém também seções históricas sobre crmchapada e o contexto antigo de testes/plano Hobby. Não confundir essas seções com o domínio principal atual. O plano foi visto anteriormente, não reconsultado para este handoff.
+
+## 9. DNS: valores corretos e incidente ainda aberto
+
+Registros retornados como preferenciais pela API Vercel para o projeto na sessão:
+
+| Tipo | Nome | Conteúdo | TTL |
+| --- | --- | --- | --- |
+| A | @ | 216.198.79.1 | 300 |
+| A | @ | 64.29.17.1 | 300 |
+| CNAME | admin | 596ae90d2ef96671.vercel-dns-017.com | 300 |
+| CNAME | www | 596ae90d2ef96671.vercel-dns-017.com | 300 |
+
+Os dois A @ são intencionais. A captura do usuário mostra uma confirmação da Hostinger para múltiplos A com exatamente esses IPs; não é a captura dos campos do erro CNAME. O IP antigo mostrado inicialmente era 2.57.91.91. Deve ser substituído, sem permanecer como um terceiro destino.
+
+O CNAME www inicial apontava para madeireiraprogresso.com; a orientação é editar o existente. O CNAME admin deve ser adicionado ou revisado sem duplicação. Preservar MX/TXT de e-mail e registros de outros sistemas. Nameservers observados: atlas.dns-parking.com e hyperion.dns-parking.com. Não é necessário mudar a delegação para a Vercel para esse procedimento. Nenhum TXT de verificação foi solicitado na consulta à Vercel.
+
+Erro relatado: `CNAME record content is not valid! (and 1 more error)`. Usuário confirmou os valores. Não insistir em presumir erro de digitação. Possíveis conflitos com registro de mesmo nome, caracteres de cópia ou validação de outra linha são hipóteses, não causas comprovadas.
+
+Não existe conexão de administração DNS Hostinger nesta sessão. A descoberta de plugins encontrou Hostinger Mail, que não administra DNS; não instalar nem usar e-mail como substituto. O cadastro Vercel não significa que a zona Hostinger foi alterada.
+
+Últimas consultas válidas ao resolvedor Google: A principal com NOERROR e nenhuma resposta; CNAME admin e www com NXDOMAIN. Isso é observação de um resolvedor naquele momento, não diagnóstico global nem prova de causa do erro no formulário. O script `.cache/check-dns-public.mjs` faz consultas somente de leitura via DNS-over-HTTPS.
+
+## 10. Sequência recomendada para continuar — hospedagem
+
+1. Ler a memória e verificar git status antes de editar. Não começar reconstruindo o projeto.
+2. Confirmar domínio do NAC, serviço Hostinger contratado e conexão correta. Não conectar ao IP encontrado por suposição.
+3. Inventariar NAC e fazer backup consistente de arquivos, banco, configuração e volumes; conferir hash e restauração isolada antes de qualquer substituição.
+4. Conferir o backup criptografado da Madeireira e as gravações posteriores na origem. A exportação de 28/10 não é sincronização contínua nem backup do NAC.
+5. Preparar destino isolado compatível com Node 24/SQLite, armazenamento persistente e rollback. Adaptar ADMIN_ORIGIN, CSRF e rotas do subdomínio no standalone/proxy; vercel.json não configura a Hostinger.
+6. Restaurar a fonte remota atual sem recriar o proprietário. Validar catálogo, mídias, login, permissões, gravações controladas e persistência após reinício.
+7. Só depois definir o DNS real do destino, preservar e-mail, validar HTTPS de loja/admin/www e backups agendados. Manter a Vercel disponível para rollback.
+8. Atualizar os documentos e a memória com evidências. Se houver mudança de código, seguir branch/PR e publicar explicitamente. Retomar o erro CNAME Vercel somente se essa configuração voltar a ser necessária; sua causa continua aberta.
+
+Comandos somente de leitura para conferir DNS no Windows:
+
+```powershell
+nslookup -type=A madeireiraprogresso.com 1.1.1.1
+nslookup -type=CNAME admin.madeireiraprogresso.com 1.1.1.1
+nslookup -type=CNAME www.madeireiraprogresso.com 1.1.1.1
+```
+
+## 11. Localhost, build e testes
+
+Loja local: `http://localhost:3000/`. Painel local: `http://localhost:3000/admin/`. Houve servidor em segundo plano durante a sessão, mas PID e disponibilidade precisam ser conferidos novamente. Não matar processos genéricos para liberar a porta sem identificar o servidor.
+
+```powershell
+node --version
+npm.cmd ci
+npm.cmd start
+```
+
+Não sobrescrever .env ou recriar proprietário se já existem dados locais. Em clone novo, seguir README e .env.example; a conta da produção não é copiada pelo Git.
+
+Validação conforme o escopo da próxima alteração:
+
+```powershell
+npm.cmd run build:vercel
+node --test test/cloud-runtime.test.js
+npm.cmd run check:performance
+npm.cmd test
+npm.cmd run test:browsers
+git diff --check
+```
+
+O build copia HTML/CSS/JS/assets e arquivos públicos específicos do admin para public/. Esse diretório é gerado e ignorado; alterar as fontes, não editar só o build. O comando npm test completo pode executar testes legados de navegador no Windows; conferir as limitações abaixo antes de repetir indefinidamente.
+
+## 12. Validação realizada e limitações
+
+- Nesta atualização: 30 testes Node de domínio de negócio/segurança mais cinco de nuvem passaram, total 35 na rodada local. Incluem persistência, criptografia, concorrência, login, CSRF, pedidos e origens permitidas.
+- Os dois jobs de CI do PR #2 passaram antes do merge, inclusive testes de navegador e build Docker. Esse é o resultado remoto daquela revisão, não uma execução nova deste handoff.
+- Build, sintaxe, nove limites de tamanho, verificação de segredos e diff-check passaram. A licença Anton teve um espaço final corrigido antes do push.
+- Capturas reais da loja em 1440, 1280, 768, 540, 390 e 360 px sem overflow ou exceções JS observadas. Título padrão em duas linhas nessas capturas.
+- Dez módulos administrativos e cinco larguras conferidos em cópia em memória. Edição de produto/preço, operação em lote, CSV e logout passaram; oito contrastes acima de 4,5:1.
+- Fluxos Chromium desktop, Android/Chromium e iPhone/WebKit passaram nas revisões visuais. Um timeout de interação iPhone na execução concorrente passou na repetição isolada.
+- O teste legado test/admin-browser.test.js via CDP excedeu 90 s no Windows; não registrar esse teste local como aprovado. Os fluxos foram validados separadamente por Playwright. Firefox também teve falha local de ambiente antes de abrir a página numa revisão anterior; o CI posterior teve sucesso.
+- Navegação do admin foi testada em navegador com hostname simulado: links externos para a loja corretos e localhost preservado, sem exceções JS. Isso não substitui o teste público de DNS/HTTPS do subdomínio.
+
+## 13. Erros, acertos e prevenção prática
+
+| Situação | Aprendizado para a próxima conversa |
+| --- | --- |
+| npm.ps1 bloqueado no PowerShell | Usar npm.cmd; não alterar política global de execução por esse motivo. |
+| Tema em /admin/original.css bloqueado | Manter css/admin-original.css dentro das rotas públicas aceitas. |
+| ETag fraco no Blob | Leitura binária com Accept-Encoding identity; exigir ETag forte para escrita condicional. |
+| fetch failed no DNS em ambiente restrito | Foi contornado com acesso de rede autorizado; não interpretar falha de transporte como NXDOMAIN. |
+| Estado INITIALIZING no JSON inicial | Conferir o resultado final READY no arquivo de verificação ou API, não apenas no primeiro retorno. |
+| Host customizado diferente de SNI | Testes produziram reset/421/302; esperar DNS/TLS para validar o endereço público. |
+| Word gerado via ZIP no Windows | Usar entradas ZIP com barras /, carregar System.IO.Compression e FileSystem e validar cada XML; CreateFromDirectory produziu nomes inadequados nesta sessão. |
+| Fotos originais indisponíveis | Preservar catálogo e marca, aproximar composição com ativos existentes e documentar a diferença. |
+| Erro CNAME sem segundo erro | Aceitar a confirmação dos valores e isolar qual gravação falha; não declarar resolução ou culpar digitação. |
+
+## 14. Credenciais e continuidade segura
+
+Não incluir tokens ou senhas neste handoff. Os arquivos .env, .env.local, .env.vercel.local, storage/ e .vercel/ são locais/ignorados. Não imprimir seu conteúdo.
+
+O usuário forneceu um token administrativo da Vercel nesta conversa e autorizou publicação; o valor foi usado somente em memória via stdin oculto, não salvo no Git ou no documento. O processo dessa sessão foi encerrado. Outra conversa deve obter uma conexão autenticada disponível ou acesso adequado, sem presumir que conhece o token do histórico.
+
+As credenciais GitHub foram obtidas pelo gerenciador Git apenas em memória para chamadas REST. Vercel CLI estava instalada, mas sem autenticação de sessão. Não colocar token em argumento de comando, documento, log ou variável pública do site. Os nomes dos segredos são BLOB_READ_WRITE_TOKEN, BACKUP_KEY e CRON_SECRET; PUBLIC_ORIGIN e ADMIN_ORIGIN não são segredos.
+
+## 15. Artefatos locais úteis
+
+| Caminho | Uso |
+| --- | --- |
+| .cache/layout-vercel-verification.json | Evidência remota READY e respostas HTTP 200. |
+| .cache/layout-vercel-deployment.json | ID/URL/SHA; estado inicial desatualizado. |
+| .cache/publish-vercel-session.mjs | Auxiliar REST de inspeção, domínios, origens, upload e verificação; requer autenticação em memória. |
+| .cache/github-domains.mjs | Auxiliar do PR #2; possui nomes fixos daquela branch, revisar antes de reutilizar. |
+| .cache/check-dns-public.mjs | Consulta DNS pública, somente leitura. |
+| .cache/check-admin-domain-links.mjs | Verificação de navegação do painel com host simulado. |
+| .cache/check-custom-hosts.mjs | Tentativa de verificação antes do DNS, não aprovada devido a SNI/Host. |
+| .cache/preview-admin-original.mjs | Testes visuais/funcionais com cópia em memória do catálogo. |
+| .cache/capture-faithful-storefront.mjs | Capturas de catálogo real com acesso de leitura. |
+| .cache/layout-faithful-metrics.json | Medidas e verificação das larguras. |
+| .cache/layout-faithful-1440.png e layout-faithful-390.png | Prévias da loja. |
+| .cache/admin-original-desktop.png e admin-original-mobile.png | Prévias do painel. |
+| .cache/entregas/DNS-Madeireira-Progresso.docx | Primeira entrega Word de DNS. |
+| .cache/entregas/DNS-Madeireira-Progresso-Debug.docx | Word com investigação do erro de CNAME. |
+| .cache/entregas/DNS-Registros-para-copiar.txt | Valores ASCII em texto simples. |
+| HANDOFF-MADEIREIRA-PROGRESSO.md | Fonte deste handoff, legível pela próxima conversa. |
+| .cache/entregas/HANDOFF-MADEIREIRA-PROGRESSO.docx | Versão Word deste handoff. |
+
+Esses artefatos de cache não são distribuídos pelo Git. Compartilhar o Markdown e o Word ao abrir outra conversa; se o workspace for o mesmo, as capturas e auxiliares podem continuar disponíveis.
+
+## 16. Texto para iniciar a próxima conversa
+
+```text
+Continue a partir do HANDOFF-MADEIREIRA-PROGRESSO.md anexado. Leia AGENTS.md, .memory/lessonsLearned.md e DEBUG.md no workspace e o documento da frente que será retomada. Preserve funcionalidades e dados. HEAD local b860cd795b6cc73150495df438e67f9f5047b6da; publicação Vercel e testes são evidências históricas, não verificações atuais. A frente mais recente é Claude Code: instalado, teste remoto passou segundo o usuário, erro env corrigido e testes locais passaram; última captura na seleção de tema, sem confirmação de onboarding e conversa. Para hospedagem, o objetivo passou a ser backup do NAC e migração para Hostinger: backup da Madeireira exportado e restaurado isoladamente, mas NAC e deploy Hostinger pendentes do alvo/acesso correto. Leia MIGRACAO-HOSTINGER.md antes de operar. Não sobrescreva produção com banco local nem altere DNS para a Vercel por rotina. Confirme o estado atual antes de marcar pendências como resolvidas. Documentos e script ainda não foram commitados; cache e Word não acompanham um clone.
+```
+
+## 17. Claude Code — erros, correções e ponto de retomada
+
+Esta frente é configuração de ferramenta local, independente da migração do site. Fonte detalhada: `DEBUG-TERMINAL.md`. Arquivo entregue: `instalar-claude.ps1`, ainda não rastreado pelo Git.
+
+| Etapa | Evidência e resultado |
+| --- | --- |
+| npm.ps1 bloqueado | Confirmada seleção do wrapper PowerShell; npm.cmd --version retornou 11.19.0. Nenhuma alteração global de política foi necessária. |
+| Script completo | Instalador nativo, entrada oculta da chave, teste prévio do modelo, backup de settings.json e preservação de propriedades. Todas as seleções usam o mesmo modelo testado. |
+| Resposta sem conteúdo | Usuário confirmou id presente, type=message, content vazio, stop_reason=max_tokens e oito tokens de saída. Teste passou de max_tokens=8 para 1024; validação mantida. |
+| Instalação | Usuário confirmou teste remoto aprovado, Claude Code 2.1.312 instalado e backup das configurações criado. Não foi uma execução realizada nesta revisão. |
+| env ausente | StrictMode causou PropertyNotFoundStrict. Leitura alterada para PSObject.Properties['env']; quatro casos locais passaram: ausente, nulo, objeto preservado e tipo inválido rejeitado. Parser também passou. |
+| Último ponto | Captura posterior documentada mostra seleção inicial de tema, Dark mode selecionado. Enter confirma; setas mudam a opção. Onboarding completo, configuração final aplicada e resposta dentro do programa não foram confirmados. |
+
+Na próxima conversa, conferir primeiro a tela/erro atual. Se continuar na escolha de tema, concluir o onboarding apresentado e verificar uma conversa simples. Se ocorrer erro de configuração ou provedor, registrar mensagem e metadados mínimos sem imprimir a chave ou o corpo bruto. Não reinstalar nem remover configurações por rotina. O script reconhece o executável instalado e usa seu caminho completo quando PATH ainda não o contém.
+
+Uma credencial foi exposta anteriormente e sua substituição foi orientada. Revogação/substituição não está confirmada. Não reutilizar nem copiar o valor do histórico; solicitar entrada oculta quando necessária. A configuração do provedor usa settings.json local, que não deve ser anexado sem revisão e remoção dos segredos.
+
+## 18. Backup disponível e critérios de conclusão
+
+Backup Madeireira verificado no relatório local:
+
+```text
+Arquivo: .cache/hostinger-migration/backup-2026-10-28T16-28-33-129Z-28f4c496-daf8-4de7-92a1-6971e42acaee.mpbackup
+Bytes: 52707949
+SHA-256: d524b896d45e9ac83e0bfb2b4ce918f99afd5ac09b5695bf10523d435723de6c
+Formato: MPB1 criptografado
+Origem: Vercel private Blob
+Relatório: .cache/hostinger-migration/madeireira-export-verification.json
+restored=true; encrypted=true; remoteWrites=false
+products=44; publishedProducts=32; categories=12; media=32
+customers=0; orders=0; admin_users=1
+nacBackupCreated=false; hostingerDeploymentCreated=false
+```
+
+A restauração isolada já foi validada historicamente; nesta revisão conferir o hash do arquivo só comprova que o artefato não mudou em relação ao relatório. A chave BACKUP_KEY da nuvem permanece separada, em configuração local privada; o DOCX não permite recuperar o backup sem acesso autorizado a essa chave. Não anexar arquivos de ambiente ou chaves à conversa.
+
+Considerar a migração concluída apenas após backup recuperável do NAC, destino identificado, dados atuais restaurados, funcionalidades e persistência verificadas, DNS/HTTPS corretos, backup agendado e rollback documentado. Considerar a ferramenta local operacional após onboarding e uma resposta real no Claude usando a configuração pretendida. O pedido de handoff não comprova a conclusão dessas duas frentes.

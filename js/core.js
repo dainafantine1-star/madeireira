@@ -15,6 +15,25 @@ globalThis.StoreCore = Object.freeze({
     unitLabel(unit) {return {un:'unidade',m:'metro',m2:'m²',m3:'m³',pacote:'pacote'}[unit]||'unidade a confirmar';},
     dimensions(product) {return product.dimensions || Object.entries(product.specs||{}).filter(([k])=>/medida|largura|espessura|seção|área/i.test(k)).map(([k,v])=>`${k}: ${v}`).join(' · ') || 'Medidas sob consulta';},
     length(product) {return product.lengthMm==null?(product.specs?.Comprimento || 'Comprimento sob consulta'):`Comprimento: ${new Intl.NumberFormat('pt-BR',{maximumFractionDigits:3}).format(product.lengthMm/1000)} m`;},
+    shoppingMessage(items,products,company) {
+        const number=n=>new Intl.NumberFormat('pt-BR',{maximumFractionDigits:3}).format(n);
+        const money=cents=>cents===null?'Sob consulta':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(cents/100);
+        let total=0,consultation=false;
+        const quantities=new Map();
+        const lines=items.map((item,index)=>{
+            const p=products.find(p=>p.id===item.id);
+            if(!p?.available||!this.validQuantity(item.qty,p.unit,company.maxQuoteQuantity||10000))throw Error('Produto ou quantidade indisponível. Revise sua lista.');
+            quantities.set(p.id,(quantities.get(p.id)||0)+item.qty);
+            if(p.stock!=null&&quantities.get(p.id)>p.stock+0.0000001)throw Error('Quantidade maior que o estoque disponível. Revise sua lista.');
+            let measures=item.measures||'Conforme catálogo';
+            if(item.measurement){const result=WoodMeasure.calculate(p.unit,item.measurement);if(result.qty!==item.qty)throw Error('As medidas mudaram. Refaça o cálculo.');measures=result.formula;}
+            const cents=this.hasPrice(p.price)?Math.round(p.price*100):null;
+            const subtotal=cents===null?null:Math.round(cents*item.qty);
+            if(subtotal===null)consultation=true;else total+=subtotal;
+            return `Item ${index+1}: ${p.name}\nSKU: ${p.sku||'Não informado'}\nReferência: ${p.reference||'Não informada'}\nMedidas/especificações: ${Object.entries(p.specs||{}).map(([k,v])=>`${k}: ${v}`).join('; ')}\nDimensões: ${this.dimensions(p)}\n${this.length(p)}\nMedidas solicitadas: ${measures}\nEspecificações solicitadas: ${item.specifications||'Conforme catálogo'}\nQuantidade: ${number(item.qty)} ${p.unit}\nPreço unitário estimado: ${money(cents)}\nSubtotal estimado do item: ${money(subtotal)}\nCondição comercial: ${p.commercialTerms||company.commercialTerms||'A confirmar com a equipe.'}`;
+        });
+        return `${company.whatsappMessage||'Olá! Gostaria de consultar esta lista.'}\n\nLISTA DE PRODUTOS (${items.length} itens)\n\n${lines.join('\n\n')}\n\n${consultation&&total===0?'Total: Sob consulta':`${consultation?'Subtotal dos itens com preço':'Total estimado'}: ${money(total)}`}${consultation?'\nHá itens sob consulta; total final a confirmar.':''}\n${company.commercialTerms||'Preços e disponibilidade sujeitos à confirmação.'}\nAguardando confirmação da equipe.`;
+    },
     normalizeCart(input, products,max=99) {
         if (!Array.isArray(input)) return [];
         const valid = new Map(products.map(p => [p.id,p])), items = new Map();

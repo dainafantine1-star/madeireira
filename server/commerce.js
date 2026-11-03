@@ -1,6 +1,6 @@
 import { orderDetail,orderList,updateOrder,createQuote } from './orders.js';
 import { customerList,customerDetail,saveCustomer } from './customers.js';
-import { publicSettings,saveSettings,saveBanner } from './company.js';
+import { publicSettings,saveSettings,saveBanner,deleteBanner } from './company.js';
 import * as v from './validation.js';
 
 export function commerce({db,user,req,url,p}){
@@ -22,5 +22,6 @@ export function commerce({db,user,req,url,p}){
   if(path==='/api/admin/banners'&&method==='POST')return {status:201,data:saveBanner(db,user,p)};
   const banner=path.match(/^\/api\/admin\/banners\/(\d+)$/);
   if(banner&&method==='PUT')return ok(saveBanner(db,user,p,Number(banner[1])));
+  if(banner&&method==='DELETE')return ok(deleteBanner(db,user,Number(banner[1]),Number(url.searchParams.get('version'))));
   return null;
 }

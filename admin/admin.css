@@ -9,3 +9,8 @@
 
 /* Preserve the complete catalog originals, including their captions. */
 .product-thumb[src$=".png"],.media-card img[src$=".png"],#imagePreview[src$=".png"]{object-fit:contain;background:#fff}
+
+.login-brand .login-lead{font-size:clamp(26px,2.6vw,38px);line-height:1.2;color:#f2f4e9;font-weight:800;letter-spacing:-.5px;margin:16px 0 0;max-width:15ch}
+@media(max-width:520px){.login-brand .login-lead{display:block;font-size:24px;max-width:none}}
+
+.campaign-card>img{width:100%;height:auto;object-fit:contain}.campaign-preview{display:block}.campaign-preview img{width:100%;height:auto;object-fit:contain}.campaign-preview>div{display:none}

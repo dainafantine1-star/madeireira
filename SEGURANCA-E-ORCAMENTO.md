@@ -1,5 +1,7 @@
 # Revisão de segurança e orçamento — 26/10/2026
 
+Atualização em 29/10/2026: a vitrine passou a abrir o WhatsApp diretamente, sem formulário, cadastro ou protocolo, conforme pedido explícito do usuário. Ver [fluxo atual](DEBUG-WHATSAPP.md). As descrições abaixo sobre formulário, contato e registro referem-se ao fluxo anterior e à API de orçamentos registrados, que continua validando seus consumidores.
+
 ## Escopo
 
 Revisão local do código, rotas, configuração de publicação e fluxo de orçamento. Alterações que já estavam no diretório foram preservadas. Não houve publicação, envio de mensagens reais nem alteração de clientes, produtos ou pedidos reais. O banco real foi aberto somente para leitura das configurações de atendimento e verificações de integridade.

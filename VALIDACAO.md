@@ -74,3 +74,11 @@ Guia de operação e recuperação: [OPERACAO.md](OPERACAO.md). Fórmulas e limi
 - Os 32 produtos reais continuam sem preço e unidade confirmados. A calculadora foi validada com dados isolados; preencher unidade/status e preço real no painel habilita o fluxo nos produtos da empresa. Nenhum preço ou unidade foi inventado.
 - Não foi realizada nova homologação em Firefox/WebKit nesta reformulação. A revisão é funcional e de código; HTTPS, destino externo de backups, segredos e controles de infraestrutura dependem do ambiente de publicação.
 
+# Rodada de 01/11/2026
+
+Resultados atuais, correções, checklist e limitações: [REVISAO-INTEGRAL-2026-11-01.md](REVISAO-INTEGRAL-2026-11-01.md). As seções anteriores são históricas e não substituem essa rodada.
+
+# Rodada de 02/11/2026
+
+Correção do roteamento do admin na Vercel, 46 testes aprovados, fluxo local de carrinho/WhatsApp e probes de produção: [REVISAO-2026-11-02.md](REVISAO-2026-11-02.md). Deploy da correção e produtos disponíveis na produção seguem pendentes.
+

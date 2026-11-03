@@ -1,0 +1,73 @@
+import {test,expect} from '@playwright/test';
+import {once} from 'node:events';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {openDatabase} from '../server/db.js';
+import {createApp} from '../server/index.js';
+import {createOwner} from '../server/auth.js';
+let db,app,base;
+let uploads,previousUpload;
+test.beforeAll(async()=>{uploads=mkdtempSync(join(tmpdir(),'mp-banner-upload-'));previousUpload=process.env.UPLOAD_DIR;process.env.UPLOAD_DIR=uploads;db=openDatabase(':memory:');createOwner(db,{email:'banners@example.com',password:'BannerPassword12345'});app=createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');base='http://127.0.0.1:'+app.address().port;});
+test.afterAll(async()=>{app.closeAllConnections();await new Promise(r=>app.close(r));db.close();if(previousUpload===undefined)delete process.env.UPLOAD_DIR;else process.env.UPLOAD_DIR=previousUpload;rmSync(uploads,{recursive:true,force:true});});
+test('admin saves main artwork and unlimited promotion collection reaches the storefront',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base+'/admin');await page.locator('#loginForm [name=email]').fill('banners@example.com');await page.locator('#loginForm [name=password]').fill('BannerPassword12345');await page.locator('#loginForm button[type=submit]').click();await expect(page.locator('#app')).toBeVisible();
+ await page.evaluate(()=>document.querySelector('[data-page=banners]').click());
+ await expect(page.getByRole('heading',{name:'Banner principal da home',level:2})).toBeVisible();
+ const home=db.prepare("SELECT * FROM banners WHERE placement='home'").get();
+ await page.locator('[data-action=crm-banner][data-banner-id="'+home.id+'"]').click();
+ await expect(page.locator('#editorBody')).toContainText('1920 × 600');
+ await page.locator('#editorForm [name=title]').fill('Arte principal da loja');
+ // Exercise the real upload endpoint with an existing raster, no synthetic artwork created.
+ await page.locator('#crmBannerFile').setInputFiles('assets/hero-madeira.webp');
+ await expect(page.locator('#crmBannerImageStatus')).toContainText('Nova imagem pronta');
+ await page.locator('#saveEditor').click();await expect(page.locator('#editor')).not.toBeVisible();
+ const stored=db.prepare('SELECT * FROM banners WHERE id=?').get(home.id);expect(stored.image.startsWith('uploads/')).toBe(true);
+ const login=await page.request.post(base+'/api/admin/login',{data:{email:'banners@example.com',password:'BannerPassword12345'}});const {token}=await login.json();
+ for(let i=0;i<12;i++){const response=await page.request.post(base+'/api/admin/banners',{headers:{Authorization:'Bearer '+token},data:{title:'Promoção '+i,image:stored.image,active:true,sortOrder:i,placement:'promotion',destination:'#catalogo'}});expect(response.status()).toBe(201);}
+ await page.reload();await page.evaluate(()=>document.querySelector('[data-page=banners]').click());
+ await expect(page.locator('.banner-panel')).toHaveCount(2);
+ const spacing=await page.locator('[data-action=crm-new-banner]').evaluate(button=>{
+   const panel=button.closest('.banner-panel'),grid=panel.querySelector('.campaign-grid');
+   return {padding:parseFloat(getComputedStyle(panel).paddingLeft),buttonTop:parseFloat(getComputedStyle(button).marginTop),gap:grid.getBoundingClientRect().top-button.getBoundingClientRect().bottom};
+ });
+ expect(spacing.padding).toBeGreaterThanOrEqual(18);expect(spacing.buttonTop).toBeGreaterThanOrEqual(20);expect(spacing.gap).toBeGreaterThanOrEqual(23);
+ await page.screenshot({path:'.cache/banners-admin-spacing.png',fullPage:true});
+ await page.goto(base);await expect(page.locator('.home-image-banner img')).toHaveAttribute('src',stored.image);await expect(page.locator('.home-image-banner img')).toBeVisible();
+ expect(await page.locator('#benefits').evaluate(n=>n.getBoundingClientRect().top>=document.querySelector('.home-image-banner img').getBoundingClientRect().bottom-1)).toBe(true);
+ await expect(page.locator('.campaign-slide')).toHaveCount(12);
+ for(const width of [1920,1440,390]){
+   await page.setViewportSize({width,height:1000});
+   expect(await page.locator('#home').evaluate(n=>Math.abs(n.getBoundingClientRect().width-innerWidth)<2)).toBe(true);
+   const main=await page.locator('.home-image-banner img').boundingBox();expect(main.height).toBeCloseTo(Math.min(width*600/1920,600),0);
+   const campaign=await page.locator('.campaign-carousel').boundingBox();expect(campaign.x).toBeGreaterThanOrEqual(width>760?24:16);
+   expect(width-campaign.x-campaign.width).toBeGreaterThanOrEqual(width>760?24:16);
+   expect(campaign.height).toBeCloseTo(width>760?300:campaign.width*300/1320,0);
+   await expect(page.locator('.campaign-carousel')).toHaveCSS('border-radius','8px');
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+   await page.screenshot({path:'.cache/banners-layout-'+width+'.png'});
+ }
+ await page.getByRole('button',{name:'Próxima campanha',exact:true}).click();await expect(page.locator('.campaign-slide').nth(1)).toHaveAttribute('aria-hidden','false');
+ await page.getByRole('button',{name:'Campanha anterior',exact:true}).click();await expect(page.locator('.campaign-slide').first()).toHaveAttribute('aria-hidden','false');
+ await page.getByRole('button',{name:'Campanha anterior',exact:true}).click();await expect(page.locator('.campaign-slide').last()).toHaveAttribute('aria-hidden','false');
+ await page.screenshot({path:'.cache/banners-mobile.png'});
+ const off=await page.request.put(base+'/api/admin/banners/'+home.id,{headers:{Authorization:'Bearer '+token},data:{...stored,active:false}});expect(off.ok()).toBe(true);await page.reload();await expect(page.locator('#home')).toBeHidden();expect(errors).toEqual([]);
+ await page.goto(base+'/admin');await expect(page.locator('#app')).toBeVisible();await page.evaluate(()=>document.querySelector('[data-page=banners]').click());
+ const editHome=()=>page.locator(`[data-action=crm-banner][data-banner-id="${home.id}"]`).click();
+ await editHome();await page.locator('#crmBannerRemoveImage').click();await page.locator('#saveEditor').click();await expect(page.locator('#editor')).not.toBeVisible();
+ expect(db.prepare('SELECT image FROM banners WHERE id=?').get(home.id).image).toBe('');
+ await page.reload();await page.evaluate(()=>document.querySelector('[data-page=banners]').click());await editHome();
+ await page.locator('#crmBannerFile').setInputFiles('assets/hero-madeira.webp');await expect(page.locator('#crmBannerImageStatus')).toContainText('Nova imagem pronta');
+ await page.locator('#saveEditor').click();await expect(page.locator('#editor')).not.toBeVisible();
+ const replacement=db.prepare('SELECT image FROM banners WHERE id=?').get(home.id).image;expect(replacement).not.toBe(stored.image);
+ const promotion=db.prepare("SELECT * FROM banners WHERE placement='promotion' AND image<>'' ORDER BY id LIMIT 1").get();
+ await page.locator(`[data-action=crm-banner][data-banner-id="${promotion.id}"]`).click();
+ page.once('dialog',dialog=>dialog.dismiss());await page.locator('#crmBannerDelete').click();await expect(page.locator('#editor')).toBeVisible();
+ page.once('dialog',dialog=>dialog.accept());await page.locator('#crmBannerDelete').click();await expect(page.locator('#editor')).not.toBeVisible();
+ expect(db.prepare('SELECT 1 FROM banners WHERE id=?').get(promotion.id)).toBeUndefined();
+ expect((await page.request.get(base+'/'+stored.image)).status()).toBe(200);
+ await editHome();page.once('dialog',dialog=>dialog.accept());await page.locator('#crmBannerDelete').click();await expect(page.locator('#editor')).not.toBeVisible();
+ await page.goto(base);await expect(page.locator('#home')).toBeHidden();await expect(page.locator('.campaign-slide')).toHaveCount(11);expect(errors).toEqual([]);
+});

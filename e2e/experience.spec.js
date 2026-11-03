@@ -29,8 +29,8 @@ test('storefront keyboard, responsive quote, deduplication, admin and real dashb
   await expect(page.locator('#productsGrid .image-fallback')).toHaveCount(10);
   await expect(page.locator('#campaigns')).toBeHidden();
   db.prepare('UPDATE company_settings SET public_json=?').run(JSON.stringify({...settings(db),confirmed:true}));
-  db.prepare('UPDATE banners SET body=? WHERE id=1').run('Informe as medidas na sua lista.');
-  await page.reload();await expect(page.locator('#campaigns')).toContainText('Informe as medidas na sua lista.');
+  db.prepare("UPDATE banners SET title=?,image='assets/hero-madeira.webp' WHERE id=1").run('Informe as medidas na sua lista.');
+  await page.reload();await expect(page.locator('#campaigns img')).toHaveAttribute('alt','Informe as medidas na sua lista.');
   await expect(page.locator('#waFloat')).toBeVisible();
   await expect(page.locator('#productsGrid .price-disclaimer')).toHaveCount(0);
   await expect(page.locator('#home .hero-photo').first()).toHaveAttribute('srcset',/640w/);
@@ -46,16 +46,11 @@ test('storefront keyboard, responsive quote, deduplication, admin and real dashb
   await expect.poll(()=>db.prepare("SELECT count(*) AS n FROM events WHERE name='product_view'").get().n).toBe(1);
   await page.locator('#productAdd').click();await expect(page.locator('#cartClose')).toBeFocused();
   await page.keyboard.press('Shift+Tab');expect(await page.evaluate(()=>!!document.activeElement.closest('#cartDrawer'))).toBe(true);
-  await page.locator('#checkoutBtn').click();await page.locator('#quoteForm [name=name]').fill('Cliente do navegador');await page.locator('#quoteForm [name=phone]').fill('71988887777');
-  await page.locator('#quoteForm [name=notes]').fill('Medidas pelo celular');
-  const whatsappPopup=page.waitForEvent('popup');await page.locator('#quoteSubmit').click();
-  const conversation=await whatsappPopup;await expect(conversation).toHaveURL(/^https:\/\/wa.me\/5571999998888\?text=/);
-  await conversation.close();await page.bringToFront();
-  await expect(page.locator('#quoteProtocol')).toHaveText(/^MP-/);
-  // Verify keyboard focus after returning from the WhatsApp conversation.
-  await expect.poll(()=>page.locator('#quoteProtocol').evaluate(node=>node.ownerDocument.activeElement===node)).toBe(true);
-  expect(db.prepare('SELECT count(*) AS n FROM orders').get().n).toBe(1);
-  await page.locator('#quoteDone').click();
+  const whatsappPopup=page.waitForEvent('popup');await page.locator('#checkoutBtn').click();
+  const conversation=await whatsappPopup;await expect(conversation).toHaveURL(url=>url.origin==='https://wa.me');
+  expect(new URL(conversation.url()).searchParams.get('text')).toContain('LISTA DE PRODUTOS');
+  await conversation.close();await page.bringToFront();await expect(page.locator('#quoteDialog')).not.toBeVisible();
+  expect(db.prepare('SELECT count(*) AS n FROM orders').get().n).toBe(0);
   await page.goto(base);await expect(page.locator('#productsGrid .product')).toHaveCount(10);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
   for(const selector of ['.hero-quote .primary','.product__btn','.product__dimensions','.benefit p','.category-tile.is-active','.contact-grid strong','.contact-grid p','.footer-bottom']){

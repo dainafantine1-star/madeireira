@@ -1,5 +1,7 @@
 # Madeireira Progresso
 
+Revisão atual de funcionamento, segurança e testes: [REVISAO-INTEGRAL-2026-11-01.md](REVISAO-INTEGRAL-2026-11-01.md). A documentação anterior abaixo contém resultados históricos; o relatório atual distingue validação local de domínio/publicação.
+
 Nova vitrine, páginas de produto na mesma aba, cálculo de metragem e cadastro com galeria: [REFORMULACAO-LOJA.md](REFORMULACAO-LOJA.md).
 
 Refinamento aprovado da loja pública, alterações por arquivo e checklist de conteúdo real: [REFINAMENTO-VISUAL.md](REFINAMENTO-VISUAL.md).
@@ -75,7 +77,8 @@ Todas as mutações recebem `Content-Type: application/json`. Erros retornam `{ 
 | `GET, POST /api/admin/categories` | Listar e cadastrar categorias |
 | `PUT /api/admin/categories/:id` | Atualizar ou desativar categoria |
 | `GET, POST /api/admin/banners` | Listar e cadastrar banners |
-| `PUT /api/admin/banners/:id` | Atualizar ou desativar banner |
+| `PUT /api/admin/banners/:id` | Atualizar, remover imagem ou desativar banner |
+| `DELETE /api/admin/banners/:id?version=N` | Excluir promoção; limpar/desativar o principal mantendo sua posição editável |
 | `PUT /api/admin/settings` | Atualizar dados públicos da empresa |
 | `GET, POST /api/admin/customers` | Listar últimos 200 clientes e cadastrar |
 | `GET /api/admin/orders` | Listar últimas 200 negociações |

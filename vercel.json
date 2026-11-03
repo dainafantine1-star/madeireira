@@ -11,10 +11,11 @@
     }
   },
   "redirects": [
-    { "source": "/admin/:path*", "has": [{ "type": "host", "value": "madeireiraprogresso.com" }], "destination": "https://admin.madeireiraprogresso.com/:path*", "permanent": true }
+    { "source": "/admin/:path*", "has": [{ "type": "host", "value": "madeireiraprogresso.com" }], "destination": "https://admin.madeireiraprogresso.com/admin/:path*", "permanent": true },
+    { "source": "/", "has": [{ "type": "host", "value": "admin.madeireiraprogresso.com" }], "destination": "/admin", "permanent": false },
+    { "source": "/index.html", "has": [{ "type": "host", "value": "admin.madeireiraprogresso.com" }], "destination": "/admin", "permanent": false }
   ],
   "rewrites": [
-    { "source": "/", "has": [{ "type": "host", "value": "admin.madeireiraprogresso.com" }], "destination": "/admin/index.html" },
     { "source": "/api/:path*", "destination": "/api/index?__route=/api/:path*" },
     { "source": "/uploads/:path*", "destination": "/api/index?__route=/uploads/:path*" },
     { "source": "/produto/:path*", "destination": "/api/index?__route=/produto/:path*" },

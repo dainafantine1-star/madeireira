@@ -52,7 +52,7 @@ body { background: var(--paper); }
 .category-nav a, .category-nav button { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #fff; min-height: 26px; }
 .category-nav a:first-child { margin-right: 14px; }
 .category-nav a:first-child:before { content: '☰'; margin-right: 9px; }
-.category-nav a:last-child { margin-left: auto; }
+
 .category-nav a:hover, .category-nav button:hover { color: #ffad75; }
 
 /* Three distinct banner areas, with a cropped timber photograph at each end. */
@@ -143,7 +143,7 @@ body { background: var(--paper); }
   .header-service { display: none; }
   .header-whats { max-width: 105px; }
   .category-nav { gap: 21px; }
-  .category-nav a:last-child { display: none; }
+
   .hero-slide { grid-template-columns: 19% 48% 33%; min-height: 235px; }
   .hero-copy { padding-left: 0; padding-right: 10px; }
   .hero-copy h1 { font-size: 35px; }
@@ -223,3 +223,60 @@ body { background: var(--paper); }
   .product__price { font-size: 20px; }
   .product__btn { font-size: 12px; }
 }
+
+.product__badges{position:absolute;top:5px;left:5px;display:flex;flex-direction:column;gap:5px;align-items:flex-start;z-index:2;pointer-events:none}
+.product__badges .product__badge{position:static;top:auto;left:auto}
+.product__badge.bestseller{background:#e96523;color:#fff;border-color:#e96523;font-weight:700;letter-spacing:.04em}
+.pdp-badges{position:absolute;left:20px;top:20px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;z-index:2}
+.pdp-badge.bestseller{background:#e96523;color:#fff}
+
+.campaigns:not([hidden]){padding-top:18px}
+.campaign-carousel{position:relative;border-radius:8px;overflow:hidden;background:var(--surface);border:1px solid var(--line)}
+.campaign-track{display:flex;transition:transform .5s ease}
+.campaign-slide{position:relative;flex:0 0 100%;min-width:100%;display:flex;align-items:center;min-height:230px;background:linear-gradient(120deg,#f3f1eb,#e7ece2);overflow:hidden}
+.campaign-slide-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.campaign-slide-copy{position:relative;z-index:1;padding:28px 34px;max-width:56ch}
+.campaign-slide:has(.campaign-slide-img) .campaign-slide-copy{background:linear-gradient(90deg,#ffffffef,#ffffffb3 70%,transparent);margin-right:auto}
+.campaign-slide-copy .eyebrow{margin-bottom:8px}
+.campaign-slide-copy h2{font-size:26px;line-height:1.15;margin-bottom:8px}
+.campaign-slide-copy p{font-size:14px;line-height:1.6;color:var(--muted);margin-bottom:16px}
+.campaign-slide-copy .btn{min-height:40px;padding:9px 20px;font-size:13px}
+.campaign-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:38px;height:38px;min-height:38px;border-radius:50%;border:1px solid var(--line);background:#fffffff2;color:var(--ink);display:grid;place-items:center;box-shadow:0 2px 8px #0002;cursor:pointer}
+.campaign-arrow .ui-icon{width:17px;height:17px}
+.campaign-arrow.prev{left:12px}
+.campaign-arrow.prev .ui-icon{transform:rotate(180deg)}
+.campaign-arrow.next{right:12px}
+.campaign-dots{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:7px;z-index:2}
+.campaign-dots button{width:9px;height:9px;min-height:9px;padding:0;border-radius:50%;border:1px solid #0003;background:#ffffffcc;cursor:pointer}
+.campaign-dots button.is-active{background:var(--action);border-color:var(--action)}
+@media(max-width:760px){
+  .campaign-slide{min-height:200px}
+  .campaign-slide-copy{padding:20px 18px;max-width:none}
+  .campaign-slide-copy h2{font-size:20px}
+  .campaign-slide-copy p{font-size:13px;margin-bottom:12px}
+  .campaign-slide:has(.campaign-slide-img) .campaign-slide-copy{background:linear-gradient(90deg,#fffffff2,#ffffffcc 80%,transparent)}
+  .campaign-arrow{width:32px;height:32px;min-height:32px}
+  .campaign-arrow.prev{left:6px}.campaign-arrow.next{right:6px}
+}
+
+/* Artwork uses the banner proportions, without text overlays. */
+.hero.container{width:100%;max-width:none;margin-left:0;margin-right:0;padding-left:0;padding-right:0}
+.home-image-banner a,.home-image-banner img{display:block;width:100%}
+.home-image-banner a{aspect-ratio:16/5;max-height:600px;overflow:hidden}
+.home-image-banner img{height:100%;object-fit:cover}
+.hero:has(.home-image-banner) .benefits{position:static;width:100%;padding:16px max(12px,calc((100% - var(--store-width))/2));margin:0;background:var(--charcoal)}
+.campaigns.container{width:100%;max-width:calc(var(--store-width) + 48px);margin:0 auto;padding:20px 24px 24px}
+.campaign-carousel{border-radius:8px;border:0}
+.campaign-slide{min-height:0;height:300px;align-items:stretch;background:transparent}
+.campaign-slide-copy{display:none}
+.campaign-image-link{display:block;width:100%;height:100%}
+.campaign-slide-img{position:static;display:block;width:100%;height:100%;object-fit:cover}
+.campaign-dots{max-width:70%;overflow-x:auto;padding:8px}
+.campaign-dots button{flex-shrink:0}
+@media(max-width:760px){
+  .campaigns.container{padding:16px}
+  .campaign-carousel{aspect-ratio:22/5}
+  .campaign-track{position:absolute;inset:0}
+  .campaign-slide{height:100%;aspect-ratio:auto}
+}
+@media(prefers-reduced-motion:reduce){.campaign-track{transition:none}}

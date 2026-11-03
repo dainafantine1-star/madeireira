@@ -76,5 +76,5 @@ test('HTTP API, admin access, snapshots, validation, idempotency and persistence
   assert.equal((await request('/api/admin/settings','PUT',cat.settings)).status,403);token=adminToken;
   assert.equal((await request('/api/admin/logout','POST',{})).status,200);assert.equal((await request('/api/admin/orders')).status,401);
   // A separate connection proves the data is persisted outside the process state.
-  const reopened=openDatabase(path);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM orders').get().n,1);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM migrations').get().n,7);reopened.close();
+  const reopened=openDatabase(path);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM orders').get().n,1);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM migrations').get().n,8);reopened.close();
 });

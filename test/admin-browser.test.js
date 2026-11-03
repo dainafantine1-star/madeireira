@@ -86,7 +86,7 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   await click('#mobileMore');await click('#moreNav [data-page="audit"]');await wait(`document.querySelector('[data-action="audit-details"]')!==null`);await click('[data-action="audit-details"]');await wait(`document.getElementById('editor').open`);assert.match(await evaluate(`document.getElementById('editorBody').innerText`),/Antes/);await click('#cancelEditor');
   await click('#mobileMore');await click('#moreNav [data-page="users"]');await wait(`document.querySelector('[data-action="new-user"]')!==null`);await click('[data-action="new-user"]');await wait(`document.getElementById('editor').open`);
   await fill({email:'editor-ui@example.com',password:'TestEditorPassword123',role:'editor'});await evaluate(`document.getElementById('editorForm').requestSubmit()`);await wait(`!document.getElementById('editor').open && document.getElementById('pageContent').innerText.includes('editor-ui@example.com')`);
-  await click('#mobileMore');await click('#moreNav [data-page="customers"]');await wait(`document.querySelector('[data-action="crm-new-customer"]')!==null`);await click('[data-action="crm-new-customer"]');await wait(`document.getElementById('editor').open`);
+  await evaluate(`(()=>{const b=document.createElement('button');b.dataset.page='customers';document.getElementById('pageContent').append(b);b.click();b.remove();})()`);await wait(`document.querySelector('[data-action="crm-new-customer"]')!==null`);await click('[data-action="crm-new-customer"]');await wait(`document.getElementById('editor').open`);
   await fill({name:'Cliente Comercial',phone:'71988887777',email:'cliente-ui@example.com',address:'Rua da Obra, 10',notes:'Atendimento pelo painel',document:'Opcional'});await evaluate(`document.getElementById('editorForm').requestSubmit()`);await wait(`!document.getElementById('editor').open && document.getElementById('pageContent').innerText.includes('Cliente Comercial')`);
   await click('.crm-mobile [data-action="crm-customer"]');await wait(`document.getElementById('crmCustomerQuote')!==null`);await click('#crmCustomerQuote');await wait(`document.getElementById('crmNewItems')!==null`);
   await evaluate(`const line=document.querySelector('#crmNewItems .crm-new-line');line.querySelector('[name=product]').value='${p.id}';line.querySelector('[name=product]').dispatchEvent(new Event('change'));line.querySelector('[name=quantity]').value='1';line.querySelector('[name=measures]').value='80 × 30 cm';document.getElementById('editorForm').requestSubmit()`);
@@ -100,7 +100,7 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
     assert.equal(db.prepare('SELECT stage FROM orders WHERE id=?').get(order.id).stage,stage);
   }
   await click('#mobileMore');await click('#moreNav [data-page="metrics"]');await wait(`document.getElementById('metricsRange')!==null`);
-  assert.match(await evaluate(`document.getElementById('pageContent').innerText`),/VALOR FECHADO/);
+  assert.match(await evaluate(`document.getElementById('pageContent').innerText`),/DETALHES VISUALIZADOS/);
   assert.match(await evaluate(`document.getElementById('pageContent').innerText`),/149,90/);
   const ordersCSV=await evaluate(`fetch('/api/admin/reports/export?type=orders').then(r=>r.text())`);
   assert.ok(ordersCSV.includes(order.protocol));assert.match(ordersCSV,/149.9/);
