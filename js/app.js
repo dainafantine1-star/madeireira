@@ -26,14 +26,12 @@ const App=(()=>{
       if(p.featured)badges.push('<span class="product__badge bestseller">Mais vendido</span>');
     }
     const badgeHtml=badges.length?`<span class="product__badges">${badges.join('')}</span>`:'';
-    const action=p.available
-      ?`<button type="button" class="product__btn" data-add="${p.id}">Adicionar ao carrinho ${UI.icon('plus')}</button>`
-      :`<a class="product__btn" href="${href}">Conhecer produto ${UI.icon('arrow')}</a>`;
+    const action=`<button type="button" class="product__btn" data-add="${p.id}">Adicionar ao carrinho ${UI.icon('plus')}</button>`;
     return `<article class="product" data-id="${p.id}"><a class="product__media" href="${href}" aria-label="Ver ${esc(p.name)}">${image?`<img class="product__img" src="${esc(image)}" alt="${esc(p.name)}" width="480" height="480"${UI.responsive(image)} decoding="async" loading="lazy">`:UI.photoPlaceholder()}${badgeHtml}</a><div class="product__body"><span class="product__category">${esc(p.categoryLabel)}</span><h3 class="product__name"><a href="${href}">${esc(p.name)}</a></h3><p class="product__dimensions">${esc(p.shortDescription||StoreCore.dimensions(p))}</p><div class="product__price-row">${p.offer?`<s class="product__price-old">De ${UI.formatPrice(p.oldPrice)}</s>`:''}<span class="product__price">${p.offer?'por ':''}${UI.formatPrice(p.price)}</span><span class="product__unit">/ ${esc(StoreCore.unitLabel(p.unit))}</span></div>${p.price!==null&&!company.confirmed?'<small class="price-disclaimer">Valor de referência</small>':''}${action}</div></article>`;
   }).join('');}
   function renderProducts(){
     const filtered=products.filter(p=>(category==='todas'||p.category===category)&&(mode!=='promotions'||p.offer)&&StoreCore.matches(p,search));
-    $('productsGrid').innerHTML=productCards(filtered);$('emptyState').hidden=!ready||!!filtered.length;$('productCount').textContent=`${filtered.length} produto(s)`;
+    $('productsGrid').innerHTML=productCards(filtered);$('emptyState').hidden=!ready||!!filtered.length;$('productCount').textContent='';
     $('catalogTitle').textContent=mode==='promotions'?'Produtos em promoção':search?'Resultados da busca':category==='todas'?'Produtos em destaque':categories.find(c=>c.id===category)?.label||'Produtos';$('searchSummary').textContent=search?`Resultados para “${search}”.`:'Confira as medidas e adicione os produtos à sua lista.';$('searchSummary').classList.toggle('is-search',!!search);$('promotionFilter').setAttribute('aria-pressed',String(mode==='promotions'));
     const featured=products.filter(p=>p.featured);$('destaques').hidden=!featured.length;$('featuredGrid').innerHTML=productCards(featured);UI.images($('productsGrid'));UI.images($('featuredGrid'));
     $('featuredNav').hidden=!featured.length;
@@ -66,28 +64,55 @@ const App=(()=>{
   }
   let campaignTimer=null;
   function renderHero(){
+    const homes=banners.filter(b=>b.placement==='home'&&b.active!==0&&StoreCore.image(b.image));
     const home=banners.find(b=>b.placement==='home');
-    $('home').hidden=home?.active===0;
-    const image=StoreCore.image(home?.image||company.heroImage),illustrative=image==='assets/hero-madeira.webp';
-    $('heroTrack').innerHTML=`<article class="hero-slide"><div class="hero-copy"><h1 id="heroTitle">${esc(company.heroTitle)}</h1></div><figure class="hero-figure">${image?`<img class="hero-photo" src="${esc(image)}" ${UI.responsive(image,'(max-width: 760px) 100vw, 100vw')} width="1942" height="809" fetchpriority="high" alt="${illustrative?'Tábuas empilhadas, fotografia ilustrativa':'Imagem institucional fornecida pela loja'}">`:UI.photoPlaceholder()}<figcaption>${illustrative?'Fotografia ilustrativa. Não retrata a loja.':image?'Imagem fornecida pela loja.':'Foto institucional ainda não disponível.'}</figcaption></figure><div class="hero-timber" aria-hidden="true"></div></article>`;
+    $('home').hidden=!home||home.active===0;
     clearInterval(campaignTimer);campaignTimer=null;
+    if(homes.length){
+      const slides=homes.map((b,i)=>{
+        const img=StoreCore.image(b.image);
+        return `<article class="home-image-banner"${i?' inert':''} aria-hidden="${i?'true':'false'}"><h1 id="heroTitle" class="sr-only">${esc(b.title)}</h1><a href="${esc(b.destination||'#catalogo')}" aria-label="${esc(b.title)}"><img src="${esc(img)}" ${UI.responsive(b.image,'100vw')} ${i?'loading="lazy"':'fetchpriority="high"'} alt="${esc(b.title)}"></a></article>`;
+      }).join('');
+      const controls=homes.length>1?`<button class="campaign-arrow prev home-arrow prev" type="button" aria-label="Banner anterior">${UI.icon('arrow')}</button><button class="campaign-arrow next home-arrow next" type="button" aria-label="Próximo banner">${UI.icon('arrow')}</button><div class="campaign-dots home-dots">${homes.map((b,i)=>`<button type="button" class="${i?'':'is-active'}" aria-label="Ir para o banner ${i+1}"${i?' aria-current="false"':' aria-current="true"'}></button>`).join('')}</div>`:'';
+      $('heroTrack').innerHTML=`<div class="home-banner-carousel" role="region" aria-roledescription="carrossel" aria-label="Banners da loja"><div class="home-banner-track">${slides}</div>${controls}</div>`;
+      setupHomeCarousel(homes.length);
+    }else{
+      const image=StoreCore.image(company.heroImage),illustrative=image==='assets/hero-madeira.webp';
+      $('heroTrack').innerHTML=`<article class="hero-slide"><div class="hero-copy"><h1 id="heroTitle">${esc(company.heroTitle)}</h1></div><figure class="hero-figure">${image?`<img class="hero-photo" src="${esc(image)}" ${UI.responsive(image,'(max-width: 760px) 100vw, 100vw')} width="1942" height="809" fetchpriority="high" alt="${illustrative?'Tábuas empilhadas, fotografia ilustrativa':'Imagem institucional fornecida pela loja'}">`:UI.photoPlaceholder()}<figcaption>${illustrative?'Fotografia ilustrativa. Não retrata a loja.':image?'Imagem fornecida pela loja.':'Foto institucional ainda não disponível.'}</figcaption></figure><div class="hero-timber" aria-hidden="true"></div></article>`;
+      const title=$('heroTitle');
+      if(['Portas, tábuas e madeira para sua obra.','A madeira certa para cada projeto.'].includes(company.heroTitle)){
+        title.replaceChildren(document.createTextNode('Madeira de verdade '));
+        const line=document.createElement('span');line.textContent='para grandes projetos';title.append(line);
+      }
+      const callout=document.createElement('div');callout.className='hero-quote';
+      const defaultText=['Portas, tábuas, ripas e estruturas. Encontre o que precisa e converse com nossa equipe.','Escolha os materiais e envie sua lista com as medidas para pedir um orçamento.'];
+      callout.innerHTML=`<p>${esc(defaultText.includes(company.heroText)?'Soluções completas em madeiras e materiais para construção.':company.heroText)}</p><a class="btn primary" href="#catalogo">Ver produtos</a>`;
+      $('heroTrack').querySelector('.hero-slide').append(callout);
+    }
     const campaigns=banners.filter(b=>b.placement!=='home'&&StoreCore.image(b.image));$('campaigns').hidden=!campaigns.length;
     $('campaigns').innerHTML=campaigns.length?`<div class="campaign-carousel" role="region" aria-roledescription="carrossel" aria-label="Campanhas da loja"><div class="campaign-track">${campaigns.map((b,i)=>`<article class="campaign-slide"${i?' inert':''} aria-hidden="${i?'true':'false'}"><div class="campaign-slide-copy"><span class="eyebrow">${esc(b.tag||'NOVIDADES')}</span><h2>${esc(b.title)}</h2><p>${esc(b.body)}</p><a class="btn primary" href="${esc(b.destination||'#catalogo')}">${esc(b.cta||'Ver produtos')}</a></div>${b.image?`<a class="campaign-image-link" href="${esc(b.destination||'#catalogo')}" aria-label="${esc(b.title)}"><img class="campaign-slide-img" src="${esc(StoreCore.image(b.image))}" ${UI.responsive(b.image,'100vw')} alt="${esc(b.title)}" loading="lazy"></a>`:''}</article>`).join('')}</div>${campaigns.length>1?`<button class="campaign-arrow prev" type="button" aria-label="Campanha anterior">${UI.icon('arrow')}</button><button class="campaign-arrow next" type="button" aria-label="Próxima campanha">${UI.icon('arrow')}</button><div class="campaign-dots">${campaigns.map((b,i)=>`<button type="button" class="${i?'':'is-active'}" aria-label="Ir para a campanha ${i+1}"${i?' aria-current="false"':' aria-current="true"'}></button>`).join('')}</div>`:''}</div>`:'';
-    if(home?.image){
-      $('heroTrack').innerHTML=`<article class="home-image-banner"><h1 id="heroTitle" class="sr-only">${esc(home.title)}</h1><a href="${esc(home.destination||'#catalogo')}" aria-label="${esc(home.title)}"><img src="${esc(image)}" ${UI.responsive(image,'100vw')} fetchpriority="high" alt="${esc(home.title)}"></a></article>`;
-      UI.images($('heroTrack'));UI.images($('campaigns'));setupCampaignCarousel(campaigns.length);return;
-    }
-    const title=$('heroTitle');
-    if(['Portas, tábuas e madeira para sua obra.','A madeira certa para cada projeto.'].includes(company.heroTitle)){
-      title.replaceChildren(document.createTextNode('Madeira de verdade '));
-      const line=document.createElement('span');line.textContent='para grandes projetos';title.append(line);
-    }
-    const callout=document.createElement('div');callout.className='hero-quote';
-    const defaultText=['Portas, tábuas, ripas e estruturas. Encontre o que precisa e converse com nossa equipe.','Escolha os materiais e envie sua lista com as medidas para pedir um orçamento.'];
-    callout.innerHTML=`<p>${esc(defaultText.includes(company.heroText)?'Soluções completas em madeiras e materiais para construção.':company.heroText)}</p><a class="btn primary" href="#catalogo">Ver produtos</a>`;
-    $('heroTrack').querySelector('.hero-slide').append(callout);
     UI.images($('heroTrack'));UI.images($('campaigns'));
     setupCampaignCarousel(campaigns.length);
+  }
+  function setupHomeCarousel(count){
+    const carousel=document.querySelector('.home-banner-carousel');if(!carousel||count<2)return;
+    const slides=[...carousel.querySelectorAll('.home-image-banner')],dots=[...carousel.querySelectorAll('.home-dots button')];
+    let index=0,touchX=null;
+    const go=next=>{index=(next+count)%count;
+      carousel.querySelector('.home-banner-track').style.transform=`translateX(-${index*100}%)`;
+      slides.forEach((s,i)=>{s.classList.toggle('is-active',i===index);s.toggleAttribute('inert',i!==index);s.setAttribute('aria-hidden',String(i!==index));});
+      dots.forEach((d,i)=>{d.classList.toggle('is-active',i===index);d.setAttribute('aria-current',String(i===index));});
+    };
+    const start=()=>{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;stop();campaignTimer=setInterval(()=>go(index+1),5000);};
+    const stop=()=>{if(campaignTimer){clearInterval(campaignTimer);campaignTimer=null;}};
+    carousel.querySelector('.home-arrow.prev').onclick=()=>{go(index-1);start();};
+    carousel.querySelector('.home-arrow.next').onclick=()=>{go(index+1);start();};
+    dots.forEach((d,i)=>d.onclick=()=>{go(i);start();});
+    carousel.addEventListener('mouseenter',stop);carousel.addEventListener('mouseleave',start);
+    carousel.addEventListener('focusin',stop);carousel.addEventListener('focusout',start);
+    carousel.addEventListener('touchstart',e=>{stop();touchX=e.touches[0].clientX;},{passive:true});
+    carousel.addEventListener('touchend',e=>{if(touchX!=null){const delta=e.changedTouches[0].clientX-touchX;if(Math.abs(delta)>40)go(index+(delta<0?1:-1));touchX=null;}start();},{passive:true});
+    start();
   }
   function setupCampaignCarousel(count){
     const carousel=document.querySelector('.campaign-carousel');if(!carousel||count<2)return;

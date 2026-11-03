@@ -26,7 +26,6 @@ export function saveBanner(db,user,input,id){return transaction(db,()=>{
   const placement=input.placement??before?.placement??'promotion';
   v.check(['home','promotion'].includes(placement),'Posição de banner inválida.');
   v.check(!before||before.placement===placement,'A posição deste banner não pode ser alterada.');
-  if(placement==='home')v.check(!db.prepare("SELECT id FROM banners WHERE placement='home' AND id<>?").get(id||0),'Já existe um banner principal. Edite o banner existente.',409);
   const data={placement,tag:v.text(input.tag || '',100,false),title:v.text(input.title),body:v.text(input.body || '',2000,false),image:verifyImage(db,input.image || ''),cta:v.text(input.cta || 'Ver catálogo',100),destination:destination(input.destination || '#catalogo'),sort_order:v.integer(input.sortOrder ?? input.sort_order ?? 0,0,2147483647),active:v.flag(input.active)};
   const keys=Object.keys(data);if(id)db.prepare(`UPDATE banners SET ${keys.map(k=>`${k}=?`).join(',')},version=version+1 WHERE id=?`).run(...Object.values(data),id);
   else id=Number(db.prepare(`INSERT INTO banners(${keys.join(',')}) VALUES(${keys.map(()=>'?').join(',')})`).run(...Object.values(data)).lastInsertRowid);
@@ -36,9 +35,8 @@ export function deleteBanner(db,user,id,version){return transaction(db,()=>{
   const before=db.prepare('SELECT * FROM banners WHERE id=?').get(v.integer(id));
   v.check(before,'Banner inexistente.',404);
   v.check(before.version===v.integer(version),'O banner mudou. Atualize a tela.',409);
-  // Keep the unique home slot editable; never delete shared image files here.
-  if(before.placement==='home')db.prepare("UPDATE banners SET image='',active=0,version=version+1 WHERE id=?").run(id);
-  else db.prepare('DELETE FROM banners WHERE id=?').run(id);
-  audit(db,user,'banner_deleted','banner',id,before,{homeSlotPreserved:before.placement==='home'});
+  // Never delete shared image files here; multiple home banners may be removed freely.
+  db.prepare('DELETE FROM banners WHERE id=?').run(id);
+  audit(db,user,'banner_deleted','banner',id,before,{placement:before.placement});
   return {ok:true};
 });}

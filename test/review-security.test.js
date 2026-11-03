@@ -32,9 +32,9 @@ test('direct administrative mutations require authentication and oversized uploa
   assert.equal(db.prepare('SELECT 1 FROM banners WHERE id=?').get(banner.id),undefined);
   const home=db.prepare("SELECT * FROM banners WHERE placement='home'").get();
   assert.equal((await request(`banners/${home.id}?version=${home.version}`,'DELETE')).status,200);
-  const cleared=db.prepare('SELECT * FROM banners WHERE id=?').get(home.id);
-  assert.equal(cleared.active,0);assert.equal(cleared.image,'');assert.equal(cleared.version,home.version+1);
-  assert.equal((await request(`banners/${home.id}`,'PUT',{...cleared,title:'REVISAO - nova arte',image:'assets/hero-madeira.webp',active:true})).status,200);
+  assert.equal(db.prepare('SELECT * FROM banners WHERE id=?').get(home.id),undefined);
+  const recreated=await request('banners','POST',{title:'REVISAO - home recriada',placement:'home',image:'assets/hero-madeira.webp',active:true});
+  assert.equal(recreated.status,201);
   assert.equal(db.prepare("SELECT count(*) n FROM audit_log WHERE action='banner_deleted'").get().n,2);
 });
 

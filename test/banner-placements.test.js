@@ -12,7 +12,7 @@ test('banner migration reuses existing artwork without copying it into promotion
   let db;
   try{
     db=openDatabase(path);
-    db.exec("DROP INDEX banners_single_home; DELETE FROM banners WHERE placement='home'; ALTER TABLE banners DROP COLUMN placement; DELETE FROM migrations WHERE name='008_banner_placements.sql'; UPDATE banners SET image='assets/hero-madeira.webp' WHERE id=1;");
+    db.exec("DROP INDEX IF EXISTS banners_single_home; DELETE FROM banners WHERE placement='home'; ALTER TABLE banners DROP COLUMN placement; DELETE FROM migrations WHERE name IN ('008_banner_placements.sql','009_multiple_home_banners.sql'); UPDATE banners SET image='assets/hero-madeira.webp' WHERE id=1;");
     db.close();db=openDatabase(path);
     const home=db.prepare("SELECT * FROM banners WHERE placement='home'").get();
     assert.equal(home.id,1);assert.equal(home.image,'assets/hero-madeira.webp');
@@ -22,13 +22,13 @@ test('banner migration reuses existing artwork without copying it into promotion
   }finally{db?.close();rmSync(dir,{recursive:true,force:true});}
 });
 
-test('one main banner, unrestricted promotion count, ordering and inactive home state',()=>{
+test('multiple home banners allowed, unrestricted promotion count, ordering and inactive home state',()=>{
   const db=openDatabase(':memory:');
   try{
     const owner=createOwner(db,{email:'banners@example.com',password:'BannerPassword12345'});
     const home=db.prepare("SELECT * FROM banners WHERE placement='home'").get();
     saveBanner(db,owner,{...home,title:'Home',image:'assets/hero-madeira.webp',active:true},home.id);
-    assert.throws(()=>saveBanner(db,owner,{title:'Duplicate',placement:'home',active:true}),/banner principal/);
+    const dup=saveBanner(db,owner,{title:'Duplicate home',placement:'home',active:true,image:'assets/hero-madeira.webp'});assert.ok(dup.id);assert.equal(dup.placement,'home');
     assert.throws(()=>saveBanner(db,owner,{...home,version:undefined,placement:'promotion'} ,home.id),/alterada/);
     for(let i=0;i<125;i++)saveBanner(db,owner,{title:'Promo '+i,sortOrder:125-i,active:true,image:'assets/hero-madeira.webp'});
     const banners=catalog(db).banners.filter(b=>b.placement==='promotion'&&b.image);

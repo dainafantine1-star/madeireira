@@ -36,3 +36,6 @@ public/
 
 # Local PowerShell cache
 Microsoft/Windows/PowerShell/ModuleAnalysisCache
+
+# Claude Code local settings (personal permissions)
+.claude/settings.local.json
