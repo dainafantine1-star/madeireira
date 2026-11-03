@@ -71,9 +71,9 @@ const App=(()=>{
     if(homes.length){
       const slides=homes.map((b,i)=>{
         const img=StoreCore.image(b.image);
-        return `<article class="home-image-banner"${i?' inert':''} aria-hidden="${i?'true':'false'}"><h1 id="heroTitle" class="sr-only">${esc(b.title)}</h1><a href="${esc(b.destination||'#catalogo')}" aria-label="${esc(b.title)}"><img src="${esc(img)}" ${UI.responsive(b.image,'100vw')} ${i?'loading="lazy"':'fetchpriority="high"'} alt="${esc(b.title)}"></a></article>`;
+        return `<article class="home-image-banner"${i?' inert':''} aria-hidden="${i?'true':'false'}"><h1 id="heroTitle" class="sr-only">${esc(b.title)}</h1><a href="${esc(b.destination||'#catalogo')}" aria-label="${esc(b.title)}"><picture>${b.image_mobile?`<source media="(max-width: 760px)" srcset="${esc(StoreCore.image(b.image_mobile))}">`:''}<img src="${esc(img)}" ${UI.responsive(b.image,'100vw')} ${i?'loading="lazy"':'fetchpriority="high"'} alt="${esc(b.title)}"></picture></a></article>`;
       }).join('');
-      const controls=homes.length>1?`<button class="campaign-arrow prev home-arrow prev" type="button" aria-label="Banner anterior">${UI.icon('arrow')}</button><button class="campaign-arrow next home-arrow next" type="button" aria-label="Próximo banner">${UI.icon('arrow')}</button><div class="campaign-dots home-dots">${homes.map((b,i)=>`<button type="button" class="${i?'':'is-active'}" aria-label="Ir para o banner ${i+1}"${i?' aria-current="false"':' aria-current="true"'}></button>`).join('')}</div>`:'';
+      const controls=homes.length>1?`<div class="campaign-dots home-dots">${homes.map((b,i)=>`<button type="button" class="${i?'':'is-active'}" aria-label="Ir para o banner ${i+1}"${i?' aria-current="false"':' aria-current="true"'}></button>`).join('')}</div>`:'';
       $('heroTrack').innerHTML=`<div class="home-banner-carousel" role="region" aria-roledescription="carrossel" aria-label="Banners da loja"><div class="home-banner-track">${slides}</div>${controls}</div>`;
       setupHomeCarousel(homes.length);
     }else{
@@ -105,8 +105,6 @@ const App=(()=>{
     };
     const start=()=>{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;stop();campaignTimer=setInterval(()=>go(index+1),5000);};
     const stop=()=>{if(campaignTimer){clearInterval(campaignTimer);campaignTimer=null;}};
-    carousel.querySelector('.home-arrow.prev').onclick=()=>{go(index-1);start();};
-    carousel.querySelector('.home-arrow.next').onclick=()=>{go(index+1);start();};
     dots.forEach((d,i)=>d.onclick=()=>{go(i);start();});
     carousel.addEventListener('mouseenter',stop);carousel.addEventListener('mouseleave',start);
     carousel.addEventListener('focusin',stop);carousel.addEventListener('focusout',start);
@@ -136,6 +134,7 @@ const App=(()=>{
   }
   function applyCatalog(data,initial=false){
     UI.media=data.media||[];products=data.products;categories=data.categories;company=StorefrontPolicy.company(data.settings);UI.confirmed=company.confirmed;banners=data.banners;version=JSON.stringify(data);ready=true;if(initial)cart=loadCart();if(category!=='todas'&&!categories.some(c=>c.id===category))category='todas';
+    document.documentElement.style.setProperty('--product-cols',String(Math.min(8,Math.max(4,Number(company.productColumns)||4))));
     renderCompany();renderHero();renderCategories();renderProducts();saveCart(false);$('catalogStatus').textContent='';ProductPage.render(products,company);
   }
   async function load(){ready=false;$('catalogStatus').textContent='Carregando catálogo…';$('retryCatalog').hidden=true;$('productsGrid').setAttribute('aria-busy','true');try{const data=await api('catalog');applyCatalog(data,true);event('catalog_view');}catch{ready=false;$('productsGrid').replaceChildren();$('emptyState').hidden=true;$('catalogStatus').textContent='Catálogo indisponível no momento. Tente novamente em instantes.';$('retryCatalog').hidden=false;$('checkoutBtn').disabled=true;}finally{$('productsGrid').setAttribute('aria-busy','false');}}

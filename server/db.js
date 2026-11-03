@@ -70,5 +70,5 @@ export function catalog(db) {
   return { products:db.prepare('SELECT p.*, c.label AS category_label FROM products p JOIN categories c ON c.id=p.category_id WHERE p.active=1 AND p.deleted_at IS NULL AND c.active=1 ORDER BY p.featured DESC,p.id').all().filter(p=>company.stockZeroBehavior!=='hide'||p.stock_milli!==0).map(productDTO),
     categories:db.prepare('SELECT id,label,slug,image,icon,sort_order FROM categories WHERE active=1 ORDER BY sort_order,id').all(),
     media:db.prepare('SELECT m.filename,m.width AS original_width,v.width FROM media m LEFT JOIN media_variants v ON v.media_id=m.id ORDER BY m.filename,v.width').all(),
-    banners:db.prepare("SELECT id,tag,title,body,image,cta,destination,placement,active FROM banners WHERE active=1 OR placement='home' ORDER BY sort_order,id").all(), settings:company };
+    banners:db.prepare("SELECT id,tag,title,body,image,image_mobile,cta,destination,placement,active,expires_at FROM banners WHERE (active=1 OR placement='home') AND (expires_at IS NULL OR expires_at='' OR expires_at>?) ORDER BY sort_order,id").all(new Date().toISOString()), settings:company };
 }

@@ -109,11 +109,11 @@ main { padding: 22px 25px 28px; min-height: calc(100dvh - 106px); }
 .category-tabs b { color: #c2c8b0; }
 .category-tabs button.active b { color: #312e23; }
 .panel { background: var(--admin-panel); border-color: var(--admin-line); border-radius: 5px; }
-.banner-panel { padding: 24px; margin-bottom: 24px; }
+.banner-panel { padding: 28px 32px; margin-bottom: 28px; border-radius: 10px; }
 .banner-panel > h2 { margin: 0 0 8px; }
 .banner-panel > p { margin: 0; line-height: 1.65; }
-.banner-panel > [data-action="crm-new-banner"] { margin-top: 20px; padding: 12px 20px; min-height: 44px; }
-.banner-panel .campaign-grid { margin-top: 24px; gap: 24px; }
+.banner-panel > [data-action] { margin-top: 20px; margin-right: 12px; padding: 12px 20px; min-height: 44px; }
+.banner-panel .campaign-grid { margin-top: 26px; gap: 28px; }
 .banner-panel .campaign-card > img { height: auto; aspect-ratio: 22 / 5; object-fit: contain; background: var(--admin-bg); }
 .banner-panel:first-of-type .campaign-card > img { aspect-ratio: 16 / 5; }
 @media (max-width: 760px) { .banner-panel { padding: 18px; margin-bottom: 18px; } .banner-panel .campaign-grid { gap: 18px; } }

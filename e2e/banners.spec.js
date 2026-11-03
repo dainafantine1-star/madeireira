@@ -41,11 +41,11 @@ test('admin saves main artwork and unlimited promotion collection reaches the st
  for(const width of [1920,1440,390]){
    await page.setViewportSize({width,height:1000});
    expect(await page.locator('#home').evaluate(n=>Math.abs(n.getBoundingClientRect().width-innerWidth)<2)).toBe(true);
-   const main=await page.locator('.home-image-banner img').boundingBox();expect(main.height).toBeCloseTo(Math.min(width*600/1920,600),0);
+   const main=await page.locator('.home-image-banner img').boundingBox();expect(main.height).toBeCloseTo(width>760?450:260,0);
    const campaign=await page.locator('.campaign-carousel').boundingBox();expect(campaign.x).toBeGreaterThanOrEqual(width>760?24:16);
    expect(width-campaign.x-campaign.width).toBeGreaterThanOrEqual(width>760?24:16);
    expect(campaign.height).toBeCloseTo(width>760?300:campaign.width*300/1320,0);
-   await expect(page.locator('.campaign-carousel')).toHaveCSS('border-radius','8px');
+   await expect(page.locator('.campaign-carousel')).toHaveCSS('border-radius',width>760?'16px':'12px');
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
    await page.screenshot({path:'.cache/banners-layout-'+width+'.png'});
  }

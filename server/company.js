@@ -15,7 +15,7 @@ export function saveSettings(db,user,input){
     for(const key of ['whatsappMessage','region','heroTitle','heroText','aboutTitle','aboutText','footerText'])data[key]=v.text(merged[key],key==='aboutText'?5000:2000,false);
     data.logo=verifyImage(db,merged.logo);data.heroImage=verifyImage(db,merged.heroImage);
     v.check(['unavailable','hide'].includes(merged.stockZeroBehavior),'Comportamento de estoque inválido.');data.stockZeroBehavior=merged.stockZeroBehavior;
-    data.defaultLowStock=v.integer(merged.defaultLowStock,0,100000000);data.maxQuoteQuantity=v.integer(merged.maxQuoteQuantity,1,10000);
+    data.defaultLowStock=v.integer(merged.defaultLowStock,0,100000000);data.maxQuoteQuantity=v.integer(merged.maxQuoteQuantity,1,10000);data.productColumns=v.integer(merged.productColumns||4,4,8);
     v.check(Array.isArray(merged.benefits)&&merged.benefits.length<=6,'Informe até seis benefícios.');data.benefits=merged.benefits.map(b=>({title:v.text(b.title,100),text:v.text(b.text,300)}));
     db.prepare('UPDATE company_settings SET public_json=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=1').run(JSON.stringify(data));
     audit(db,user,'company_updated','company',1,before,data);return publicSettings(db);
@@ -26,7 +26,8 @@ export function saveBanner(db,user,input,id){return transaction(db,()=>{
   const placement=input.placement??before?.placement??'promotion';
   v.check(['home','promotion'].includes(placement),'Posição de banner inválida.');
   v.check(!before||before.placement===placement,'A posição deste banner não pode ser alterada.');
-  const data={placement,tag:v.text(input.tag || '',100,false),title:v.text(input.title),body:v.text(input.body || '',2000,false),image:verifyImage(db,input.image || ''),cta:v.text(input.cta || 'Ver catálogo',100),destination:destination(input.destination || '#catalogo'),sort_order:v.integer(input.sortOrder ?? input.sort_order ?? 0,0,2147483647),active:v.flag(input.active)};
+  const expiresRaw=String(input.expiresAt ?? input.expires_at ?? '').trim();let expiresAt='';if(expiresRaw){const em=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(expiresRaw);v.check(!!em&&Number(em[2])>=1&&Number(em[2])<=12&&Number(em[3])>=1&&Number(em[3])<=31,'Data de expiração inválida.');expiresAt=new Date(expiresRaw).toISOString();}
+  const data={placement,tag:v.text(input.tag || '',100,false),title:v.text(input.title),body:v.text(input.body || '',2000,false),image:verifyImage(db,input.image || ''),image_mobile:verifyImage(db,input.imageMobile ?? input.image_mobile ?? ''),cta:v.text(input.cta || 'Ver catálogo',100),destination:destination(input.destination || '#catalogo'),sort_order:v.integer(input.sortOrder ?? input.sort_order ?? 0,0,2147483647),active:v.flag(input.active),expires_at:expiresAt};
   const keys=Object.keys(data);if(id)db.prepare(`UPDATE banners SET ${keys.map(k=>`${k}=?`).join(',')},version=version+1 WHERE id=?`).run(...Object.values(data),id);
   else id=Number(db.prepare(`INSERT INTO banners(${keys.join(',')}) VALUES(${keys.map(()=>'?').join(',')})`).run(...Object.values(data)).lastInsertRowid);
   const after=db.prepare('SELECT * FROM banners WHERE id=?').get(id);audit(db,user,before?'banner_updated':'banner_created','banner',id,before,after);return after;

@@ -1,0 +1,2 @@
+ALTER TABLE banners ADD COLUMN expires_at TEXT;
+ALTER TABLE banners ADD COLUMN image_mobile TEXT NOT NULL DEFAULT '';
