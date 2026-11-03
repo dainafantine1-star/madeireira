@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import '../js/measurement.js';
+import '../shared/measurement.js';
 import '../js/core.js';
 
 const product={id:1,name:'Tábua São José',sku:'SKU-1',reference:'REF-1',unit:'m2',price:45.5,available:true,stock:10,specs:{Madeira:'Cedro'},dimensions:'2 × 3 cm',lengthMm:2500};

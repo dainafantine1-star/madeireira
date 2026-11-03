@@ -1,6 +1,6 @@
 import * as v from './validation.js';
 import { productDTO, transaction,settings } from './db.js';
-import { quantity } from './orders.js';
+import { quantity } from './validation.js';
 import { audit } from './audit.js';
 
 export const productSelect='SELECT p.*,c.label AS category_label,c.active AS category_active FROM products p JOIN categories c ON c.id=p.category_id';

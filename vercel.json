@@ -7,7 +7,7 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 60,
-      "includeFiles": "{index.html,admin/**,js/**,css/**,assets/**,server/migrations/**,server/seed-categories.json}"
+      "includeFiles": "{index.html,admin/**,js/**,shared/**,css/**,assets/**,server/migrations/**,server/seed-categories.json}"
     }
   },
   "redirects": [

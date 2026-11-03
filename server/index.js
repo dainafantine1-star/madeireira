@@ -107,7 +107,7 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,ba
         if(!visible){res.writeHead(404,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(method==='HEAD'?undefined:'<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Produto indisponível</title><h1>Produto não encontrado</h1><p>Este produto não está disponível no catálogo.</p><a href="/">Voltar para a loja</a></html>');}
         requested='/index.html';
       }
-      const asset=requested.match(/^\/(css|js|images|assets)\/[a-zA-Z0-9/_ .-]+$/);
+      const asset=requested.match(/^\/(css|js|images|assets|shared)\/[a-zA-Z0-9/_ .-]+$/);
       v.check(requested==='/' || requested==='/index.html' || requested==='/admin' || requested==='/admin/' || /^\/admin\/(?:admin|commerce|analytics)\.(?:css|js)$/.test(requested) || asset,'Página inexistente.',404);
       const publicRoot=await realpath(root);
       const directory=resolve(publicRoot,asset?asset[1]:requested.startsWith('/admin')?'admin':'.');

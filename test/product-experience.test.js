@@ -7,7 +7,7 @@ import { saveProduct } from '../server/products.js';
 import { createQuote, orderDetail } from '../server/orders.js';
 import { createApp } from '../server/index.js';
 import { exportWooCSV } from '../server/csv.js';
-import '../js/measurement.js';
+import '../shared/measurement.js';
 
 test('metres, area and volume: precise calculation, invalid inputs and rounding',()=>{
   assert.equal(WoodMeasure.calculate('m',{length:2.5,pieces:3}).qty,7.5);

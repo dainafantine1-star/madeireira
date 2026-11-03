@@ -3,11 +3,10 @@ import { transaction,settings } from './db.js';
 import * as v from './validation.js';
 import { attachPublicCustomer,customerInput } from './customers.js';
 import { audit } from './audit.js';
-import '../js/measurement.js';
+import '../shared/measurement.js';
 const money=cents=>cents===null?'Sob consulta':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(cents/100);
 export const stages={received:'Recebido',in_progress:'Em atendimento',awaiting_approval:'Aguardando aprovação',approved:'Aprovado',completed:'Concluído',cancelled:'Cancelado'};
 const transitions={received:['in_progress','cancelled'],in_progress:['awaiting_approval','cancelled'],awaiting_approval:['in_progress','approved','cancelled'],approved:['in_progress','completed','cancelled'],completed:[],cancelled:[]};
-export function quantity(value,unit,max=10000){v.check(typeof value==='number'&&Number.isFinite(value)&&value>0&&value<=max,'Quantidade fora do limite.');v.check(Math.abs(value*1000-Math.round(value*1000))<0.000001,'Use até três casas decimais.');v.check(['m','m2','m3'].includes(unit)||Number.isInteger(value),'Unidades e pacotes exigem quantidades inteiras.');return Math.round(value*1000)/1000;}
 export function createQuote(db,input,{actor=null}={}) {
   const requestKey=v.text(input.requestKey,100);v.check(/^[a-zA-Z0-9-]{16,100}$/.test(requestKey),'Chave de solicitação inválida.');
   v.check(Array.isArray(input.items)&&input.items.length>=1&&input.items.length<=100,'Informe de 1 a 100 itens.');
@@ -38,7 +37,7 @@ export function createQuote(db,input,{actor=null}={}) {
     const company=settings(db),totals=new Map();
     const lines=items.map(i=>{
       const p=db.prepare("SELECT p.* FROM products p JOIN categories c ON c.id=p.category_id WHERE p.id=? AND p.active=1 AND p.deleted_at IS NULL AND p.unit IS NOT NULL AND p.status!='unavailable' AND (p.stock_milli IS NULL OR p.stock_milli>0) AND c.active=1").get(i.id);
-      v.check(p,'Produto indisponível. Atualize o catálogo.',409);quantity(i.qty,p.unit,company.maxQuoteQuantity);
+      v.check(p,'Produto indisponível. Atualize o catálogo.',409);v.quantity(i.qty,p.unit,company.maxQuoteQuantity);
       if(i.measurement){const calculated=WoodMeasure.calculate(p.unit,i.measurement);v.check(calculated.qty===i.qty,'Unidade ou medidas alteradas. Refaça o cálculo.',409);i.measures=calculated.formula;}
       totals.set(p.id,(totals.get(p.id)||0)+Math.round(i.qty*1000));v.check(p.stock_milli===null||p.stock_milli>=totals.get(p.id),'Quantidade maior que o estoque disponível. Atualize seu orçamento.',409);
       return {...p,...i,productId:p.id};

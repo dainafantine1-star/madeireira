@@ -7,6 +7,13 @@ export function text(value, max = 200, required = true) {
 export function integer(value, min = 1, max = 2147483647) { check(Number.isSafeInteger(value) && value >= min && value <= max, 'Número inteiro inválido.'); return value; }
 export function money(value) { if (value === null) return null; check(typeof value === 'number' && Number.isFinite(value) && value>0 && value<=10000000 && Math.abs(value*100-Math.round(value*100))<0.00001, 'Preço inválido. Use null para sob consulta.'); return Math.round(value*100); }
 export function slug(value) { check(typeof value === 'string' && /^[a-z0-9][a-z0-9-]{0,79}$/.test(value), 'Identificador inválido.'); return value; }
+// Billing quantity: measured units accept three decimals, unit/package must be whole.
+export function quantity(value, unit, max = 10000) {
+  check(typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= max, 'Quantidade fora do limite.');
+  check(Math.abs(value * 1000 - Math.round(value * 1000)) < 0.000001, 'Use até três casas decimais.');
+  check(['m', 'm2', 'm3'].includes(unit) || Number.isInteger(value), 'Unidades e pacotes exigem quantidades inteiras.');
+  return Math.round(value * 1000) / 1000;
+}
 export function flag(value) { check(typeof value === 'boolean', 'Valor booleano inválido.'); return Number(value); }
 export function specs(value) {
   check(value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length<=30, 'Medidas inválidas.');
