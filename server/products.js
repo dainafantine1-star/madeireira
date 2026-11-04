@@ -5,13 +5,14 @@ import { audit } from './audit.js';
 
 export const productSelect='SELECT p.*,c.label AS category_label,c.active AS category_active FROM products p JOIN categories c ON c.id=p.category_id';
 export function getProduct(db,id) {const p=db.prepare(`${productSelect} WHERE p.id=? AND p.deleted_at IS NULL`).get(v.integer(id));v.check(p,'Produto inexistente.',404);return p;}
-export function validateProduct(db,p) {
-  const category=v.slug(p.category);v.check(db.prepare('SELECT 1 FROM categories WHERE id=?').get(category),'Categoria inexistente.');
+export function validateProduct(db,p,options={}) {
+  const category=v.slug(p.category);
+  if(!options.allowNewCategory)v.check(db.prepare('SELECT 1 FROM categories WHERE id=?').get(category),'Categoria inexistente.');
   const price=v.money(p.price),old=v.money(p.oldPrice ?? null);
   v.check(old===null || (price!==null && old>price),'O preço anterior deve ser maior que o atual.');
   const status=p.status || (old!==null?'promotion':'active');v.check(['active','promotion','unavailable'].includes(status),'Status inválido.');
   v.check(status!=='promotion' || (price!==null && old!==null),'Promoção exige preço atual e preço anterior.');
-  const sku=v.text(p.sku ?? p.reference,80);v.check(/^[a-z0-9][a-z0-9._-]{0,79}$/i.test(sku),'SKU aceita letras, números, ponto, hífen e sublinhado.');
+  const sku=v.text(p.sku ?? p.reference,80);v.check(/^[a-z0-9](?:[a-z0-9._\- ]*[a-z0-9])?$/i.test(sku),'SKU aceita letras, números, ponto, hífen, sublinhado e espaços entre caracteres.');
   const unit=p.unit===null||p.unit===''?null:(p.unit || 'un');
   v.check(unit===null||['un','m','m2','m3','pacote'].includes(unit),'Unidade inválida.');
   v.check(unit!==null||status==='unavailable','Confirme a unidade de venda antes de disponibilizar o produto.');

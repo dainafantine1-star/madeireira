@@ -32,6 +32,27 @@ function numeric(value,nullable=false) {
   v.check(typeof value==='string'&&/^\d+(?:[.,]\d{1,3})?$/.test(value),'Número inválido. Não use separador de milhar.');return Number(value.replace(',','.'));
 }
 function boolean(value,fallback){if(value==null||value==='')return fallback;v.check(['0','1','true','false'].includes(value),'Booleano deve ser 0 ou 1.');return ['1','true'].includes(value);}
+function slugifyCategory(label) {
+  return label.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80).replace(/-+$/,'');
+}
+// Resolves the CSV category cell against existing categories; a new name is
+// reported as pending so the apply step can create it inside the same transaction.
+function resolveCategory(db, raw) {
+  const label=String(raw ?? '').trim();
+  v.check(label,'Informe a categoria.');v.check(label.length<=100,'Categoria muito longa. Use até 100 caracteres.');
+  const slug=slugifyCategory(label);
+  v.check(/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug),'Categoria inválida. Use letras, números ou espaços.');
+  const candidates=[];
+  if(/^[a-z0-9][a-z0-9-]{0,79}$/.test(label))candidates.push(label);
+  if(!candidates.includes(slug))candidates.push(slug);
+  for(const candidate of candidates) {
+    const byId=db.prepare('SELECT id,slug FROM categories WHERE id=?').get(candidate);
+    if(byId)return {id:byId.id,slug:byId.slug,label,create:false};
+    const bySlug=db.prepare('SELECT id,slug FROM categories WHERE slug=?').get(candidate);
+    if(bySlug)return {id:bySlug.id,slug:bySlug.slug,label,create:false};
+  }
+  return {id:slug,slug,label,create:true};
+}
 function convert(row,old,defaultLowStock=5) {
   return {...old,sku:row.sku,reference:row.reference || old?.reference || row.sku,name:row.name,category:row.category,
     price:numeric(row.price,true),oldPrice:numeric(row.oldPrice,true),stock:numeric(row.stock,true),lowStock:row.lowStock?numeric(row.lowStock):old?.lowStock ?? defaultLowStock,
@@ -51,15 +72,20 @@ export function previewImport(db,user,input) {
       v.check(!found?.deleted_at,'SKU pertence a produto excluído. Use um novo SKU.');
       v.check(input.mode!=='create'||!found,'SKU já existe; selecione Atualizar ou Criar e atualizar.');
       v.check(input.mode!=='update'||found,'SKU não encontrado para atualização.');
-      const product=convert(entry.values,found?productDTO(found):null,settings(db).defaultLowStock);validateProduct(db,product);
-      result.product=product;result.id=found?.id || null;result.version=found?.version || null;result.operation=found?'update':'create';
+      const category=resolveCategory(db,entry.values.category);
+      const product=convert(entry.values,found?productDTO(found):null,settings(db).defaultLowStock);
+      product.category=category.id;
+      validateProduct(db,product,{allowNewCategory:category.create});
+      result.product=product;
+      if(category.create)result.pendingCategory={id:category.id,slug:category.slug,label:category.label};
+      result.id=found?.id || null;result.version=found?.version || null;result.operation=found?'update':'create';
     }catch(error){result.errors.push(error.status?error.message:'Não foi possível validar esta linha.');}
     rows.push(result);
   }
   db.prepare('DELETE FROM import_previews WHERE expires_at<? AND applied_at IS NULL').run(Date.now());
   const id=randomUUID(),expiresAt=Date.now()+15*60*1000;
   db.prepare('INSERT INTO import_previews(id,actor_id,payload_json,expires_at) VALUES(?,?,?,?)').run(id,user.id,JSON.stringify(rows),expiresAt);
-  return {id,expiresAt,rows,valid:rows.every(r=>!r.errors.length),summary:{total:rows.length,errors:rows.filter(r=>r.errors.length).length,create:rows.filter(r=>r.operation==='create').length,update:rows.filter(r=>r.operation==='update').length}};
+  return {id,expiresAt,rows,valid:rows.every(r=>!r.errors.length),summary:{total:rows.length,errors:rows.filter(r=>r.errors.length).length,create:rows.filter(r=>r.operation==='create').length,update:rows.filter(r=>r.operation==='update').length,newCategories:new Set(rows.filter(r=>r.pendingCategory).map(r=>r.pendingCategory.id)).size}};
 }
 export function applyImport(db,user,input) {
   return transaction(db,()=>{
@@ -67,12 +93,21 @@ export function applyImport(db,user,input) {
     v.check(found,'Prévia inexistente.',404);if(found.applied_at)return JSON.parse(found.result_json);
     v.check(found.expires_at>Date.now(),'Prévia expirada. Gere novamente.',409);
     const rows=JSON.parse(found.payload_json);v.check(rows.every(r=>!r.errors.length),'Corrija as linhas com erro antes de importar.');
+    const newCategories=[];
+    for(const row of rows) {
+      const pending=row.pendingCategory;if(!pending)continue;
+      const existing=db.prepare('SELECT id FROM categories WHERE id=?').get(pending.id)||db.prepare('SELECT id FROM categories WHERE slug=?').get(pending.slug);
+      if(existing){if(existing.id!==pending.id)row.product.category=existing.id;continue;}
+      db.prepare('INSERT INTO categories(id,label,slug) VALUES(?,?,?)').run(pending.id,pending.label,pending.slug);
+      audit(db,user,'category_created','category',pending.id,null,{label:pending.label,slug:pending.slug,source:'import'});
+      newCategories.push(pending.id);
+    }
     for(const row of rows) {
       if(row.id){const current=db.prepare('SELECT version,deleted_at FROM products WHERE id=?').get(row.id);v.check(current&&!current.deleted_at&&current.version===row.version,'O catálogo mudou após a prévia. Gere outra prévia.',409);}
       else v.check(!db.prepare('SELECT 1 FROM products WHERE sku=? COLLATE NOCASE').get(row.product.sku),'Um SKU foi cadastrado após a prévia. Gere outra prévia.',409);
       writeProduct(db,user,{...row.product,version:row.version ?? undefined},row.id,'product_imported');
     }
-    const result={created:rows.filter(r=>!r.id).length,updated:rows.filter(r=>r.id).length,total:rows.length};
+    const result={created:rows.filter(r=>!r.id).length,updated:rows.filter(r=>r.id).length,total:rows.length,newCategories:newCategories.length};
     db.prepare('UPDATE import_previews SET applied_at=CURRENT_TIMESTAMP,result_json=? WHERE id=?').run(JSON.stringify(result),found.id);
     audit(db,user,'import_applied','import',found.id,null,result);return result;
   });
