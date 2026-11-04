@@ -308,8 +308,11 @@ body { background: var(--paper); }
   .product__body{padding:15px 12px 0}
 }
 
-/* Home banner: fixed 450px, no arrows, discreet dots */
-.home-banner-carousel{height:450px}
+/* Home banner: fixed height, no arrows, discreet dots.
+   Desktop 315px (-30% from 450px) so the product grid reaches the first screen.
+   Mobile 220px: at 260px the 3:1 artwork was blown up to 1.5x its natural
+   height and cropped hard on the sides. */
+.home-banner-carousel{height:315px}
 .home-banner-track{height:100%}
 .home-banner-track .home-image-banner{height:100%}
 .home-banner-track .home-image-banner>a{display:block;height:100%;aspect-ratio:auto;max-height:none;overflow:hidden}
@@ -319,7 +322,7 @@ body { background: var(--paper); }
 .home-banner-carousel .home-dots{bottom:16px;gap:8px}
 .home-banner-carousel .home-dots button{width:8px;height:8px;min-height:8px;opacity:.9}
 @media(max-width:760px){
-  .home-banner-carousel{height:260px}
+  .home-banner-carousel{height:220px}
 }
 
 /* Promotions below products: rounded, inset from edges */
