@@ -16,7 +16,7 @@ Cards claros exibem dimensões, comprimento e unidade. A barra inferior mobile t
 4. Envie: o servidor revalida produtos, quantidades, disponibilidade e preços, associa/cria o cliente e salva tudo em transação.
 5. A confirmação mostra um protocolo `MP-data-identificador`. Continuar no WhatsApp é opcional; a solicitação já está no painel, mesmo se o número da empresa ainda não estiver configurado.
 
-Unidade e pacote: quantidades inteiras. Metro, m² e m³: até três casas decimais, mínimo 0,001. Limite por item configurado na empresa (padrão 99, máximo configurável 10.000). Estoque controlado segue a precisão da unidade; todos os itens do mesmo produto são somados na validação de disponibilidade.
+Unidade e pacote: quantidades inteiras. Metro, m², m³ e quilograma: até três casas decimais, mínimo 0,001. Limite por item configurado na empresa (padrão 99, máximo configurável 10.000). Estoque controlado segue a precisão da unidade; todos os itens do mesmo produto são somados na validação de disponibilidade.
 
 O valor mostrado é **estimado**, com arredondamento por item em centavos. Preço desconhecido permanece `null`/Sob consulta. O valor fechado é separado e informado pela equipe após negociação.
 

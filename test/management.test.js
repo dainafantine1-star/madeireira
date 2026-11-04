@@ -101,6 +101,10 @@ test('products, stock, filters, audit, bulk rollback, CSV import/export and vali
   const spaced=await req('/api/admin/products','POST',{name:'Viga de teste',sku:'VIGA DE MADEIRA 5X10',category:'tabuas',price:10});
   assert.equal(spaced.status,201);assert.equal(spaced.data.sku,'VIGA DE MADEIRA 5X10');assert.equal(spaced.data.reference,'VIGA DE MADEIRA 5X10');
   assert.equal((await req('/api/admin/products','POST',{name:'SKU inválido',sku:'AB@CD',category:'tabuas',price:10})).status,400);
+  const kg=await req('/api/admin/products','POST',{name:'Prego por quilo',sku:'PREGO-KG-01',category:'tabuas',price:10,unit:'kg',stock:10});
+  assert.equal(kg.status,201);assert.equal(kg.data.unit,'kg');
+  const kgQuote=await req('/api/quotes','POST',{requestKey:'kg-decimal-quantity-001',items:[{id:kg.data.id,qty:0.5}]});
+  assert.equal(kgQuote.status,201);assert.match(kgQuote.data.message,/Quantidade: 0,5 kg/);
   p=(await req('/api/admin/products/1')).data;assert.equal((await req('/api/admin/products/1?version='+p.version,'DELETE')).status,200);
   assert.equal((await req('/api/admin/products/1')).status,404);assert.equal((await req('/api/catalog')).data.products.some(p=>p.id===1),false);
   assert.equal((await req(`/api/admin/orders/${quote.data.id}`)).data.items[0].name_snapshot,original.products.find(p=>p.id===1).name);

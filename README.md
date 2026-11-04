@@ -114,7 +114,7 @@ Orçamento público:
 }
 ```
 
-A mesma chave e o mesmo conteúdo normalizado retornam o protocolo existente; reutilizar a chave com outros dados retorna 409. Unidade e pacote exigem quantidades inteiras; m, m² e m³ aceitam até três casas decimais. O limite por item é configurável (padrão 99). Preços e estoque são revalidados no servidor. Produtos, medidas, condições e contato informado são preservados em snapshots. A solicitação aparece no painel antes da opção de continuar no WhatsApp, sem depender da abertura da conversa.
+A mesma chave e o mesmo conteúdo normalizado retornam o protocolo existente; reutilizar a chave com outros dados retorna 409. Unidade e pacote exigem quantidades inteiras; m, m², m³ e kg aceitam até três casas decimais. O limite por item é configurável (padrão 99). Preços e estoque são revalidados no servidor. Produtos, medidas, condições e contato informado são preservados em snapshots. A solicitação aparece no painel antes da opção de continuar no WhatsApp, sem depender da abertura da conversa.
 
 Atualização de negociação: `{ "version": 1, "stage": "in_progress", "assignedTo": null, "finalTotal": null, "note": "Atendimento iniciado" }`. Estágios e regras em COMERCIAL.md. Aprovação transforma o registro em pedido sem duplicá-lo. O cliente é associado no registro da solicitação; não existe consulta pública de histórico ou login público de cliente.
 

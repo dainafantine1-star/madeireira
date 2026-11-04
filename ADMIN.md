@@ -17,7 +17,7 @@ Colunas da tabela: seleção, produto/SKU/código, categoria, preço/unidade, es
 
 **Mais ações:** exportar todos para WooCommerce, importar CSV, baixar modelo e atualizar lista. Atalhos por produto: editar, alterar preço, duplicar (cria rascunho com novo SKU obrigatório) e excluir. A alteração rápida de preço encerra promoção anterior, conforme informado no formulário.
 
-Produtos possuem SKU único sem diferenciar maiúsculas/minúsculas, referência, descrição, categoria, dimensões livres, comprimento inteiro em milímetros, unidade (`un`, `m`, `m2`, `m3`, `pacote`), especificações, preço ou sob consulta, preço anterior, condição comercial, estoque, limiar de alerta, publicação, status e destaque. Campos de unidades antigos recebem `un` e precisam ser revisados junto aos dados comerciais reais.
+Produtos possuem SKU único sem diferenciar maiúsculas/minúsculas, referência, descrição, categoria, dimensões livres, comprimento inteiro em milímetros, unidade (`un`, `m`, `m2`, `m3`, `pacote`, `kg`), especificações, preço ou sob consulta, preço anterior, condição comercial, estoque, limiar de alerta, publicação, status e destaque. Campos de unidades antigos recebem `un` e precisam ser revisados junto aos dados comerciais reais.
 
 O cadastro completo mostra produto e imagem atuais. O formulário impede salvar com campos obrigatórios ausentes e exibe erros do servidor sem perder o preenchimento. Conflitos de versão retornam 409; recarregue o produto e reaplique a alteração para não sobrescrever trabalho de outra pessoa.
 
@@ -25,7 +25,7 @@ O cadastro completo mostra produto e imagem atuais. O formulário impede salvar 
 
 - **Publicado:** define se o produto pode aparecer na loja. Categoria desativada também oculta seus produtos.
 - **Status:** disponível, promoção ou indisponível. Promoção exige preço anterior maior que o atual. Destaque é independente de promoção.
-- **Sem controle de estoque:** quantidade `null`; não presume uma quantidade fictícia. Estoque controlado parte de zero; unidades/pacotes s?o inteiros e metros, m? e m? aceitam at? tr?s casas decimais.
+- **Sem controle de estoque:** quantidade `null`; não presume uma quantidade fictícia. Estoque controlado parte de zero; unidade e pacote exigem quantidades inteiras; metro, m², m³ e quilograma aceitam até três casas decimais.
 - **Estoque zero:** produto publicado permanece visível como indisponível; botões ficam desabilitados. Servidor rejeita o envio de novos orçamentos e quantidades maiores que o estoque. O switch não repõe estoque: ajuste a quantidade no cadastro.
 - **Estoque baixo:** quantidade positiva até o limiar do produto. Indicadores e filtros permitem localizar os itens.
 - **Orçamentos não reservam nem baixam estoque automaticamente.** A equipe atualiza as quantidades no cadastro conforme sua operação; baixa automática de venda/integração logística não integra estes blocos.

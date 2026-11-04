@@ -7,7 +7,7 @@ import '../js/measurement.js';
 const money=cents=>cents===null?'Sob consulta':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(cents/100);
 export const stages={received:'Recebido',in_progress:'Em atendimento',awaiting_approval:'Aguardando aprovação',approved:'Aprovado',completed:'Concluído',cancelled:'Cancelado'};
 const transitions={received:['in_progress','cancelled'],in_progress:['awaiting_approval','cancelled'],awaiting_approval:['in_progress','approved','cancelled'],approved:['in_progress','completed','cancelled'],completed:[],cancelled:[]};
-export function quantity(value,unit,max=10000){v.check(typeof value==='number'&&Number.isFinite(value)&&value>0&&value<=max,'Quantidade fora do limite.');v.check(Math.abs(value*1000-Math.round(value*1000))<0.000001,'Use até três casas decimais.');v.check(['m','m2','m3'].includes(unit)||Number.isInteger(value),'Unidades e pacotes exigem quantidades inteiras.');return Math.round(value*1000)/1000;}
+export function quantity(value,unit,max=10000){v.check(typeof value==='number'&&Number.isFinite(value)&&value>0&&value<=max,'Quantidade fora do limite.');v.check(Math.abs(value*1000-Math.round(value*1000))<0.000001,'Use até três casas decimais.');v.check(['m','m2','m3','kg'].includes(unit)||Number.isInteger(value),'Unidade e pacote exigem quantidades inteiras.');return Math.round(value*1000)/1000;}
 export function createQuote(db,input,{actor=null}={}) {
   const requestKey=v.text(input.requestKey,100);v.check(/^[a-zA-Z0-9-]{16,100}$/.test(requestKey),'Chave de solicitação inválida.');
   v.check(Array.isArray(input.items)&&input.items.length>=1&&input.items.length<=100,'Informe de 1 a 100 itens.');

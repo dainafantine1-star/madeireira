@@ -14,7 +14,7 @@ export function validateProduct(db,p,options={}) {
   v.check(status!=='promotion' || (price!==null && old!==null),'Promoção exige preço atual e preço anterior.');
   const sku=v.text(p.sku ?? p.reference,80);v.check(/^[a-z0-9](?:[a-z0-9._\- ]*[a-z0-9])?$/i.test(sku),'SKU aceita letras, números, ponto, hífen, sublinhado e espaços entre caracteres.');
   const unit=p.unit===null||p.unit===''?null:(p.unit || 'un');
-  v.check(unit===null||['un','m','m2','m3','pacote'].includes(unit),'Unidade inválida.');
+  v.check(unit===null||['un','m','m2','m3','pacote','kg'].includes(unit),'Unidade inválida.');
   v.check(unit!==null||status==='unavailable','Confirme a unidade de venda antes de disponibilizar o produto.');
   const image=v.image(p.image || '');
   v.check(p.images===undefined || (Array.isArray(p.images)&&p.images.length<=12),'Use até 12 fotos na galeria.');
