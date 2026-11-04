@@ -18,7 +18,8 @@ test('admin saves main artwork and unlimited promotion collection reaches the st
  await expect(page.getByRole('heading',{name:'Banner principal da home',level:2})).toBeVisible();
  const home=db.prepare("SELECT * FROM banners WHERE placement='home'").get();
  await page.locator('[data-action=crm-banner][data-banner-id="'+home.id+'"]').click();
- await expect(page.locator('#editorBody')).toContainText('1920 × 600');
+ await expect(page.locator('#editorBody')).toContainText('1575 × 315');
+ await expect(page.locator('#editorBody')).toContainText('720 × 400');
  await page.locator('#editorForm [name=title]').fill('Arte principal da loja');
  // Exercise the real upload endpoint with an existing raster, no synthetic artwork created.
  await page.locator('#crmBannerFile').setInputFiles('assets/hero-madeira.webp');

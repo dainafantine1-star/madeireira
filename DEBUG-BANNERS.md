@@ -10,8 +10,8 @@ Regressão completa: `node scripts/run-browsers.js e2e/banners.spec.js --project
 
 O painel **Banners e campanhas** controla `banners.placement`: `home` para o banner principal único e `promotion` para as imagens do carrossel. A API pública entrega a posição e o estado; a home desativada permanece na resposta para a vitrine ocultar essa área. Promoções desativadas não são publicadas.
 
-- Principal: arte de 1920 × 600 px, proporção 16:5, largura total da tela. A exibição escala com a largura e tem teto de 600 px.
-- Banner secundário de promoções: recomendado 1320 × 300 px, proporção 22:5; altura de 300 px no desktop, conteúdo limitado à largura da vitrine e padding lateral de 24 px. No celular, padding de 16 px e altura proporcional. Cantos de 8 px. Sem limite de quantidade cadastrado; ordenação por ordem e ID.
+- Principal: altura fixa de 315 px no desktop e 220 px no celular, com largura total da tela. Como a largura é fluida, a proporção visível muda com o viewport: recomenda-se 1575 × 315 px (5:1) para computador e 720 × 400 px (1,8:1) para celular, usando o campo de imagem mobile.
+- Banner secundário de promoções: recomendado 1320 × 300 px, proporção 4,4:1; altura de 300 px no desktop, conteúdo limitado à largura da vitrine e padding lateral de 24 px. No celular, padding de 16 px e altura proporcional. Cantos de 8 px. Sem limite de quantidade cadastrado; ordenação por ordem e ID.
 - JPEG, PNG ou WebP de até 3 MB. Upload com uso `banner` preserva até 2560 px; outras proporções são aceitas, mas o enquadramento pode cortar partes da arte. Usar as proporções indicadas.
 - Setas, indicadores, ciclo de seis segundos e gesto lateral com duas ou mais imagens. Movimento reduzido desabilita a rotação automática. Sem artes ativas, a seção de promoções fica oculta.
 
