@@ -54,7 +54,7 @@ Colunas do modelo:
 sku,name,reference,category,price,oldPrice,stock,lowStock,status,active,featured,dimensions,lengthMm,unit,description,image,commercialTerms
 ```
 
-Obrigatórias no cabeçalho: `sku`, `name`, `category`, `price`. Use o identificador da categoria existente (por exemplo, `tabuas`), não um nome inventado. Valores monetários aceitam ponto ou vírgula decimal, sem separador de milhar ou símbolo R$. `price` vazio = sob consulta; `stock` vazio = sem controle. Quantidades e comprimento são inteiros. Booleanos: `0`/`1` (também `false`/`true`). `status`: `active`, `promotion`, `unavailable`. Promoção requer `oldPrice` maior que `price`.
+Obrigatórias no cabeçalho: `sku`, `name`, `category`, `price`. Na coluna `category`, use o identificador existente (por exemplo, `tabuas`) ou o nome da categoria nova — categorias inexistentes são criadas automaticamente na importação. `sku` aceita letras, números, ponto, hífen, sublinhado e espaços. Valores monetários aceitam ponto ou vírgula decimal, separador de milhar no formato brasileiro e o símbolo `R$` (ex.: `2170`, `2170.50`, `2.170,50`, `R$ 2.170,50`). `price` vazio = sob consulta; `stock` vazio = sem controle. Quantidades e comprimento são inteiros. Booleanos: `0`/`1` (também `false`/`true`). `status`: `active`, `promotion`, `unavailable`. Promoção requer `oldPrice` maior que `price`.
 
 Modos: somente criar, somente atualizar por SKU, ou criar e atualizar. Não há sobrescrita silenciosa: os SKUs existentes são identificados na prévia e o modo escolhido define se podem ser atualizados. Para atualizar, preencha todos os campos comerciais desejados usando o modelo; células vazias não significam genericamente “manter valor”. Imagem e especificações existentes são preservadas quando não fornecidas.
 

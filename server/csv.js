@@ -27,9 +27,16 @@ export function parseCSV(source) {
   v.check(headers.every(h=>columns.includes(h)),'Coluna desconhecida. Use o modelo do painel.');
   return rows.map((r,i)=>({line:i+2,values:r.length===headers.length?Object.fromEntries(headers.map((h,j)=>[h,importedCSVText(r[j])])):null}));
 }
-function numeric(value,nullable=false) {
+function numeric(value,nullable=false,column='Número') {
   if(!value && nullable)return null;
-  v.check(typeof value==='string'&&/^\d+(?:[.,]\d{1,3})?$/.test(value),'Número inválido. Não use separador de milhar.');return Number(value.replace(',','.'));
+  v.check(typeof value==='string',column+' inválido.');
+  // pt-BR spreadsheet notation: "R$ 2.170,50" and "1.234" (thousands) are
+  // accepted; "2.17" stays a decimal because it has no thousands group.
+  let raw=value.trim().replace(/^R\$\s?/i,'').trim();
+  if(/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(raw))raw=raw.replace(/\./g,'').replace(',','.');
+  else if(/^\d+,\d{1,2}$/.test(raw))raw=raw.replace(',','.');
+  v.check(/^\d+(?:[.,]\d{1,3})?$/.test(raw),`${column} inválido: "${value.trim()}". Use ponto ou vírgula como decimal, sem símbolo (ex.: 2170 ou 2170.50).`);
+  return Number(raw.replace(',','.'));
 }
 function boolean(value,fallback){if(value==null||value==='')return fallback;v.check(['0','1','true','false'].includes(value),'Booleano deve ser 0 ou 1.');return ['1','true'].includes(value);}
 function slugifyCategory(label) {
@@ -55,8 +62,8 @@ function resolveCategory(db, raw) {
 }
 function convert(row,old,defaultLowStock=5) {
   return {...old,sku:row.sku,reference:row.reference || old?.reference || row.sku,name:row.name,category:row.category,
-    price:numeric(row.price,true),oldPrice:numeric(row.oldPrice,true),stock:numeric(row.stock,true),lowStock:row.lowStock?numeric(row.lowStock):old?.lowStock ?? defaultLowStock,
-    status:row.status || 'active',active:boolean(row.active,true),featured:boolean(row.featured,false),dimensions:row.dimensions || '',lengthMm:numeric(row.lengthMm,true),
+    price:numeric(row.price,true,'Preço'),oldPrice:numeric(row.oldPrice,true,'Preço anterior'),stock:numeric(row.stock,true,'Estoque'),lowStock:row.lowStock?numeric(row.lowStock,false,'Alerta de estoque'):old?.lowStock ?? defaultLowStock,
+    status:row.status || 'active',active:boolean(row.active,true),featured:boolean(row.featured,false),dimensions:row.dimensions || '',lengthMm:numeric(row.lengthMm,true,'Comprimento em milímetros'),
     unit:row.unit || 'un',description:row.description || '',image:row.image || old?.image || '',specs:old?.specs || {},
     commercialTerms:row.commercialTerms || old?.commercialTerms || 'Preço, disponibilidade, entrega e pagamento sujeitos à confirmação.'};
 }
