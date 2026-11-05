@@ -11,7 +11,7 @@ export function slug(value) { check(typeof value === 'string' && /^[a-z0-9][a-z0
 export function quantity(value, unit, max = 10000) {
   check(typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= max, 'Quantidade fora do limite.');
   check(Math.abs(value * 1000 - Math.round(value * 1000)) < 0.000001, 'Use até três casas decimais.');
-  check(['m', 'm2', 'm3'].includes(unit) || Number.isInteger(value), 'Unidades e pacotes exigem quantidades inteiras.');
+  check(['m', 'm2', 'm3', 'kg'].includes(unit) || Number.isInteger(value), 'Unidade e pacote exigem quantidades inteiras.');
   return Math.round(value * 1000) / 1000;
 }
 export function flag(value) { check(typeof value === 'boolean', 'Valor booleano inválido.'); return Number(value); }

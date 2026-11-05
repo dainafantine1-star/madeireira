@@ -18,7 +18,7 @@ export function openDatabase(path = process.env.DATABASE_PATH || resolve(root, '
   for (const name of readdirSync(new URL('./migrations/', import.meta.url)).filter(n => n.endsWith('.sql')).sort()) {
     if (!db.prepare('SELECT 1 FROM migrations WHERE name=?').get(name)) {
       // SQLite table rebuilds must keep referencing tables pointed at the original name.
-      const rebuild = name === '006_catalog_incomplete.sql';
+      const rebuild = name === '006_catalog_incomplete.sql' || name === '011_unit_kg.sql';
       if (rebuild) db.exec('PRAGMA foreign_keys=OFF');
       try { transaction(db, () => {
         db.exec(readFileSync(new URL(`./migrations/${name}`, import.meta.url), 'utf8'));
