@@ -29,7 +29,7 @@
     });
   }
   const state={user:null,csrf:'',page:'products',categories:[],products:[],selected:new Map(),filters:{q:'',category:'',status:'',featured:'',stock:'',price:'',sort:'newest',size:'20',page:1},preview:null};
-  let submitEditor=null,editProduct=null,saveBusy=false,searchTimer;
+  let submitEditor=null,editProduct=null,saveBusy=false,searchTimer,productsSeq=0,productsBusy=false,bulkState=null;
   function toast(message){$('toast').textContent=message;$('toast').classList.add('visible');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('visible'),4500);}
   async function api(path,method='GET',data) {
     const response=await fetch(`/api/admin/${path}`,{method,credentials:'same-origin',cache:'no-store',headers:{...(data!==undefined?{'Content-Type':'application/json'}:{}),...(method!=='GET'?{'X-CSRF-Token':state.csrf}:{})},body:data!==undefined?JSON.stringify(data):undefined,signal:AbortSignal.timeout(30000)});
@@ -42,13 +42,13 @@
     return new Promise(resolve=>$('confirmDialog').addEventListener('close',()=>resolve($('confirmDialog').returnValue==='yes'),{once:true}));
   }
   const admin=()=>state.user?.isOwner || state.user?.role==='admin';
-  const auditActions={product_created:'Produto cadastrado',product_updated:'Produto alterado',product_imported:'Produto importado',product_deleted:'Produto excluído',category_created:'Categoria cadastrada',category_updated:'Categoria alterada',image_uploaded:'Imagem enviada',image_deleted:'Imagem excluída',owner_created:'Proprietário cadastrado',user_created:'Acesso criado',user_updated:'Acesso alterado',password_changed:'Senha alterada',sessions_revoked:'Sessões encerradas',products_exported:'Catálogo exportado',import_applied:'Importação aplicada',bulk_activate:'Publicação em lote',bulk_deactivate:'Publicação retirada em lote',bulk_available:'Disponibilidade em lote',bulk_unavailable:'Indisponibilidade em lote',bulk_feature:'Destaque em lote',bulk_unfeature:'Destaque retirado em lote',bulk_price:'Preço em lote'};
+  const auditActions={product_created:'Produto cadastrado',product_updated:'Produto alterado',product_imported:'Produto importado',product_deleted:'Produto excluído',category_created:'Categoria cadastrada',category_updated:'Categoria alterada',category_deleted:'Categoria excluída',image_uploaded:'Imagem enviada',image_deleted:'Imagem excluída',owner_created:'Proprietário cadastrado',user_created:'Acesso criado',user_updated:'Acesso alterado',password_changed:'Senha alterada',sessions_revoked:'Sessões encerradas',products_exported:'Catálogo exportado',import_applied:'Importação aplicada',bulk_activate:'Publicação em lote',bulk_deactivate:'Publicação retirada em lote',bulk_available:'Disponibilidade em lote',bulk_unavailable:'Indisponibilidade em lote',bulk_feature:'Destaque em lote',bulk_unfeature:'Destaque retirado em lote',bulk_price:'Preço em lote'};
   const entities={product:'Produto',category:'Categoria',media:'Imagem',user:'Acesso',catalog:'Catálogo',import:'Importação'};
   Object.assign(auditActions,{order_updated:'Atendimento atualizado',quote_created:'Orçamento registrado',customer_created:'Cliente cadastrado',customer_updated:'Cliente alterado',company_updated:'Configurações alteradas',banner_created:'Campanha criada',banner_updated:'Campanha alterada'});
   Object.assign(entities,{order:'Atendimento',customer:'Cliente',company:'Empresa',banner:'Campanha'});
   function auditValues(record) {
     const before=JSON.parse(record.before_json||'{}')||{},after=JSON.parse(record.after_json||'{}')||{};
-    const names={name:'Nome',reference:'Código',sku:'SKU',category_id:'Categoria',price_cents:'Preço',old_price_cents:'Preço anterior',stock:'Quantidade em estoque',low_stock:'Alerta de estoque baixo',active:'Ativação / publicação',status:'Disponibilidade',featured:'Destaque',dimensions:'Dimensões',length_mm:'Comprimento (mm)',unit:'Unidade',image:'Imagem',commercial_terms:'Condição comercial',description:'Descrição',specs_json:'Especificações',deleted:'Exclusão',email:'E-mail',role:'Perfil',isOwner:'Proprietário',passwordReset:'Senha redefinida',sessionsRevoked:'Sessões encerradas',all:'Todas as sessões',label:'Nome da categoria',slug:'Slug',icon:'Ícone',sort_order:'Ordem',filename:'Arquivo da imagem',bytes:'Tamanho em bytes',format:'Formato',created:'Cadastros criados',updated:'Cadastros atualizados',total:'Total de produtos'};
+    const names={name:'Nome',reference:'Código',sku:'SKU',category_id:'Categoria',price_cents:'Preço',old_price_cents:'Preço anterior',stock:'Quantidade em estoque',low_stock:'Alerta de estoque baixo',active:'Ativação / publicação',status:'Disponibilidade',featured:'Destaque',dimensions:'Dimensões',length_mm:'Comprimento (mm)',unit:'Unidade',image:'Imagem',commercial_terms:'Condição comercial',description:'Descrição',specs_json:'Especificações',deleted:'Exclusão',email:'E-mail',role:'Perfil',isOwner:'Proprietário',passwordReset:'Senha redefinida',sessionsRevoked:'Sessões encerradas',all:'Todas as sessões',label:'Nome da categoria',slug:'Slug',icon:'Ícone',sort_order:'Ordem',filename:'Arquivo da imagem',bytes:'Tamanho em bytes',format:'Formato',created:'Cadastros criados',updated:'Cadastros atualizados',total:'Total de produtos',movedProducts:'Produtos movidos',movedTo:'Categoria de destino'};
     if(Object.hasOwn(before,'stock_milli')||Object.hasOwn(after,'stock_milli')){delete names.stock;names.stock_milli='Quantidade em estoque';}
     Object.assign(names,{stage:'Estágio',assignedTo:'Responsável',finalTotalCents:'Valor fechado',note:'Andamento',protocol:'Protocolo',title:'Título',body:'Texto',cta:'Texto do botão',destination:'Destino',address:'Endereço',phone:'Telefone',whatsapp:'WhatsApp',hours:'Horários',delivery:'Entrega',payment:'Pagamento',region:'Região atendida',logo:'Logo',heroImage:'Foto institucional',heroTitle:'Headline',heroText:'Texto do hero',aboutTitle:'Título institucional',aboutText:'Texto institucional',footerText:'Rodapé',stockZeroBehavior:'Estoque zero',maxQuoteQuantity:'Limite por item',defaultLowStock:'Alerta padrão de estoque'});
     const display=(key,value)=>{
@@ -88,8 +88,11 @@
   const thumbnail=p=>p.image?`<img class="product-thumb" src="${p.image.startsWith('https://')?'':'/'}${esc(StoreCore.image(p.image))}" alt="" loading="lazy" data-image-url="${esc(StoreCore.image(p.image))}">`:'<span class="product-thumb" aria-hidden="true">▧</span>';
   function imageSources(){document.querySelectorAll('[data-image-url]').forEach(img=>{const fallback=()=>{const span=document.createElement('span');span.className='product-thumb image-fallback';span.textContent='▧';span.setAttribute('aria-hidden','true');img.replaceWith(span);};img.onerror=fallback;if(img.complete&&!img.naturalWidth)fallback();});}
   async function renderProducts() {
+    const seq=++productsSeq;
     const query=new URLSearchParams(state.filters);
-    const [data,categories]=await Promise.all([api(`products?${query}`),api('categories')]);state.products=data.items;state.categories=categories;
+    const [data,categories]=await Promise.all([api(`products?${query}`),api('categories')]);
+    if(seq!==productsSeq)return;
+    state.products=data.items;state.categories=categories;state.productsTotal=data.total;
     const f=state.filters,totalAll=categories.reduce((n,c)=>n+c.product_count,0);
     const newButton='<button class="primary" data-action="new">＋ Novo produto</button>';
     const more='<details class="more-actions"><summary>Mais ações ⋯</summary><div><button data-action="export">Exportar todos · WooCommerce CSV</button><button data-page="import">Importar planilha CSV</button><button data-action="template">Baixar modelo CSV</button><button data-action="reload">Atualizar lista</button></div></details>';
@@ -163,7 +166,7 @@
   }
   async function renderCategories() {
     const categories=await api('categories');state.categories=categories;
-    $('pageContent').innerHTML=header('Categorias','Organize a navegação da loja. As contagens incluem os produtos não excluídos.','<button class="primary" data-action="new-category">＋ Nova categoria</button>')+`<div class="category-grid">${categories.map(c=>`<article class="category-card">${c.image?`<img src="${esc(c.image.startsWith('https://')?c.image:'/'+c.image)}" alt="" loading="lazy">`:`<span class="category-icon">${esc(c.icon||'▤')}</span>`}<h3>${esc(c.label)}</h3><p>/${esc(c.slug)} · ordem ${c.sort_order}</p><strong>${c.product_count} produto(s)</strong><footer><span class="badge${c.active?'':' neutral'}">${c.active?'Ativa':'Desativada'}</span><button data-action="edit-category" data-category-id="${esc(c.id)}">Editar</button></footer></article>`).join('')}</div>`;
+    $('pageContent').innerHTML=header('Categorias','Organize a navegação da loja. As contagens incluem os produtos não excluídos.','<button class="primary" data-action="new-category">＋ Nova categoria</button>')+`<div class="category-grid">${categories.map(c=>`<article class="category-card">${c.image?`<img src="${esc(c.image.startsWith('https://')?c.image:'/'+c.image)}" alt="" loading="lazy">`:`<span class="category-icon">${esc(c.icon||'▤')}</span>`}<h3>${esc(c.label)}</h3><p>/${esc(c.slug)} · ordem ${c.sort_order}</p><strong>${c.product_count} produto(s)</strong><footer><span class="badge${c.active?'':' neutral'}">${c.active?'Ativa':'Desativada'}</span><button data-action="edit-category" data-category-id="${esc(c.id)}">Editar</button><button data-action="delete-category" data-category-id="${esc(c.id)}">Excluir</button></footer></article>`).join('')}</div>`;
   }
   function categoryEditor(c={active:1,sort_order:0}) {
     showEditor(c.id?'Editar categoria':'Nova categoria',`<div class="form-grid">${field('label','Nome *',c.label,'text','required maxlength="100"')}${field('slug','Slug *',c.slug,'text','required pattern="[a-z0-9][a-z0-9\\-]*" maxlength="80"')}${field('icon','Ícone (emoji ou símbolo)',c.icon,'text','maxlength="20"')}${field('sortOrder','Ordem',c.sort_order,'number','required min="0" max="10000" step="1"')}${checkField('active','Categoria ativa',!!c.active)}<label>Imagem<input id="categoryImage" type="file" accept="image/jpeg,image/png,image/webp"><input type="hidden" name="image" value="${esc(c.image)}"><small id="categoryImageStatus">${c.image?'Imagem atual mantida.':'Sem imagem.'}</small></label></div><p class="field-help">Desativar uma categoria retira seus produtos do catálogo público, preservando os cadastros e o histórico.</p>`,async form=>{
@@ -172,22 +175,133 @@
     $('categoryImage').onchange=async e=>{try{if(!e.target.files[0])return;$('saveEditor').disabled=true;const media=await uploadFile(e.target.files[0]);$('editorForm').elements.image.value=media.url;$('categoryImageStatus').textContent='Nova imagem pronta. Salve a categoria.';}catch(error){$('formError').textContent=error.message;}finally{$('saveEditor').disabled=false;}};
   }
   async function renderMedia() {
-    const images=await api('media');$('pageContent').innerHTML=header('Biblioteca de imagens','Envie, substitua no cadastro e exclua arquivos que não estão em uso.','<button class="primary" data-action="upload-media">＋ Enviar imagem</button>')+`<input type="file" id="libraryFile" accept="image/jpeg,image/png,image/webp" hidden><div class="media-grid">${images.map(m=>`<article class="media-card"><img src="/uploads/${esc(m.filename)}" alt="${esc(m.original_name)}" loading="lazy"><strong title="${esc(m.original_name)}">${esc(m.original_name)}</strong><small>${m.width} × ${m.height} · ${Math.round(m.bytes/1024)} KB · ${m.links} vínculo(s)</small><div class="actions"><button data-action="copy-media" data-url="uploads/${esc(m.filename)}">Copiar URL</button><button data-action="delete-media" data-media-id="${esc(m.id)}"${m.links?' disabled':''}>Excluir</button></div></article>`).join('') || '<div class="empty">Sua biblioteca ainda está vazia.</div>'}</div>`;
+    const images=await api('media');$('pageContent').innerHTML=header('Biblioteca de imagens','Envie, substitua no cadastro e exclua arquivos que não estão em uso.','<button class="primary" data-action="upload-media">＋ Enviar imagem</button>')+`<input type="file" id="libraryFile" accept="image/jpeg,image/png,image/webp" hidden><div class="media-grid">${images.map(m=>`<article class="media-card"><img src="/uploads/${esc(m.filename)}" alt="${esc(m.original_name)}" loading="lazy"><strong title="${esc(m.original_name)}">${esc(m.original_name)}</strong><small>${m.width} × ${m.height} · ${Math.round(m.bytes/1024)} KB · ${m.links} vínculo(s)</small><div class="actions"><button data-action="copy-media" data-url="uploads/${esc(m.filename)}">Copiar URL</button><button data-action="delete-media" data-media-id="${esc(m.id)}" data-media-links="${m.links}">Excluir</button></div></article>`).join('') || '<div class="empty">Sua biblioteca ainda está vazia.</div>'}</div>`;
     $('libraryFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{await uploadFile(file);toast('Imagem enviada.');await renderMedia();}catch(error){toast(error.message);}};
   }
   async function renderImport() {
-    state.preview=null;$('pageContent').innerHTML=header('Importar produtos','Planilha CSV UTF-8 · até 500 produtos e 1 MB por arquivo.','<button data-action="template">↓ Baixar modelo CSV</button>')+
-      `<div class="notice">Use o modelo do painel. SKU identifica cada produto; categorias novas são criadas automaticamente na importação. Preço em branco significa Sob consulta. Estoque em branco desativa o controle. A prévia informa todos os erros antes de gravar. O CSV de exportação WooCommerce é destinado à migração para o WooCommerce.</div><section class="account-box import-area" style="max-width:none"><label>Arquivo CSV<input id="importFile" type="file" accept=".csv,text/csv"></label><label>Como tratar os SKUs<select id="importMode"><option value="create">Somente criar novos produtos</option><option value="update">Somente atualizar SKUs existentes</option><option value="upsert">Criar novos e atualizar existentes</option></select></label><button class="primary" data-action="preview-import" id="previewImport">Validar e gerar prévia</button><p class="error" id="importError" role="alert"></p><div id="importPreview"></div></section>`;
-    $('importFile').onchange=()=>invalidatePreview();$('importMode').onchange=()=>invalidatePreview();
+    state.preview=null;bulkState={zipBuffer:null,plan:new Map(),uploaded:new Map(),unmatched:[],overflow:[],ignored:[],report:null,zipFile:null};
+    $('pageContent').innerHTML=header('Importar produtos','Planilha CSV UTF-8 · até 2000 produtos e 2 MB. ZIP de imagens opcional.','<button data-action="template">↓ Baixar modelo CSV</button>')+
+      `<div class="notice">Use o modelo do painel. SKU identifica cada produto; categorias novas são criadas automaticamente. Preço em branco significa Sob consulta. Com o ZIP (opcional), as imagens são associadas pelo SKU: <strong>CAD001.jpg</strong> vira capa e <strong>CAD001_1.jpg</strong> entra na galeria — JPEG, PNG ou WebP, até 13 por produto. Nada é gravado sem a sua confirmação. O CSV de exportação WooCommerce segue disponível em Produtos → Mais ações.</div><section class="account-box import-area" style="max-width:none"><div class="form-grid"><label>Arquivo CSV *<input id="importFile" type="file" accept=".csv,text/csv"></label><label>ZIP com imagens (opcional)<input id="importZip" type="file" accept=".zip,application/zip"></label><label class="full">Como tratar os SKUs<select id="importMode"><option value="create">Somente criar novos produtos</option><option value="update">Somente atualizar SKUs existentes</option><option value="upsert">Criar novos e atualizar existentes</option><option value="skip">Ignorar produtos já existentes (criar só os novos)</option></select></label></div><button class="primary" data-action="preview-import" id="previewImport">Validar arquivos</button><p class="error" id="importError" role="alert"></p><div id="importPreview"></div><div id="importProgress" hidden style="margin-top:14px"><p id="importProgressText" role="status" style="margin:0 0 6px"></p><div style="background:#e6e1d6;border-radius:99px;height:10px;overflow:hidden"><div id="importProgressBar" style="height:100%;width:0;background:#2f6f4e;transition:width .2s"></div></div></div><div id="importReport"></div></section>`;
+    $('importFile').onchange=()=>invalidatePreview();
+    $('importZip').onchange=()=>{if(bulkState&&bulkState.zipFile!==$('importZip').files[0]){bulkState.uploaded=new Map();bulkState.zipFile=$('importZip').files[0]||null;}invalidatePreview();};
+    $('importMode').onchange=()=>invalidatePreview();
   }
-  function invalidatePreview(){state.preview=null;$('importPreview').replaceChildren();}
+  function invalidatePreview(){state.preview=null;$('importPreview')?.replaceChildren();$('importReport')?.replaceChildren();if($('importProgress'))$('importProgress').hidden=true;}
   async function previewImport() {
-    const file=$('importFile').files[0];if(!file)throw new Error('Selecione uma planilha CSV.');if(file.size>1024*1024)throw new Error('Use um CSV de até 1 MB.');
-    $('importError').textContent='';$('previewImport').disabled=true;
+    const file=$('importFile').files[0];if(!file)throw new Error('Selecione uma planilha CSV.');if(file.size>2*1024*1024)throw new Error('Use um CSV de até 2 MB.');
+    $('importError').textContent='';$('importReport').replaceChildren();$('previewImport').disabled=true;
     try {
+      const zipFile=$('importZip').files[0];
+      let zipBuffer=null,zipEntries=[],zipIgnored=[];
+      if(zipFile) {
+        if(zipFile.size>BulkImport.limits.maxZipBytes)throw new Error('ZIP muito grande. O máximo é 350 MB.');
+        zipBuffer=await zipFile.arrayBuffer();
+        const listed=BulkImport.listEntries(zipBuffer);zipEntries=listed.entries;zipIgnored=listed.ignored;
+      }
       const preview=await api('import/preview','POST',{csv:await file.text(),mode:$('importMode').value});state.preview=preview;
-      $('importPreview').innerHTML=`<div class="import-summary"><span><strong>${preview.summary.total}</strong>Linhas</span><span><strong>${preview.summary.create}</strong>Novos produtos</span><span><strong>${preview.summary.update}</strong>Atualizações</span><span><strong>${preview.summary.errors}</strong>Linhas com erro</span>${preview.summary.newCategories?`<span><strong>${preview.summary.newCategories}</strong>Categorias novas</span>`:''}</div><div class="preview"><table><thead><tr><th>Linha</th><th>SKU</th><th>Produto</th><th>Preço proposto</th><th>Estoque</th><th>Publicação / status</th><th>Operação / validação</th></tr></thead><tbody>${preview.rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.sku)}</td><td>${esc(r.name)}</td><td>${r.product?price(r.product.price):'—'}</td><td>${r.product?r.product.stock??'Sem controle':'—'}</td><td>${r.product?`${r.product.active?'Publicado':'Não publicado'} / ${esc(r.product.status)}`:'—'}</td><td>${r.errors.length?`<span class="error">${esc(r.errors.join('; '))}</span>`:r.operation==='create'?'Criar':'Atualizar'}</td></tr>`).join('')}</tbody></table></div><p class="field-help">A prévia expira em 15 minutos. Alterações concorrentes exigem nova validação.</p><button class="primary" data-action="apply-import"${preview.valid?'':' disabled'}>Confirmar importação de ${preview.rows.length} produto(s)</button>`;
+      const skus=preview.rows.map(r=>r.product&&r.product.sku).filter(Boolean);
+      const matched=zipEntries.length?BulkImport.matchImages(zipEntries.map(e=>e.name),skus):{bySku:new Map(skus.map(s=>[s,[]])),unmatched:[],overflow:[]};
+      const entryByName=new Map(zipEntries.map(e=>[e.name,e]));
+      const plan=new Map(),perRow=new Map();
+      let imagesIdentified=0,productsWithout=0;
+      for(const row of preview.rows) {
+        const sku=row.product&&row.product.sku,list=(sku&&matched.bySku.get(sku))||[];
+        imagesIdentified+=list.length;
+        if(row.operation==='skip') {perRow.set(row.line,{count:list.length,skipped:true});continue;}
+        if(!list.length)productsWithout++;
+        if(sku&&list.length)plan.set(sku,list.map(x=>({name:x.name,entry:entryByName.get(x.name)})));
+        perRow.set(row.line,{count:list.length});
+      }
+      if(zipBuffer) for(const list of plan.values()) for(const item of list) {
+        const bytes=await BulkImport.extractEntry(zipBuffer,item.entry);
+        if(!BulkImport.sniffType(bytes))throw new Error(`${item.name}: o conteúdo não é uma imagem JPEG, PNG ou WebP válida.`);
+      }
+      bulkState.zipBuffer=zipBuffer;bulkState.plan=plan;bulkState.unmatched=matched.unmatched;bulkState.overflow=matched.overflow;bulkState.ignored=zipIgnored;
+      const s=preview.summary;
+      $('importPreview').innerHTML=`<div class="import-summary"><span><strong>${s.total}</strong>Produtos identificados</span><span><strong>${imagesIdentified}</strong>Imagens identificadas</span><span><strong>${productsWithout}</strong>Produtos sem imagens</span><span><strong>${matched.unmatched.length}</strong>Imagens sem correspondência</span><span><strong>${s.create}</strong>Novos</span><span><strong>${s.update}</strong>Atualizações</span>${s.ignored?`<span><strong>${s.ignored}</strong>Ignorados</span>`:''}<span><strong>${s.errors}</strong>Linhas com erro</span>${s.newCategories?`<span><strong>${s.newCategories}</strong>Categorias novas</span>`:''}</div>
+      ${matched.overflow.length?`<div class="notice">⚠ ${matched.overflow.length} imagem(ns) acima do limite de 13 por produto ficaram de fora.</div>`:''}
+      ${matched.unmatched.length?`<details><summary>${matched.unmatched.length} imagem(ns) sem produto correspondente no CSV</summary><ul>${matched.unmatched.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></details>`:''}
+      ${zipIgnored.length?`<details><summary>${zipIgnored.length} arquivo(s) ignorados no ZIP (não são imagens)</summary><ul>${zipIgnored.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></details>`:''}
+      <div class="preview"><table><thead><tr><th>Linha</th><th>SKU</th><th>Produto</th><th>Preço proposto</th><th>Estoque</th><th>Imagens</th><th>Operação / validação</th></tr></thead><tbody>${preview.rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.sku)}</td><td>${esc(r.name)}</td><td>${r.product?price(r.product.price):'—'}</td><td>${r.product?r.product.stock??'Sem controle':'—'}</td><td>${perRow.get(r.line)?.count??0}${perRow.get(r.line)?.skipped?' <small>(ignorado)</small>':''}</td><td>${r.errors.length?`<span class="error">${esc(r.errors.join('; '))}</span>`:r.operation==='create'?'Criar':r.operation==='skip'?'Ignorar':'Atualizar'}</td></tr>`).join('')}</tbody></table></div><p class="field-help">A validação expira em 15 minutos. Alterações concorrentes exigem nova validação.</p><button class="primary" data-action="apply-import"${preview.valid?'':' disabled'}>Iniciar importação de ${s.total} produto(s)</button>`;
     }catch(error){$('importError').textContent=error.message;throw error;}finally{$('previewImport').disabled=false;}
+  }
+  function renderBulkReport(report) {
+    const res=report.result,rows=[['Produtos processados',res.total],['Produtos criados',res.created],['Produtos atualizados',res.updated],['Produtos ignorados (SKU já existente)',res.skipped||0],['Imagens importadas',report.imagesSent],['Imagens sem correspondência',report.unmatched.length],['Imagens acima do limite de 13',report.overflow.length],['Arquivos ignorados no ZIP',report.ignored.length],['Erros no envio de imagens',report.imagesFailed.length]];
+    $('importReport').innerHTML=`<div class="notice" role="status"><h3>Relatório da importação</h3><div class="import-summary">${rows.map(([label,count])=>`<span><strong>${count}</strong>${label}</span>`).join('')}</div>${res.newCategories?`<p>${res.newCategories} categoria(s) nova(s) criada(s).</p>`:''}
+      ${report.imagesFailed.length?`<details open><summary>Falhas no envio de imagens</summary><ul>${report.imagesFailed.map(f=>`<li>${esc(f.name)} · SKU ${esc(f.sku||'—')}: ${esc(f.error)}</li>`).join('')}</ul></details>`:''}
+      ${report.unmatched.length?`<details><summary>Imagens sem produto correspondente</summary><ul>${report.unmatched.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></details>`:''}</div>
+      ${report.imagesFailed.length||report.unmatched.length||report.overflow.length||report.ignored.length?`<button data-action="download-import-errors">↓ Baixar relatório de erros (CSV)</button>`:''}`;
+    bulkState.report=report;
+  }
+  async function runBulkImport() {
+    if(!state.preview?.valid)throw new Error('Gere uma validação antes de importar.');
+    const plan=bulkState.plan,totalImages=[...plan.values()].reduce((n,list)=>n+list.length,0);
+    const pending=[];
+    for(const [sku,list] of plan)for(const item of list)if(!bulkState.uploaded.has(`${sku}|${item.name}`))pending.push({sku,name:item.name,entry:item.entry,key:`${sku}|${item.name}`});
+    if(!(await confirmed(`Importar ${state.preview.rows.length} produto(s)${totalImages?` com ${totalImages} imagem(ns)`:''}?${state.preview.summary.ignored?` ${state.preview.summary.ignored} SKU(s) já existentes serão ignorados.`:''}`,'Iniciar importação')))return;
+    $('importError').textContent='';$('previewImport').disabled=true;$('importReport').replaceChildren();
+    const setProgress=(done,label)=>{if(!$('importProgress'))return;$('importProgress').hidden=false;$('importProgressText').textContent=label;$('importProgressBar').style.width=(totalImages?Math.min(90,Math.round(done/totalImages*90)):90)+'%';};
+    const failures=[];
+    try {
+      let done=totalImages-pending.length;
+      if(pending.length)setProgress(done,`Enviando imagens (${done}/${totalImages})…`);
+      const batches=[];for(let i=0;i<pending.length;i+=6)batches.push(pending.slice(i,i+6));
+      let cursor=0;
+      const worker=async()=>{
+        while(cursor<batches.length) {
+          const batch=batches[cursor++];
+          let finished=false;
+          for(let attempt=0;attempt<3&&!finished;attempt++) {
+            try {
+              const items=[];
+              for(const job of batch) {
+                const bytes=await BulkImport.extractEntry(bulkState.zipBuffer,job.entry);
+                const type=BulkImport.sniffType(bytes);
+                if(!type)throw new Error(`${job.name}: conteúdo não é uma imagem válida.`);
+                items.push({name:job.name.split('/').pop(),type,data:BulkImport.base64Encode(bytes)});
+              }
+              const result=await api('import/images','POST',{items});
+              result.items.forEach((media,i)=>bulkState.uploaded.set(batch[i].key,media.url));
+              finished=true;
+            }catch(error) {
+              if(error.status===429&&attempt<2) {await new Promise(r=>setTimeout(r,15000));continue;}
+              if(batch.length>1) {
+                for(const job of batch) {
+                  try {
+                    const bytes=await BulkImport.extractEntry(bulkState.zipBuffer,job.entry);
+                    const type=BulkImport.sniffType(bytes);
+                    if(!type)throw new Error('conteúdo não é uma imagem válida.');
+                    const media=await api('media','POST',{name:job.name.split('/').pop(),type,data:BulkImport.base64Encode(bytes)});
+                    bulkState.uploaded.set(job.key,media.url);
+                  }catch(inner){failures.push({name:job.name,sku:job.sku,error:inner.message});}
+                }
+                finished=true;
+              } else {failures.push({name:batch[0].name,sku:batch[0].sku,error:error.message});finished=true;}
+            }
+          }
+          done+=batch.length;setProgress(done,`Enviando imagens (${Math.min(done,totalImages)}/${totalImages})…`);
+        }
+      };
+      await Promise.all([worker(),worker(),worker()]);
+      setProgress(totalImages,'Gravando produtos no catálogo…');
+      const images={};
+      for(const [sku,list] of plan) {
+        const urls=list.map(item=>bulkState.uploaded.get(`${sku}|${item.name}`)).filter(Boolean);
+        if(urls.length)images[sku]=urls;
+      }
+      const result=await api('import/apply','POST',{previewId:state.preview.id,images});
+      if($('importProgressBar'))$('importProgressBar').style.width='100%';
+      renderBulkReport({result,imagesSent:Object.values(images).reduce((n,list)=>n+list.length,0),imagesFailed:failures,unmatched:bulkState.unmatched,overflow:bulkState.overflow,ignored:bulkState.ignored});
+      state.preview=null;$('importPreview')?.replaceChildren();
+      toast('Importação concluída. Revise o relatório.');
+    }catch(error) {
+      if($('importError'))$('importError').textContent=error.message;
+      if(bulkState.uploaded.size)toast(`Importação interrompida: ${bulkState.uploaded.size} imagem(ns) já enviadas. Corrija o erro e clique em Iniciar importação novamente — nada será reenviado.`);
+      throw error;
+    }finally {
+      if($('previewImport'))$('previewImport').disabled=false;
+      setTimeout(()=>{const report=$('importReport'),progress=$('importProgress');if(report&&report.children.length&&progress)progress.hidden=true;},2000);
+    }
   }
   async function renderAudit(page=1) {
     const data=await api(`audit?page=${page}`);state.audit=data;
@@ -226,18 +340,54 @@
       if(!(await confirmed(`Aplicar “${$('bulkAction').selectedOptions[0].textContent}” a ${items.length} produtos?${operation==='delete'?' Os vínculos históricos serão preservados.':''}`,'Alteração em lote')))return;
       await api('products/bulk','POST',{action:operation,items});state.selected.clear();toast('Alteração em lote concluída.');return refreshProducts();
     }
-    if(action==='next'||action==='previous'){state.filters.page+=action==='next'?1:-1;return refreshProducts();}
+    if(action==='next'||action==='previous'){
+      if(productsBusy)return;
+      const size=Number(state.filters.size)||20,maxPage=Math.max(1,Math.ceil((state.productsTotal??0)/size));
+      const target=Math.min(maxPage,Math.max(1,state.filters.page+(action==='next'?1:-1)));
+      if(target===state.filters.page)return;
+      state.filters.page=target;productsBusy=true;
+      try{await refreshProducts();}finally{productsBusy=false;}
+      return;
+    }
     if(action==='clear-filters'){state.filters={q:'',category:'',status:'',featured:'',stock:'',price:'',sort:'newest',size:'20',page:1};state.selected.clear();return refreshProducts();}
     if(action==='new-category')return categoryEditor();if(action==='edit-category')return categoryEditor(state.categories.find(c=>c.id===node.dataset.categoryId));
+    if(action==='delete-category'){
+      const c=state.categories.find(x=>x.id===node.dataset.categoryId);if(!c)return;
+      const linked=Number(c.linked_count??c.product_count??0),others=state.categories.filter(x=>x.id!==c.id);
+      if(linked>0&&!others.length){toast('Esta é a única categoria. Crie outra categoria antes de excluir esta.');return;}
+      if(linked>0){
+        showEditor('Excluir categoria',`<p>“${esc(c.label)}” está vinculada a <strong>${linked} produto(s)</strong> (inclui produtos excluído(s) do catálogo). Para excluir a categoria, esses produtos serão movidos — <strong>nenhum produto será apagado</strong>.</p><div class="form-grid"><label>Mover produtos para *<select name="target" required>${others.map(x=>option(x.id,`${x.icon?x.icon+' ':''}${x.label}`,others[0].id)).join('')}</select></label></div><p class="field-help">Os produtos mantêm preço, estoque, imagens e histórico; apenas a categoria muda.</p>`,async form=>{
+          const result=await api(`categories/${c.id}?target=${encodeURIComponent(value(form,'target'))}`,'DELETE');
+          $('editor').close();toast(result.moved?`Categoria excluída. ${result.moved} produto(s) movido(s).`:'Categoria excluída.');await navigate('categories');
+        },'Excluir categoria');
+        return;
+      }
+      if(!(await confirmed(`Excluir a categoria “${c.label}”? Nenhum produto está vinculada a ela.`,'Excluir categoria')))return;
+      await api(`categories/${c.id}`,'DELETE');toast('Categoria excluída.');return navigate('categories');
+    }
     if(action==='upload-media')return $('libraryFile').click();
     if(action==='copy-media'){await navigator.clipboard.writeText(new URL('/'+node.dataset.url,location.origin).href);return toast('URL copiada.');}
-    if(action==='delete-media'){if(await confirmed('Excluir permanentemente esta imagem sem vínculos?','Excluir imagem')){await api(`media/${node.dataset.mediaId}`,'DELETE');toast('Imagem excluída.');return renderMedia();}return;}
+    if(action==='delete-media'){
+      const links=Number(node.dataset.mediaLinks||0);
+      if(links>0){toast(`Esta imagem está em uso por ${links} vínculo(s) ativo(s) (produto, categoria, campanha ou empresa). Remova o vínculo antes de excluir.`);return;}
+      if(await confirmed('Excluir permanentemente esta imagem? Os arquivos de apoio também serão removidos.','Excluir imagem')){await api(`media/${node.dataset.mediaId}`,'DELETE');toast('Imagem excluída.');return renderMedia();}
+      return;
+    }
     if(action==='template'){location.assign('/api/admin/import/template');return;}
     if(action==='export'){location.assign('/api/admin/products/export');toast('Exportação de todos os produtos iniciada.');return;}
     if(action==='preview-import')return previewImport();
-    if(action==='apply-import'){
-      if(!state.preview?.valid)throw new Error('Gere uma prévia válida.');if(!(await confirmed(`Gravar ${state.preview.rows.length} produtos da prévia?`,'Aplicar importação')))return;
-      const result=await api('import/apply','POST',{previewId:state.preview.id});$('importPreview').innerHTML=`<div class="notice" role="status">Importação concluída: ${result.created} criados, ${result.updated} atualizados${result.newCategories?`, ${result.newCategories} categoria(s) nova(s) criada(s)`:''}. Total: ${result.total}. A operação está registrada no histórico.</div>`;state.preview=null;return;
+    if(action==='apply-import')return runBulkImport();
+    if(action==='download-import-errors'){
+      const report=bulkState?.report;if(!report)return;
+      const lines=[['tipo','sku','arquivo','erro']];
+      for(const f of report.imagesFailed)lines.push(['falha_envio',f.sku||'',f.name,f.error]);
+      for(const n of report.unmatched)lines.push(['sem_correspondencia','',n,'Imagem sem SKU correspondente no CSV']);
+      for(const n of report.overflow)lines.push(['acima_limite','',n,'Mais de 13 imagens para o mesmo SKU']);
+      for(const n of report.ignored)lines.push(['arquivo_ignorado','',n,'Não é JPEG, PNG ou WebP']);
+      const text=lines.map(row=>row.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+      const blob=new Blob(['﻿'+text],{type:'text/csv;charset=utf-8'});
+      const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='relatorio-importacao.csv';link.click();URL.revokeObjectURL(link.href);
+      return;
     }
     if(action==='audit-prev')return renderAudit(state.audit.page-1);if(action==='audit-next')return renderAudit(state.audit.page+1);
     if(action==='audit-details'){const record=state.audit.items.find(a=>a.id===Number(node.dataset.auditId));showEditor('Valores da alteração',`<p>${esc(record.actor_email)} · ${esc(auditActions[record.action]||record.action)}</p>${auditValues(record)}`,async()=>$('editor').close(),'Fechar');return;}

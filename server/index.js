@@ -72,8 +72,8 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,ba
         }
         if(path.startsWith('/api/admin/')) {
           const user=authorize(db,req,path.includes('/users') || path==='/api/admin/settings');
-          if(!['GET','HEAD'].includes(method)) {limit.sensitive=(limit.sensitive || 0)+1;v.check(limit.sensitive<=50,'Muitas alterações. Aguarde um minuto.',429);}
-          const p=['POST','PUT','PATCH'].includes(method) ? await body(req,path==='/api/admin/media'?7200000:path==='/api/admin/import/preview'?2200000:/^\/api\/admin\/products(?:\/\d+)?$/.test(path)?196608:65536) : null;
+          if(!['GET','HEAD'].includes(method) && !path.startsWith('/api/admin/import/')) {limit.sensitive=(limit.sensitive || 0)+1;v.check(limit.sensitive<=50,'Muitas alterações. Aguarde um minuto.',429);}
+          const p=['POST','PUT','PATCH'].includes(method) ? await body(req,path==='/api/admin/media'?7200000:path==='/api/admin/import/images'?6500000:path==='/api/admin/import/preview'?3000000:path==='/api/admin/import/apply'?1600000:/^\/api\/admin\/products(?:\/\d+)?$/.test(path)?196608:65536) : null;
           if(path==='/api/admin/logout' && method==='POST') {db.prepare('DELETE FROM admin_sessions WHERE token_hash=?').run(digest(sessionToken(req)));res.setHeader('Set-Cookie',sessionCookie('',0,process.env.NODE_ENV==='production'));return send(200,{ok:true});}
           const handled=await management({db,user,req,url,p,origin:origin || `http://${req.headers.host}`});
           if(handled) {
@@ -108,7 +108,7 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,ba
         requested='/index.html';
       }
       const asset=requested.match(/^\/(css|js|images|assets)\/[a-zA-Z0-9/_ .-]+$/);
-      v.check(requested==='/' || requested==='/index.html' || requested==='/admin' || requested==='/admin/' || /^\/admin\/(?:admin|commerce|analytics)\.(?:css|js)$/.test(requested) || asset,'Página inexistente.',404);
+      v.check(requested==='/' || requested==='/index.html' || requested==='/admin' || requested==='/admin/' || /^\/admin\/(?:admin|commerce|analytics|bulk-import)\.(?:css|js)$/.test(requested) || asset,'Página inexistente.',404);
       const publicRoot=await realpath(root);
       const directory=resolve(publicRoot,asset?asset[1]:requested.startsWith('/admin')?'admin':'.');
       const file=await realpath(resolve(publicRoot,requested==='/'?'index.html':requested==='/admin'||requested==='/admin/'?'admin/index.html':`.${requested}`));

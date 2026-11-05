@@ -58,10 +58,11 @@ export function productList(db,url) {
   if(q.has('featured') && q.get('featured')!=='') {v.check(['0','1'].includes(q.get('featured')));where.push('p.featured=?');args.push(Number(q.get('featured')));}
   if(q.get('stock')) {v.check(['low','zero','unmanaged'].includes(q.get('stock')));where.push({low:'p.stock_milli>0 AND p.stock_milli<=p.low_stock*1000',zero:'p.stock_milli=0',unmanaged:'p.stock_milli IS NULL'}[q.get('stock')]);}
   if(q.get('price')) {v.check(['defined','consultation'].includes(q.get('price')));where.push(q.get('price')==='defined'?'p.price_cents IS NOT NULL':'p.price_cents IS NULL');}
-  const page=v.integer(Number(q.get('page') || 1),1,1000000),size=v.integer(Number(q.get('size') || 20),1,100);
+  let page=v.integer(Number(q.get('page') || 1),1,1000000);const size=v.integer(Number(q.get('size') || 20),1,100);
   const orders={name:'p.name COLLATE NOCASE,p.id',newest:'p.id DESC',stock:'p.stock_milli ASC,p.id',price:'p.price_cents ASC,p.id'},sort=q.get('sort') || 'newest';
   v.check(Object.hasOwn(orders,sort),'Ordenação inválida.');const order=orders[sort];
   const clause=where.join(' AND '),total=db.prepare(`SELECT count(*) AS n FROM products p WHERE ${clause}`).get(...args).n;
+  const lastPage=Math.max(1,Math.ceil(total/size));if(page>lastPage)page=lastPage;
   return {items:db.prepare(`${productSelect} WHERE ${clause} ORDER BY ${order} LIMIT ? OFFSET ?`).all(...args,size,(page-1)*size).map(productDTO),total,page,size,
     alerts:db.prepare('SELECT sum(CASE WHEN stock_milli=0 THEN 1 ELSE 0 END) AS zero,sum(CASE WHEN stock_milli>0 AND stock_milli<=low_stock*1000 THEN 1 ELSE 0 END) AS low FROM products WHERE deleted_at IS NULL').get()};
 }

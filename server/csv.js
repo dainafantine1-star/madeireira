@@ -9,7 +9,7 @@ const columns=['sku','name','reference','category','price','oldPrice','stock','l
 export const csv=rows=>encodeCSV(rows);
 export function templateCSV(){return csv([columns,['MP-EXEMPLO','Produto exemplo','REF-EXEMPLO','tabuas','','','10','3','active','1','0','30 x 2 cm','3000','un','Descrição do produto','','Preço e entrega sujeitos à confirmação.']]);}
 export function parseCSV(source) {
-  v.check(typeof source==='string' && Buffer.byteLength(source)<=1024*1024,'CSV deve ter até 1 MB.');
+  v.check(typeof source==='string' && Buffer.byteLength(source)<=2*1024*1024,'CSV deve ter até 2 MB.');
   const input=source.replace(/^\uFEFF/,''),delimiter=input.split(/\r?\n/,1)[0].includes(';')?';':',';
   const rows=[];let row=[],field='',quoted=false,closed=false;
   for(let i=0;i<input.length;i++) {
@@ -17,11 +17,11 @@ export function parseCSV(source) {
     if(quoted){if(c==='"'){if(input[i+1]==='"'){field+='"';i++;}else{quoted=false;closed=true;}}else field+=c;}
     else if(c==='"'){v.check(field===''&&!closed,'Aspas inválidas no CSV.');quoted=true;}
     else if(c===delimiter){row.push(field);field='';closed=false;}
-    else if(c==='\n'||c==='\r'){if(c==='\r'&&input[i+1]==='\n')i++;row.push(field);if(row.some(x=>x!==''))rows.push(row);row=[];field='';closed=false;v.check(rows.length<=501,'Importe até 500 produtos por arquivo.');}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&input[i+1]==='\n')i++;row.push(field);if(row.some(x=>x!==''))rows.push(row);row=[];field='';closed=false;v.check(rows.length<=2001,'Importe até 2000 produtos por arquivo.');}
     else{v.check(!closed || /\s/.test(c),'Texto inválido após aspas no CSV.');if(!closed)field+=c;}
   }
   v.check(!quoted,'Aspas não fechadas no CSV.');row.push(field);if(row.some(x=>x!==''))rows.push(row);
-  v.check(rows.length>=2&&rows.length<=501,'CSV deve conter cabeçalho e de 1 a 500 produtos.');
+  v.check(rows.length>=2&&rows.length<=2001,'CSV deve conter cabeçalho e de 1 a 2000 produtos.');
   const headers=rows.shift().map(h=>h.trim());v.check(new Set(headers).size===headers.length,'Cabeçalhos duplicados.');
   v.check(['sku','name','category','price'].every(c=>headers.includes(c)),'Use o modelo: sku, name, category e price são obrigatórios.');
   v.check(headers.every(h=>columns.includes(h)),'Coluna desconhecida. Use o modelo do painel.');
@@ -68,7 +68,7 @@ function convert(row,old,defaultLowStock=5) {
     commercialTerms:row.commercialTerms || old?.commercialTerms || 'Preço, disponibilidade, entrega e pagamento sujeitos à confirmação.'};
 }
 export function previewImport(db,user,input) {
-  v.check(['create','update','upsert'].includes(input.mode),'Modo de importação inválido.');
+  v.check(['create','update','upsert','skip'].includes(input.mode),'Modo de importação inválido.');
   const seen=new Set(),rows=[];
   for(const entry of parseCSV(input.csv)) {
     const result={line:entry.line,sku:entry.values?.sku || '',name:entry.values?.name || '',errors:[]};
@@ -77,7 +77,11 @@ export function previewImport(db,user,input) {
       v.check(!seen.has(key),'SKU repetido no arquivo.');seen.add(key);
       const found=db.prepare(`${productSelect} WHERE p.sku=? COLLATE NOCASE`).get(entry.values.sku);
       v.check(!found?.deleted_at,'SKU pertence a produto excluído. Use um novo SKU.');
-      v.check(input.mode!=='create'||!found,'SKU já existe; selecione Atualizar ou Criar e atualizar.');
+      if(found&&input.mode==='skip') {
+        result.operation='skip';result.id=found.id;result.version=found.version;result.product=productDTO(found);
+        rows.push(result);continue;
+      }
+      v.check(input.mode!=='create'||!found,'SKU já existe; selecione Atualizar, Ignorar ou Criar e atualizar.');
       v.check(input.mode!=='update'||found,'SKU não encontrado para atualização.');
       const category=resolveCategory(db,entry.values.category);
       const product=convert(entry.values,found?productDTO(found):null,settings(db).defaultLowStock);
@@ -92,9 +96,18 @@ export function previewImport(db,user,input) {
   db.prepare('DELETE FROM import_previews WHERE expires_at<? AND applied_at IS NULL').run(Date.now());
   const id=randomUUID(),expiresAt=Date.now()+15*60*1000;
   db.prepare('INSERT INTO import_previews(id,actor_id,payload_json,expires_at) VALUES(?,?,?,?)').run(id,user.id,JSON.stringify(rows),expiresAt);
-  return {id,expiresAt,rows,valid:rows.every(r=>!r.errors.length),summary:{total:rows.length,errors:rows.filter(r=>r.errors.length).length,create:rows.filter(r=>r.operation==='create').length,update:rows.filter(r=>r.operation==='update').length,newCategories:new Set(rows.filter(r=>r.pendingCategory).map(r=>r.pendingCategory.id)).size}};
+  return {id,expiresAt,rows,valid:rows.every(r=>!r.errors.length),summary:{total:rows.length,errors:rows.filter(r=>r.errors.length).length,create:rows.filter(r=>r.operation==='create').length,update:rows.filter(r=>r.operation==='update').length,ignored:rows.filter(r=>r.operation==='skip').length,newCategories:new Set(rows.filter(r=>r.pendingCategory).map(r=>r.pendingCategory.id)).size}};
 }
 export function applyImport(db,user,input) {
+  let images=input.images;
+  if(images!==undefined) {
+    v.check(images&&typeof images==='object'&&!Array.isArray(images),'Mapa de imagens inválido.');
+    v.check(Object.keys(images).length<=2000,'Mapa de imagens inválido.');
+    for(const list of Object.values(images)) {
+      v.check(Array.isArray(list)&&list.length>=1&&list.length<=13,'Use até 13 imagens por produto (1 capa + 12 da galeria).');
+      for(const url of list)v.image(url);
+    }
+  }
   return transaction(db,()=>{
     const found=db.prepare('SELECT * FROM import_previews WHERE id=? AND actor_id=?').get(v.text(input.previewId,100),user.id);
     v.check(found,'Prévia inexistente.',404);if(found.applied_at)return JSON.parse(found.result_json);
@@ -110,11 +123,15 @@ export function applyImport(db,user,input) {
       newCategories.push(pending.id);
     }
     for(const row of rows) {
+      if(row.operation==='skip')continue;
       if(row.id){const current=db.prepare('SELECT version,deleted_at FROM products WHERE id=?').get(row.id);v.check(current&&!current.deleted_at&&current.version===row.version,'O catálogo mudou após a prévia. Gere outra prévia.',409);}
       else v.check(!db.prepare('SELECT 1 FROM products WHERE sku=? COLLATE NOCASE').get(row.product.sku),'Um SKU foi cadastrado após a prévia. Gere outra prévia.',409);
-      writeProduct(db,user,{...row.product,version:row.version ?? undefined},row.id,'product_imported');
+      const product={...row.product};
+      const urls=images&&images[product.sku];
+      if(Array.isArray(urls)&&urls.length){product.image=urls[0];product.images=urls.slice(1,13);}
+      writeProduct(db,user,{...product,version:row.version ?? undefined},row.id,'product_imported');
     }
-    const result={created:rows.filter(r=>!r.id).length,updated:rows.filter(r=>r.id).length,total:rows.length,newCategories:newCategories.length};
+    const result={created:rows.filter(r=>!r.id&&r.operation!=='skip').length,updated:rows.filter(r=>r.id&&r.operation!=='skip').length,skipped:rows.filter(r=>r.operation==='skip').length,total:rows.length,newCategories:newCategories.length};
     db.prepare('UPDATE import_previews SET applied_at=CURRENT_TIMESTAMP,result_json=? WHERE id=?').run(JSON.stringify(result),found.id);
     audit(db,user,'import_applied','import',found.id,null,result);return result;
   });

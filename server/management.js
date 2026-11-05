@@ -15,6 +15,12 @@ export async function management({db,user,req,url,p,origin}) {
   if(path==='/api/admin/import/template'&&method==='GET')return {csv:templateCSV(),filename:'modelo-produtos.csv'};
   if(path==='/api/admin/import/preview'&&method==='POST')return ok(previewImport(db,user,p));
   if(path==='/api/admin/import/apply'&&method==='POST')return ok(applyImport(db,user,p));
+  if(path==='/api/admin/import/images'&&method==='POST') {
+    v.check(Array.isArray(p.items)&&p.items.length>=1&&p.items.length<=6,'Envie de 1 a 6 imagens por lote.');
+    const items=[];
+    for(const item of p.items)items.push(await uploadImage(db,user,item));
+    return ok({items});
+  }
   if(path==='/api/admin/products/bulk'&&method==='POST')return ok(bulkProducts(db,user,p));
   if(path==='/api/admin/products'&&method==='GET')return ok(productList(db,url));
   if(path==='/api/admin/products'&&method==='POST')return {status:201,data:saveProduct(db,user,p)};
@@ -26,8 +32,33 @@ export async function management({db,user,req,url,p,origin}) {
     if(method==='PATCH') {v.check(Object.keys(p).every(k=>['price','stock','active','status','featured','version','oldPrice'].includes(k)),'Campo de atalho inválido.');const current=productDTO(getProduct(db,id));return ok(saveProduct(db,user,{...current,...p},id));}
     if(method==='DELETE'){transaction(db,()=>deleteProduct(db,user,id,url.searchParams.has('version')?v.integer(Number(url.searchParams.get('version'))):undefined));return ok({ok:true});}
   }
-  if(path==='/api/admin/categories'&&method==='GET')return ok(db.prepare('SELECT c.*,count(p.id) AS product_count FROM categories c LEFT JOIN products p ON p.category_id=c.id AND p.deleted_at IS NULL GROUP BY c.id ORDER BY c.sort_order,c.label').all());
+  if(path==='/api/admin/categories'&&method==='GET')return ok(db.prepare('SELECT c.*,count(p.id) AS product_count,(SELECT count(*) FROM products WHERE category_id=c.id) AS linked_count FROM categories c LEFT JOIN products p ON p.category_id=c.id AND p.deleted_at IS NULL GROUP BY c.id ORDER BY c.sort_order,c.label').all());
   const category=path.match(/^\/api\/admin\/categories\/([a-z0-9-]+)$/);
+  if(category&&method==='DELETE') {
+    const id=category[1];
+    const result=transaction(db,()=>{
+      const before=db.prepare('SELECT * FROM categories WHERE id=?').get(id);
+      v.check(before,'Categoria inexistente.',404);
+      if(url.searchParams.has('version'))v.check(before.version===Number(url.searchParams.get('version')),'Categoria alterada. Atualize a lista.',409);
+      const linked=db.prepare('SELECT count(*) AS n FROM products WHERE category_id=?').get(id).n;
+      let moved=0,target=null;
+      if(linked>0) {
+        const rawTarget=url.searchParams.get('target')||'';
+        v.check(rawTarget,'Informe outra categoria de destino para os produtos.',400);
+        target=v.slug(rawTarget);
+        v.check(target!==id,'Escolha uma categoria de destino diferente.',400);
+        const destination=db.prepare('SELECT id FROM categories WHERE id=?').get(target);
+        v.check(destination,'Categoria de destino inexistente.',404);
+        db.prepare('UPDATE products SET category_id=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE category_id=?').run(target,id);
+        moved=linked;
+      }
+      db.prepare('DELETE FROM categories WHERE id=?').run(id);
+      const after={...before,deleted:true,movedProducts:moved,movedTo:target};
+      audit(db,user,'category_deleted','category',id,before,after);
+      return {ok:true,moved};
+    });
+    return ok(result);
+  }
   if((path==='/api/admin/categories'&&method==='POST')||(category&&method==='PUT')) {
     const result=transaction(db,()=>{
       const id=category?.[1] || v.slug(p.slug || p.id),before=category?db.prepare('SELECT * FROM categories WHERE id=?').get(id):null;
@@ -39,7 +70,7 @@ export async function management({db,user,req,url,p,origin}) {
       const after=db.prepare('SELECT * FROM categories WHERE id=?').get(id);audit(db,user,before?'category_updated':'category_created','category',id,before,after);return after;
     });return {status:category?200:201,data:result};
   }
-  if(path==='/api/admin/media'&&method==='GET')return ok(db.prepare('SELECT m.*, (SELECT count(*) FROM products WHERE image=\'uploads/\'||m.filename)+(SELECT count(*) FROM products p,json_each(p.images_json) j WHERE j.value=\'uploads/\'||m.filename)+(SELECT count(*) FROM categories WHERE image=\'uploads/\'||m.filename)+(SELECT count(*) FROM banners WHERE image=\'uploads/\'||m.filename)+(SELECT count(*) FROM company_settings WHERE json_extract(public_json,\'$.logo\')=\'uploads/\'||m.filename OR json_extract(public_json,\'$.heroImage\')=\'uploads/\'||m.filename) AS links FROM media m ORDER BY created_at DESC').all());
+  if(path==='/api/admin/media'&&method==='GET')return ok(db.prepare('SELECT m.*, (SELECT count(*) FROM products WHERE deleted_at IS NULL AND image=\'uploads/\'||m.filename)+(SELECT count(*) FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=\'uploads/\'||m.filename)+(SELECT count(*) FROM categories WHERE image=\'uploads/\'||m.filename)+(SELECT count(*) FROM banners WHERE image=\'uploads/\'||m.filename OR image_mobile=\'uploads/\'||m.filename)+(SELECT count(*) FROM company_settings WHERE json_extract(public_json,\'$.logo\')=\'uploads/\'||m.filename OR json_extract(public_json,\'$.heroImage\')=\'uploads/\'||m.filename) AS links FROM media m ORDER BY created_at DESC').all());
   if(path==='/api/admin/media'&&method==='POST')return {status:201,data:await uploadImage(db,user,p)};
   const media=path.match(/^\/api\/admin\/media\/([a-f0-9-]{36})$/);
   if(media&&method==='DELETE')return ok(await deleteImage(db,user,media[1]));
