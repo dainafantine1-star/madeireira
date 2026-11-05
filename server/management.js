@@ -1,5 +1,5 @@
 import { transaction, productDTO } from './db.js';
-import { productList, productSelect, getProduct, saveProduct, deleteProduct, bulkProducts } from './products.js';
+import { productList, productSelect, getProduct, saveProduct, deleteProduct, bulkProducts, restoreProduct, restoreAllProducts } from './products.js';
 import { previewImport, applyImport, exportWooCSV, templateCSV } from './csv.js';
 import { uploadImage, deleteImage } from './media.js';
 import { createAdmin, hashPassword, csrfToken, sessionToken } from './auth.js';
@@ -16,6 +16,9 @@ export async function management({db,user,req,url,p,origin}) {
   if(path==='/api/admin/import/preview'&&method==='POST')return ok(previewImport(db,user,p));
   if(path==='/api/admin/import/apply'&&method==='POST')return ok(applyImport(db,user,p));
   if(path==='/api/admin/products/bulk'&&method==='POST')return ok(bulkProducts(db,user,p));
+  if(path==='/api/admin/products/restore-all'&&method==='POST')return ok(restoreAllProducts(db,user));
+  const restore=path.match(/^\/api\/admin\/products\/(\d+)\/restore$/);
+  if(restore&&method==='POST')return ok(restoreProduct(db,user,Number(restore[1])));
   if(path==='/api/admin/products'&&method==='GET')return ok(productList(db,url));
   if(path==='/api/admin/products'&&method==='POST')return {status:201,data:saveProduct(db,user,p)};
   const product=path.match(/^\/api\/admin\/products\/(\d+)$/);

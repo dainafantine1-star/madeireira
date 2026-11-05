@@ -83,12 +83,12 @@ test('products, stock, filters, audit, bulk rollback, CSV import/export and vali
   await req('/api/admin/products/1','PUT',{...p,image:''});assert.equal((await req('/api/admin/media/'+media.data.id,'DELETE')).status,200);assert.equal((await fetch(base+'/'+media.data.url)).status,404);
   const invalidCSV='sku,name,category,price\nNEW1,Teste,tabuas,10\nNEW1,Outro,tabuas,10\nNEW2,Erro,,10\nNEW3,Preço ruim,tabuas,abc';
   let preview=(await req('/api/admin/import/preview','POST',{csv:invalidCSV,mode:'create'})).data;assert.equal(preview.valid,false);assert.equal(preview.summary.errors,3);
-  assert.match(preview.rows[2].errors.join(';'),/Informe a categoria/);
-  assert.match(preview.rows[3].errors.join(';'),/Preço inválido: "abc"/);
+  assert.match(preview.errors.find(e=>e.line===4).errors.join(';'),/Informe a categoria/);
+  assert.match(preview.errors.find(e=>e.line===5).errors.join(';'),/Preço inválido: "abc"/);
   assert.equal((await req('/api/admin/import/apply','POST',{previewId:preview.id})).status,400);
   const validCSV='sku,name,category,price,stock,status\r\nNEW1,"Teste, com vírgula",Revestimentos Especiais,"R$ 2.170,50",0,active\r\nNEW2,"Produto\nmultilinha",Revestimentos Especiais,"10,50",5,active';
   preview=(await req('/api/admin/import/preview','POST',{csv:validCSV,mode:'create'})).data;assert.equal(preview.valid,true);
-  assert.equal(preview.summary.newCategories,1);assert.equal(preview.rows[1].product.category,'revestimentos-especiais');
+  assert.equal(preview.summary.newCategories,1);assert.equal(preview.errors.length,0);
   const result=await req('/api/admin/import/apply','POST',{previewId:preview.id});assert.equal(result.status,200);assert.equal(result.data.created,2);assert.equal(result.data.newCategories,1);
   assert.deepEqual((await req('/api/admin/import/apply','POST',{previewId:preview.id})).data,result.data);
   assert.equal((await req('/api/admin/products?q=NEW1')).data.total,1);

@@ -79,8 +79,10 @@ export function createCloudHandler({storageFactory=()=>new BlobStorage(),getOrig
     let bytes,path,origin;
     try{
       path=requestPath(req);origin=getOrigin(req);
+      // CSV import needs room for 5.000 rows; every other route keeps the 4,4 MB cap.
+      const limit=new URL(path,'http://localhost').pathname==='/api/admin/import/preview'?8800000:maximumRequestBytes;
       const chunks=[];let length=0;
-      for await(const chunk of req){length+=chunk.length;if(length>maximumRequestBytes){json(413,{error:'Solicitação muito grande. Imagens devem ter até 3 MB.'}).send(res);return;}chunks.push(chunk);}
+      for await(const chunk of req){length+=chunk.length;if(length>limit){json(413,{error:limit>maximumRequestBytes?'Planilha muito grande. Use até 8 MB.':'Solicitação muito grande. Imagens devem ter até 3 MB.'}).send(res);return;}chunks.push(chunk);}
       bytes=Buffer.concat(chunks);
     }catch{json(400,{error:'Solicitação inválida.'}).send(res);return;}
     const cron=new URL(path,origin).pathname==='/api/cron/backup';

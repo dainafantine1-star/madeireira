@@ -9,7 +9,7 @@ const columns=['sku','name','reference','category','price','oldPrice','stock','l
 export const csv=rows=>encodeCSV(rows);
 export function templateCSV(){return csv([columns,['MP-EXEMPLO','Produto exemplo','REF-EXEMPLO','tabuas','','','10','3','active','1','0','30 x 2 cm','3000','un','Descrição do produto','','Preço e entrega sujeitos à confirmação.']]);}
 export function parseCSV(source) {
-  v.check(typeof source==='string' && Buffer.byteLength(source)<=1024*1024,'CSV deve ter até 1 MB.');
+  v.check(typeof source==='string' && Buffer.byteLength(source)<=8*1024*1024,'CSV deve ter até 8 MB.');
   const input=source.replace(/^\uFEFF/,''),delimiter=input.split(/\r?\n/,1)[0].includes(';')?';':',';
   const rows=[];let row=[],field='',quoted=false,closed=false;
   for(let i=0;i<input.length;i++) {
@@ -17,11 +17,11 @@ export function parseCSV(source) {
     if(quoted){if(c==='"'){if(input[i+1]==='"'){field+='"';i++;}else{quoted=false;closed=true;}}else field+=c;}
     else if(c==='"'){v.check(field===''&&!closed,'Aspas inválidas no CSV.');quoted=true;}
     else if(c===delimiter){row.push(field);field='';closed=false;}
-    else if(c==='\n'||c==='\r'){if(c==='\r'&&input[i+1]==='\n')i++;row.push(field);if(row.some(x=>x!==''))rows.push(row);row=[];field='';closed=false;v.check(rows.length<=501,'Importe até 500 produtos por arquivo.');}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&input[i+1]==='\n')i++;row.push(field);if(row.some(x=>x!==''))rows.push(row);row=[];field='';closed=false;v.check(rows.length<=5001,'Importe até 5.000 produtos por arquivo.');}
     else{v.check(!closed || /\s/.test(c),'Texto inválido após aspas no CSV.');if(!closed)field+=c;}
   }
   v.check(!quoted,'Aspas não fechadas no CSV.');row.push(field);if(row.some(x=>x!==''))rows.push(row);
-  v.check(rows.length>=2&&rows.length<=501,'CSV deve conter cabeçalho e de 1 a 500 produtos.');
+  v.check(rows.length>=2&&rows.length<=5001,'CSV deve conter cabeçalho e de 1 a 5.000 produtos.');
   const headers=rows.shift().map(h=>h.trim());v.check(new Set(headers).size===headers.length,'Cabeçalhos duplicados.');
   v.check(['sku','name','category','price'].every(c=>headers.includes(c)),'Use o modelo: sku, name, category e price são obrigatórios.');
   v.check(headers.every(h=>columns.includes(h)),'Coluna desconhecida. Use o modelo do painel.');
@@ -91,8 +91,20 @@ export function previewImport(db,user,input) {
   }
   db.prepare('DELETE FROM import_previews WHERE expires_at<? AND applied_at IS NULL').run(Date.now());
   const id=randomUUID(),expiresAt=Date.now()+15*60*1000;
-  db.prepare('INSERT INTO import_previews(id,actor_id,payload_json,expires_at) VALUES(?,?,?,?)').run(id,user.id,JSON.stringify(rows),expiresAt);
-  return {id,expiresAt,rows,valid:rows.every(r=>!r.errors.length),summary:{total:rows.length,errors:rows.filter(r=>r.errors.length).length,create:rows.filter(r=>r.operation==='create').length,update:rows.filter(r=>r.operation==='update').length,newCategories:new Set(rows.filter(r=>r.pendingCategory).map(r=>r.pendingCategory.id)).size}};
+  // Store only the validated product payload; the browser gets a compact report.
+  // Echoing every parsed row back cost ~290 KB for a 490-line file.
+  const payload=rows.map(r=>({id:r.id,version:r.version,product:r.product,pendingCategory:r.pendingCategory,errors:r.errors}));
+  db.prepare('INSERT INTO import_previews(id,actor_id,payload_json,expires_at) VALUES(?,?,?,?)').run(id,user.id,JSON.stringify(payload),expiresAt);
+  const errors=rows.filter(r=>r.errors.length).map(r=>({line:r.line,sku:r.sku,name:r.name,errors:r.errors}));
+  // A file whose SKUs match nothing in the catalogue creates duplicates instead of
+  // updating. Surface that before the operator confirms.
+  const active=db.prepare('SELECT count(*) AS n FROM products WHERE deleted_at IS NULL').get().n;
+  const create=rows.filter(r=>r.operation==='create').length,update=rows.filter(r=>r.operation==='update').length;
+  const warning=active>0&&update===0&&create>0
+    ? `Nenhum SKU da planilha corresponde aos ${active} produto(s) do catálogo. A importação vai criar ${create} produto(s) novos e manter os existentes. Para atualizar os atuais, os SKUs precisam ser os mesmos.`
+    : null;
+  return {id,expiresAt,valid:errors.length===0,errors:errors.slice(0,200),truncated:errors.length>200,warning,
+    summary:{total:rows.length,errors:errors.length,create,update,newCategories:new Set(rows.filter(r=>r.pendingCategory).map(r=>r.pendingCategory.id)).size}};
 }
 export function applyImport(db,user,input) {
   return transaction(db,()=>{

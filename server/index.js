@@ -73,7 +73,7 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,ba
         if(path.startsWith('/api/admin/')) {
           const user=authorize(db,req,path.includes('/users') || path==='/api/admin/settings');
           if(!['GET','HEAD'].includes(method)) {limit.sensitive=(limit.sensitive || 0)+1;v.check(limit.sensitive<=50,'Muitas alterações. Aguarde um minuto.',429);}
-          const p=['POST','PUT','PATCH'].includes(method) ? await body(req,path==='/api/admin/media'?7200000:path==='/api/admin/import/preview'?2200000:/^\/api\/admin\/products(?:\/\d+)?$/.test(path)?196608:65536) : null;
+          const p=['POST','PUT','PATCH'].includes(method) ? await body(req,path==='/api/admin/media'?7200000:path==='/api/admin/import/preview'?8800000:/^\/api\/admin\/products(?:\/\d+)?$/.test(path)?196608:65536) : null;
           if(path==='/api/admin/logout' && method==='POST') {db.prepare('DELETE FROM admin_sessions WHERE token_hash=?').run(digest(sessionToken(req)));res.setHeader('Set-Cookie',sessionCookie('',0,process.env.NODE_ENV==='production'));return send(200,{ok:true});}
           const handled=await management({db,user,req,url,p,origin:origin || `http://${req.headers.host}`});
           if(handled) {

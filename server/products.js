@@ -49,7 +49,10 @@ export function deleteProduct(db,user,id,version) {
   audit(db,user,'product_deleted','product',id,before,{...before,active:0,deleted:true});
 }
 export function productList(db,url) {
-  const q=url.searchParams,where=['p.deleted_at IS NULL'],args=[];
+  const q=url.searchParams;
+  // Deleted products are kept for history; the archive view restores them.
+  const archived=q.get('archived')==='1';
+  const where=[archived?'p.deleted_at IS NOT NULL':'p.deleted_at IS NULL'],args=[];
   const term=(q.get('q') || '').trim();v.check(term.length<=200,'Busca muito longa.');
   if(term) {where.push("(p.name LIKE ? ESCAPE '\\' OR p.sku LIKE ? ESCAPE '\\' OR p.reference LIKE ? ESCAPE '\\')");const pattern=`%${term.replace(/[\\%_]/g,'\\$&')}%`;args.push(pattern,pattern,pattern);}
   if(q.get('category')) {where.push('p.category_id=?');args.push(v.slug(q.get('category')));}
@@ -62,8 +65,31 @@ export function productList(db,url) {
   const orders={name:'p.name COLLATE NOCASE,p.id',newest:'p.id DESC',stock:'p.stock_milli ASC,p.id',price:'p.price_cents ASC,p.id'},sort=q.get('sort') || 'newest';
   v.check(Object.hasOwn(orders,sort),'Ordenação inválida.');const order=orders[sort];
   const clause=where.join(' AND '),total=db.prepare(`SELECT count(*) AS n FROM products p WHERE ${clause}`).get(...args).n;
-  return {items:db.prepare(`${productSelect} WHERE ${clause} ORDER BY ${order} LIMIT ? OFFSET ?`).all(...args,size,(page-1)*size).map(productDTO),total,page,size,
-    alerts:db.prepare('SELECT sum(CASE WHEN stock_milli=0 THEN 1 ELSE 0 END) AS zero,sum(CASE WHEN stock_milli>0 AND stock_milli<=low_stock*1000 THEN 1 ELSE 0 END) AS low FROM products WHERE deleted_at IS NULL').get()};
+  return {items:db.prepare(`${productSelect} WHERE ${clause} ORDER BY ${order} LIMIT ? OFFSET ?`).all(...args,size,(page-1)*size).map(productDTO),total,page,size,archived,
+    alerts:db.prepare('SELECT sum(CASE WHEN stock_milli=0 THEN 1 ELSE 0 END) AS zero,sum(CASE WHEN stock_milli>0 AND stock_milli<=low_stock*1000 THEN 1 ELSE 0 END) AS low FROM products WHERE deleted_at IS NULL').get(),
+    archivedTotal:db.prepare('SELECT count(*) AS n FROM products WHERE deleted_at IS NOT NULL').get().n};
+}
+// Restoring clears the soft-delete flag. A product still without a billing unit
+// cannot go back to an available status, so it returns archived-but-visible.
+export function restoreProduct(db,user,id) {
+  return transaction(db,()=>{
+    const row=db.prepare(`${productSelect} WHERE p.id=? AND p.deleted_at IS NOT NULL`).get(v.integer(id));
+    v.check(row,'Produto não está excluído.',404);
+    db.prepare("UPDATE products SET deleted_at=NULL,active=0,status='unavailable',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(row.id);
+    const after=getProduct(db,row.id);
+    audit(db,user,'product_restored','product',row.id,row,after);
+    return productDTO(after);
+  });
+}
+export function restoreAllProducts(db,user) {
+  return transaction(db,()=>{
+    const rows=db.prepare(`${productSelect} WHERE p.deleted_at IS NOT NULL`).all();
+    for(const row of rows) {
+      db.prepare("UPDATE products SET deleted_at=NULL,active=0,status='unavailable',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(row.id);
+      audit(db,user,'product_restored','product',row.id,row,{...row,deleted_at:null,active:0,status:'unavailable'});
+    }
+    return {restored:rows.length};
+  });
 }
 export function bulkProducts(db,user,input) {
   v.check(Array.isArray(input.items)&&input.items.length>=1&&input.items.length<=100,'Selecione de 1 a 100 produtos.');
