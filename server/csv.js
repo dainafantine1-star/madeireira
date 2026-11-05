@@ -82,6 +82,10 @@ export function previewImport(db,user,input) {
       const category=resolveCategory(db,entry.values.category);
       const product=convert(entry.values,found?productDTO(found):null,settings(db).defaultLowStock);
       product.category=category.id;
+      // Draft import keeps new rows unpublished so a bulk load can be reviewed
+      // before it reaches the storefront. Existing products keep their current
+      // visibility — re-importing a price must not take a live product offline.
+      if(input.draft&&!found){product.active=false;}
       validateProduct(db,product,{allowNewCategory:category.create});
       result.product=product;
       if(category.create)result.pendingCategory={id:category.id,slug:category.slug,label:category.label};
