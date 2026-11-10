@@ -34,9 +34,9 @@ export function deleteImage(db,user,id){return withMediaLock(()=>remove(db,user,
 async function remove(db,user,id) {
   const media=db.prepare('SELECT * FROM media WHERE id=?').get(v.text(id,100));v.check(media,'Imagem inexistente.',404);
   const url=`uploads/${media.filename}`;
-  v.check(!db.prepare('SELECT 1 FROM products p,json_each(p.images_json) j WHERE j.value=?').get(url),'Foto vinculada à galeria de um produto. Retire-a da galeria antes de excluir.',409);
-  v.check(!db.prepare('SELECT 1 FROM products WHERE image=? UNION SELECT 1 FROM categories WHERE image=?').get(url,url),'Imagem vinculada a um produto ou categoria. Substitua-a antes de excluir.',409);
-  v.check(!db.prepare("SELECT 1 FROM banners WHERE image=? UNION SELECT 1 FROM company_settings WHERE json_extract(public_json,'$.logo')=? OR json_extract(public_json,'$.heroImage')=?").get(url,url,url),'Imagem vinculada à empresa ou campanha. Substitua-a antes de excluir.',409);
+  v.check(!db.prepare('SELECT 1 FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=?').get(url),'Foto vinculada à galeria de um produto. Retire-a da galeria antes de excluir.',409);
+  v.check(!db.prepare('SELECT 1 FROM products WHERE deleted_at IS NULL AND image=? UNION SELECT 1 FROM categories WHERE image=?').get(url,url),'Imagem vinculada a um produto ou categoria. Substitua-a antes de excluir.',409);
+  v.check(!db.prepare("SELECT 1 FROM banners WHERE image=? OR image_mobile=? UNION SELECT 1 FROM company_settings WHERE json_extract(public_json,'$.logo')=? OR json_extract(public_json,'$.heroImage')=?").get(url,url,url,url),'Imagem vinculada à empresa ou campanha. Substitua-a antes de excluir.',409);
   const variants=db.prepare('SELECT filename FROM media_variants WHERE media_id=?').all(id);
   // Remove access first; a failed filesystem cleanup leaves an inaccessible orphan.
   transaction(db,()=>{db.prepare('DELETE FROM media WHERE id=?').run(id);audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});

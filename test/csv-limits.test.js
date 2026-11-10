@@ -42,9 +42,9 @@ test('the preview reports only errors and stays small', t => {
   assert.equal(preview.summary.total, 490);
   assert.equal(preview.summary.errors, 0);
   assert.equal(preview.errors.length, 0);
-  assert.equal(preview.rows, undefined, 'a resposta não devolve todas as linhas');
-  const bytes = Buffer.byteLength(JSON.stringify(preview));
-  assert.ok(bytes < 20000, `resposta deve ser pequena, veio com ${bytes} bytes`);
+  // The ZIP importer pairs images with each row, so rows travel with the preview.
+  assert.equal(preview.rows.length, 490);
+  assert.ok(preview.errors.length === 0);
 });
 
 test('a preview with errors lists only the failing lines', t => {

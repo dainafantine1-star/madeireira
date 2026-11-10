@@ -11,6 +11,35 @@ import { openDatabase } from '../test/fixtures/database.js';
 import { createApp } from '../server/index.js';
 import { createOwner } from '../server/auth.js';
 import sharp from 'sharp';
+import '../admin/bulk-import.js';
+const BulkImport = globalThis.BulkImport;
+function makeZip(files) {
+  const locals = [], centrals = [];
+  let offset = 0;
+  for (const f of files) {
+    const nameBuf = Buffer.from(f.name, 'utf8');
+    const data = Buffer.isBuffer(f.data) ? f.data : Buffer.from(f.data);
+    const crc = BulkImport.crc32(new Uint8Array(data));
+    const lfh = Buffer.alloc(30);
+    lfh.writeUInt32LE(0x04034b50, 0); lfh.writeUInt16LE(20, 4); lfh.writeUInt16LE(0, 8);
+    lfh.writeUInt32LE(crc, 14); lfh.writeUInt32LE(data.length, 18); lfh.writeUInt32LE(data.length, 22);
+    lfh.writeUInt16LE(nameBuf.length, 26);
+    locals.push(lfh, nameBuf, data);
+    const cdh = Buffer.alloc(46);
+    cdh.writeUInt32LE(0x02014b50, 0); cdh.writeUInt16LE(20, 4); cdh.writeUInt16LE(20, 6);
+    cdh.writeUInt32LE(crc, 16); cdh.writeUInt32LE(data.length, 20); cdh.writeUInt32LE(data.length, 24);
+    cdh.writeUInt16LE(nameBuf.length, 28); cdh.writeUInt32LE(offset, 42);
+    centrals.push(cdh, nameBuf);
+    offset += 30 + nameBuf.length + data.length;
+  }
+  const cd = Buffer.concat(centrals);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(files.length, 8); eocd.writeUInt16LE(files.length, 10);
+  eocd.writeUInt32LE(cd.length, 12); eocd.writeUInt32LE(offset, 16);
+  const out = Buffer.concat([...locals, cd, eocd]);
+  return out.buffer.slice(out.byteOffset, out.byteOffset + out.length);
+}
 
 const edge=process.env.EDGE_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -59,6 +88,15 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   assert.equal(deletionStatus,409,'A photo referenced only by the product gallery cannot be deleted');
   assert.ok(db.prepare('SELECT 1 FROM media WHERE id=?').get(galleryMedia.id));
   await command('Page.captureScreenshot',{format:'png',captureBeyondViewport:true}).then(r=>writeFileSync(join(root,'screenshot-admin-desktop.png'),Buffer.from(r.data,'base64')));
+  // Paginação: 11 produtos com 10 por página exigem avançar e voltar sem pular páginas.
+  await evaluate(`(()=>{const s=document.querySelector('[data-filter="size"]');s.value='10';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await wait(`document.querySelectorAll('.desktop-table tbody tr').length===10 && document.querySelector('[data-action="next"]:not([disabled])')`);
+  await click('[data-action="next"]');
+  await wait(`document.querySelector('.pagination .actions span')?.textContent.trim()==='2 / 2' && document.querySelectorAll('.desktop-table tbody tr').length===1`);
+  await click('[data-action="previous"]');
+  await wait(`document.querySelector('.pagination .actions span')?.textContent.trim()==='1 / 2' && document.querySelectorAll('.desktop-table tbody tr').length===10`);
+  await evaluate(`(()=>{const s=document.querySelector('[data-filter="size"]');s.value='20';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await wait(`document.querySelector('.pagination .actions span')?.textContent.trim()==='1 / 1' && document.querySelectorAll('.desktop-table tbody tr').length===11`);
   await click(`[data-action="quick-price"][data-id="${p.id}"]`);await wait(`document.getElementById('editor').open`);await fill({price:'99.90'});await evaluate(`document.getElementById('editorForm').requestSubmit()`);await wait(`!document.getElementById('editor').open && document.querySelector('.desktop-table')?.innerText.includes('99,90')`);
   await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await command('Emulation.setTouchEmulationEnabled',{enabled:true});
   assert.notEqual(await evaluate(`getComputedStyle(document.getElementById('mobileNav')).display`),'none');assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
@@ -79,9 +117,21 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   await click('[data-action="bulk"]');await wait(`document.getElementById('confirmDialog').open`);await click('#confirmYes');await wait(`document.getElementById('bulkBar')?.hidden`);
   assert.equal(db.prepare('SELECT featured FROM products WHERE id=?').get(p.id).featured,1);
   await click('#mobileMore');await wait(`document.getElementById('moreDialog').open`);await click('#moreNav [data-page="import"]');await wait(`document.getElementById('importFile')!==null`);
-  const csv=join(temp,'products.csv');writeFileSync(csv,'sku,name,category,price,stock\nCSV-UI-01,Importado pela interface,tabuas,120.50,4');await file('#importFile',csv);await click('#previewImport');await wait(`document.querySelector('[data-action="apply-import"]')!==null`);
-  await click('[data-action="apply-import"]');await wait(`document.getElementById('confirmDialog').open`);await click('#confirmYes');await wait(`document.getElementById('importPreview').innerText.includes('Importação concluída')`);
-  assert.equal(db.prepare("SELECT stock FROM products WHERE sku='CSV-UI-01'").get().stock,4);
+  const csv=join(temp,'products.csv');writeFileSync(csv,'sku,name,category,price,stock\nCSV-UI-01,Importado pela interface,tabuas,120.50,4');
+  const coverPng=await sharp({create:{width:64,height:64,channels:3,background:'#7a5230'}}).png().toBuffer();
+  const galleryPng=await sharp({create:{width:64,height:64,channels:3,background:'#93683f'}}).png().toBuffer();
+  const zipPath=join(temp,'imagens.zip');writeFileSync(zipPath,Buffer.from(makeZip([{name:'CSV-UI-01.png',data:coverPng},{name:'CSV-UI-01_1.png',data:galleryPng}])));
+  await file('#importFile',csv);await file('#importZip',zipPath);await click('#previewImport');
+  await wait(`document.querySelector('[data-action="apply-import"]')!==null && document.getElementById('importPreview').innerText.includes('Imagens identificadas')`);
+  assert.match(await evaluate(`document.getElementById('importPreview').innerText`),/Produtos identificados/);
+  assert.match(await evaluate(`document.getElementById('importPreview').innerText`),/Imagens sem correspondência/);
+  await click('[data-action="apply-import"]');await wait(`document.getElementById('confirmDialog').open`);await click('#confirmYes');
+  await wait(`document.getElementById('importReport').innerText.includes('Relatório da importação') && document.getElementById('importReport').innerText.includes('Produtos criados')`);
+  const importedRow=db.prepare("SELECT * FROM products WHERE sku='CSV-UI-01'").get();
+  assert.equal(importedRow.stock,4);
+  assert.ok(importedRow.image.startsWith('uploads/'),'A primeira imagem do ZIP vira a capa');
+  assert.equal(JSON.parse(importedRow.images_json).length,1,'A segunda imagem entra na galeria');
+  assert.match(await evaluate(`document.getElementById('importReport').innerText`),/Imagens importadas/);
   const exported=await evaluate(`fetch('/api/admin/products/export').then(r=>r.text())`);assert.match(exported,/'?"Type","SKU","Name"/);assert.match(exported,/CSV-UI-01/);assert.match(exported,/MP-0010/);
   await click('#mobileMore');await click('#moreNav [data-page="audit"]');await wait(`document.querySelector('[data-action="audit-details"]')!==null`);await click('[data-action="audit-details"]');await wait(`document.getElementById('editor').open`);assert.match(await evaluate(`document.getElementById('editorBody').innerText`),/Antes/);await click('#cancelEditor');
   await click('#mobileMore');await click('#moreNav [data-page="users"]');await wait(`document.querySelector('[data-action="new-user"]')!==null`);await click('[data-action="new-user"]');await wait(`document.getElementById('editor').open`);

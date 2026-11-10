@@ -68,7 +68,7 @@ function convert(row,old,defaultLowStock=5) {
     commercialTerms:row.commercialTerms || old?.commercialTerms || 'Preço, disponibilidade, entrega e pagamento sujeitos à confirmação.'};
 }
 export function previewImport(db,user,input) {
-  v.check(['create','update','upsert'].includes(input.mode),'Modo de importação inválido.');
+  v.check(['create','update','upsert','skip'].includes(input.mode),'Modo de importação inválido.');
   const seen=new Set(),rows=[];
   for(const entry of parseCSV(input.csv)) {
     const result={line:entry.line,sku:entry.values?.sku || '',name:entry.values?.name || '',errors:[]};
@@ -77,7 +77,11 @@ export function previewImport(db,user,input) {
       v.check(!seen.has(key),'SKU repetido no arquivo.');seen.add(key);
       const found=db.prepare(`${productSelect} WHERE p.sku=? COLLATE NOCASE`).get(entry.values.sku);
       v.check(!found?.deleted_at,'SKU pertence a produto excluído. Use um novo SKU.');
-      v.check(input.mode!=='create'||!found,'SKU já existe; selecione Atualizar ou Criar e atualizar.');
+      if(found&&input.mode==='skip') {
+        result.operation='skip';result.id=found.id;result.version=found.version;result.product=productDTO(found);
+        rows.push(result);continue;
+      }
+      v.check(input.mode!=='create'||!found,'SKU já existe; selecione Atualizar, Ignorar ou Criar e atualizar.');
       v.check(input.mode!=='update'||found,'SKU não encontrado para atualização.');
       const category=resolveCategory(db,entry.values.category);
       const product=convert(entry.values,found?productDTO(found):null,settings(db).defaultLowStock);
@@ -95,9 +99,9 @@ export function previewImport(db,user,input) {
   }
   db.prepare('DELETE FROM import_previews WHERE expires_at<? AND applied_at IS NULL').run(Date.now());
   const id=randomUUID(),expiresAt=Date.now()+15*60*1000;
-  // Store only the validated product payload; the browser gets a compact report.
-  // Echoing every parsed row back cost ~290 KB for a 490-line file.
-  const payload=rows.map(r=>({id:r.id,version:r.version,product:r.product,pendingCategory:r.pendingCategory,errors:r.errors}));
+  // Rows go back to the browser because the ZIP importer pairs each SKU with its
+  // images before confirming. The stored payload keeps only what applyImport needs.
+  const payload=rows.map(r=>({id:r.id,version:r.version,operation:r.operation,product:r.product,pendingCategory:r.pendingCategory,errors:r.errors}));
   db.prepare('INSERT INTO import_previews(id,actor_id,payload_json,expires_at) VALUES(?,?,?,?)').run(id,user.id,JSON.stringify(payload),expiresAt);
   const errors=rows.filter(r=>r.errors.length).map(r=>({line:r.line,sku:r.sku,name:r.name,errors:r.errors}));
   // A file whose SKUs match nothing in the catalogue creates duplicates instead of
@@ -107,10 +111,19 @@ export function previewImport(db,user,input) {
   const warning=active>0&&update===0&&create>0
     ? `Nenhum SKU da planilha corresponde aos ${active} produto(s) do catálogo. A importação vai criar ${create} produto(s) novos e manter os existentes. Para atualizar os atuais, os SKUs precisam ser os mesmos.`
     : null;
-  return {id,expiresAt,valid:errors.length===0,errors:errors.slice(0,200),truncated:errors.length>200,warning,
-    summary:{total:rows.length,errors:errors.length,create,update,newCategories:new Set(rows.filter(r=>r.pendingCategory).map(r=>r.pendingCategory.id)).size}};
+  return {id,expiresAt,rows,valid:errors.length===0,errors:errors.slice(0,200),truncated:errors.length>200,warning,
+    summary:{total:rows.length,errors:errors.length,create,update,ignored:rows.filter(r=>r.operation==='skip').length,newCategories:new Set(rows.filter(r=>r.pendingCategory).map(r=>r.pendingCategory.id)).size}};
 }
 export function applyImport(db,user,input) {
+  let images=input.images;
+  if(images!==undefined) {
+    v.check(images&&typeof images==='object'&&!Array.isArray(images),'Mapa de imagens inválido.');
+    v.check(Object.keys(images).length<=2000,'Mapa de imagens inválido.');
+    for(const list of Object.values(images)) {
+      v.check(Array.isArray(list)&&list.length>=1&&list.length<=13,'Use até 13 imagens por produto (1 capa + 12 da galeria).');
+      for(const url of list)v.image(url);
+    }
+  }
   return transaction(db,()=>{
     const found=db.prepare('SELECT * FROM import_previews WHERE id=? AND actor_id=?').get(v.text(input.previewId,100),user.id);
     v.check(found,'Prévia inexistente.',404);if(found.applied_at)return JSON.parse(found.result_json);
@@ -126,11 +139,15 @@ export function applyImport(db,user,input) {
       newCategories.push(pending.id);
     }
     for(const row of rows) {
+      if(row.operation==='skip')continue;
       if(row.id){const current=db.prepare('SELECT version,deleted_at FROM products WHERE id=?').get(row.id);v.check(current&&!current.deleted_at&&current.version===row.version,'O catálogo mudou após a prévia. Gere outra prévia.',409);}
       else v.check(!db.prepare('SELECT 1 FROM products WHERE sku=? COLLATE NOCASE').get(row.product.sku),'Um SKU foi cadastrado após a prévia. Gere outra prévia.',409);
-      writeProduct(db,user,{...row.product,version:row.version ?? undefined},row.id,'product_imported');
+      const product={...row.product};
+      const urls=images&&images[product.sku];
+      if(Array.isArray(urls)&&urls.length){product.image=urls[0];product.images=urls.slice(1,13);}
+      writeProduct(db,user,{...product,version:row.version ?? undefined},row.id,'product_imported');
     }
-    const result={created:rows.filter(r=>!r.id).length,updated:rows.filter(r=>r.id).length,total:rows.length,newCategories:newCategories.length};
+    const result={created:rows.filter(r=>!r.id&&r.operation!=='skip').length,updated:rows.filter(r=>r.id&&r.operation!=='skip').length,skipped:rows.filter(r=>r.operation==='skip').length,total:rows.length,newCategories:newCategories.length};
     db.prepare('UPDATE import_previews SET applied_at=CURRENT_TIMESTAMP,result_json=? WHERE id=?').run(JSON.stringify(result),found.id);
     audit(db,user,'import_applied','import',found.id,null,result);return result;
   });
