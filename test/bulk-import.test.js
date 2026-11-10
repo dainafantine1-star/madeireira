@@ -121,6 +121,38 @@ test('matchImages associa imagens ao SKU com capa, galeria e limites', () => {
   assert.equal(BulkImport.sniffType(new Uint8Array([1, 2, 3, 4])), null);
 });
 
+test('ZIP com muitas imagens: processa 300 imagens em tempo hábil', async () => {
+  const image = await pngBytes(50, 100, 150);
+  const files = [];
+  const skus = [];
+  for (let i = 0; i < 100; i++) {
+    const sku = `STRESS-${String(i).padStart(3, '0')}`;
+    skus.push(sku);
+    files.push({ name: `${sku}.png`, data: image });
+    files.push({ name: `${sku}_1.png`, data: image });
+    files.push({ name: `${sku}_2.png`, data: image });
+  }
+  const csv = 'sku,name,category,price\n' + skus.map(s => `${s},Produto ${s},tabuas,10.00`).join('\n');
+  files.push({ name: 'produtos.csv', data: csv });
+  const buffer = makeZip(files);
+  const start = Date.now();
+  const { entries, csvEntries } = BulkImport.listEntries(buffer);
+  assert.equal(entries.length, 300);
+  assert.equal(csvEntries.length, 1);
+  const matched = BulkImport.matchImages(entries.map(e => e.name), skus);
+  let extracted = 0;
+  for (const list of matched.bySku.values()) {
+    for (const item of list) {
+      const bytes = await BulkImport.extractEntry(buffer, entries.find(e => e.name === item.name));
+      assert.ok(BulkImport.sniffType(bytes), item.name);
+      extracted++;
+    }
+  }
+  assert.equal(extracted, 300);
+  const elapsed = Date.now() - start;
+  assert.ok(elapsed < 30000, `300 imagens levaram ${elapsed}ms (limite 30s)`);
+});
+
 test('parseCSV aceita até 2000 produtos e mantém o modelo antigo', () => {
   const header = 'sku,name,category,price';
   const row = i => `SKU-${i},Produto ${i},tabuas,10.50`;
@@ -263,4 +295,24 @@ test('paginação de produtos clampa página fora do intervalo', async t => {
   assert.equal(beyond.data.page, lastPage);
   assert.ok(beyond.data.items.length > 0);
   assert.equal(beyond.data.page * beyond.data.size >= beyond.data.total, true);
+});
+
+test('importação em lote: 100 produtos via preview+apply', async t => {
+  const { req } = await harness(t);
+  const rows = Array.from({ length: 100 }, (_, i) => `BULK-${String(i).padStart(3, '0')},Produto Lote ${i},tabuas,${(10 + i).toFixed(2)}`);
+  const csv = 'sku,name,category,price\n' + rows.join('\n');
+  const preview = await req('/api/admin/import/preview', 'POST', { csv, mode: 'create' });
+  assert.equal(preview.status, 200);
+  assert.equal(preview.data.valid, true);
+  assert.equal(preview.data.summary.create, 100);
+  const start = Date.now();
+  const applied = await req('/api/admin/import/apply', 'POST', { previewId: preview.data.id });
+  const elapsed = Date.now() - start;
+  assert.equal(applied.status, 200);
+  assert.equal(applied.data.created, 100);
+  assert.ok(elapsed < 15000, `100 produtos levaram ${elapsed}ms (limite 15s)`);
+  const list = await req('/api/admin/products?size=100&category=tabuas');
+  assert.ok(list.data.total >= 100);
+  const second = await req('/api/admin/import/preview', 'POST', { csv, mode: 'create' });
+  assert.equal(second.data.summary.errors, 100, 'SKUs repetidos devem dar erro no modo create');
 });
