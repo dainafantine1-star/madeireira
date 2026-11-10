@@ -188,6 +188,17 @@
     $('importMode').onchange=()=>invalidatePreview();
   }
   function invalidatePreview(){state.preview=null;$('importPreview')?.replaceChildren();$('importReport')?.replaceChildren();if($('importProgress'))$('importProgress').hidden=true;}
+  function setPreviewProgress(label,done,total) {
+    const box=$('importProgress'),text=$('importProgressText'),bar=$('importProgressBar');
+    if(!box)return;
+    box.hidden=false;
+    if(text)text.textContent=label;
+    if(bar)bar.style.width=(total?Math.min(95,Math.round(done/total*95)):10)+'%';
+  }
+  function hidePreviewProgress() {
+    const box=$('importProgress');
+    if(box)box.hidden=true;
+  }
   async function previewImport() {
     const file=$('importFile').files[0];
     const zipFile=$('importZip').files[0];
@@ -197,7 +208,9 @@
       let zipBuffer=null,zipEntries=[],zipIgnored=[],csvEntries=[];
       if(zipFile) {
         if(zipFile.size>BulkImport.limits.maxZipBytes)throw new Error('ZIP muito grande. O máximo é 350 MB.');
+        setPreviewProgress('Lendo arquivo ZIP…');
         zipBuffer=await zipFile.arrayBuffer();
+        setPreviewProgress('Analisando estrutura do ZIP…');
         const listed=BulkImport.listEntries(zipBuffer);zipEntries=listed.entries;csvEntries=listed.csvEntries||[];zipIgnored=listed.ignored;
       }
       let csvText;
@@ -206,13 +219,16 @@
         csvText=await file.text();
       } else if(csvEntries.length) {
         if(csvEntries.length>1)throw new Error(`O ZIP contém ${csvEntries.length} arquivos CSV. Mantenha apenas um.`);
+        setPreviewProgress('Extraindo planilha do ZIP…');
         const bytes=await BulkImport.extractEntry(zipBuffer,csvEntries[0]);
         csvText=new TextDecoder('utf-8').decode(bytes);
       } else {
         throw new Error('Selecione uma planilha CSV ou um ZIP que contenha um arquivo .csv.');
       }
+      setPreviewProgress('Validando produtos no servidor…');
       const preview=await api('import/preview','POST',{csv:csvText,mode:$('importMode').value});state.preview=preview;
       const skus=preview.rows.map(r=>r.product&&r.product.sku).filter(Boolean);
+      setPreviewProgress('Associando imagens aos SKUs…');
       const matched=zipEntries.length?BulkImport.matchImages(zipEntries.map(e=>e.name),skus):{bySku:new Map(skus.map(s=>[s,[]])),unmatched:[],overflow:[]};
       const entryByName=new Map(zipEntries.map(e=>[e.name,e]));
       const plan=new Map(),perRow=new Map();
@@ -225,10 +241,19 @@
         if(sku&&list.length)plan.set(sku,list.map(x=>({name:x.name,entry:entryByName.get(x.name)})));
         perRow.set(row.line,{count:list.length});
       }
-      if(zipBuffer) for(const list of plan.values()) for(const item of list) {
-        const bytes=await BulkImport.extractEntry(zipBuffer,item.entry);
-        if(!BulkImport.sniffType(bytes))throw new Error(`${item.name}: o conteúdo não é uma imagem JPEG, PNG ou WebP válida.`);
+      if(zipBuffer) {
+        const allItems=[...plan.values()].flat();
+        let validated=0;
+        for(const item of allItems) {
+          validated++;
+          if(validated===1||validated%10===0||validated===allItems.length)
+            setPreviewProgress(`Validando imagens (${validated}/${allItems.length})…`,validated,allItems.length);
+          const bytes=await BulkImport.extractEntry(zipBuffer,item.entry);
+          if(!BulkImport.sniffType(bytes))throw new Error(`${item.name}: o conteúdo não é uma imagem JPEG, PNG ou WebP válida.`);
+          if(validated%20===0)await new Promise(r=>setTimeout(r,0));
+        }
       }
+      setPreviewProgress('Montando prévia…',1,1);
       bulkState.zipBuffer=zipBuffer;bulkState.plan=plan;bulkState.unmatched=matched.unmatched;bulkState.overflow=matched.overflow;bulkState.ignored=zipIgnored;
       const s=preview.summary;
       $('importPreview').innerHTML=`<div class="import-summary"><span><strong>${s.total}</strong>Produtos identificados</span><span><strong>${imagesIdentified}</strong>Imagens identificadas</span><span><strong>${productsWithout}</strong>Produtos sem imagens</span><span><strong>${matched.unmatched.length}</strong>Imagens sem correspondência</span><span><strong>${s.create}</strong>Novos</span><span><strong>${s.update}</strong>Atualizações</span>${s.ignored?`<span><strong>${s.ignored}</strong>Ignorados</span>`:''}<span><strong>${s.errors}</strong>Linhas com erro</span>${s.newCategories?`<span><strong>${s.newCategories}</strong>Categorias novas</span>`:''}</div>
@@ -236,7 +261,8 @@
       ${matched.unmatched.length?`<details><summary>${matched.unmatched.length} imagem(ns) sem produto correspondente no CSV</summary><ul>${matched.unmatched.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></details>`:''}
       ${zipIgnored.length?`<details><summary>${zipIgnored.length} arquivo(s) ignorados no ZIP (não são imagens)</summary><ul>${zipIgnored.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></details>`:''}
       <div class="preview"><table><thead><tr><th>Linha</th><th>SKU</th><th>Produto</th><th>Preço proposto</th><th>Estoque</th><th>Imagens</th><th>Operação / validação</th></tr></thead><tbody>${preview.rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.sku)}</td><td>${esc(r.name)}</td><td>${r.product?price(r.product.price):'—'}</td><td>${r.product?r.product.stock??'Sem controle':'—'}</td><td>${perRow.get(r.line)?.count??0}${perRow.get(r.line)?.skipped?' <small>(ignorado)</small>':''}</td><td>${r.errors.length?`<span class="error">${esc(r.errors.join('; '))}</span>`:r.operation==='create'?'Criar':r.operation==='skip'?'Ignorar':'Atualizar'}</td></tr>`).join('')}</tbody></table></div><p class="field-help">A validação expira em 15 minutos. Alterações concorrentes exigem nova validação.</p><button class="primary" data-action="apply-import"${preview.valid?'':' disabled'}>Iniciar importação de ${s.total} produto(s)</button>`;
-    }catch(error){$('importError').textContent=error.message;throw error;}finally{$('previewImport').disabled=false;}
+      hidePreviewProgress();
+    }catch(error){hidePreviewProgress();$('importError').textContent=error.message;throw error;}finally{$('previewImport').disabled=false;hidePreviewProgress();}
   }
   function renderBulkReport(report) {
     const res=report.result,rows=[['Produtos processados',res.total],['Produtos criados',res.created],['Produtos atualizados',res.updated],['Produtos ignorados (SKU já existente)',res.skipped||0],['Imagens importadas',report.imagesSent],['Imagens sem correspondência',report.unmatched.length],['Imagens acima do limite de 13',report.overflow.length],['Arquivos ignorados no ZIP',report.ignored.length],['Erros no envio de imagens',report.imagesFailed.length]];
