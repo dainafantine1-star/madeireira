@@ -75,6 +75,29 @@ test('leitor de ZIP valida estrutura, caminhos e conteúdo', async () => {
   assert.throws(() => BulkImport.listEntries(Buffer.alloc(10).buffer.slice(0)), /incompleto|índice/);
 });
 
+test('ZIP completo: lista CSV e imagens separadamente', async () => {
+  const image = await pngBytes();
+  const csv = 'sku,name,category,price\nCAD001,Produto A,tabuas,10.00\nCAD002,Produto B,portas,20.00';
+  const buffer = makeZip([
+    { name: 'produtos.csv', data: csv },
+    { name: 'CAD001.jpg', data: image },
+    { name: 'CAD001_1.png', data: image },
+    { name: 'CAD002.jpg', data: image },
+    { name: 'leia-me.txt', data: 'texto' },
+  ]);
+  const { entries, csvEntries, ignored } = BulkImport.listEntries(buffer);
+  assert.equal(entries.length, 3);
+  assert.equal(csvEntries.length, 1);
+  assert.equal(csvEntries[0].name, 'produtos.csv');
+  assert.deepEqual(ignored, ['leia-me.txt']);
+  const csvBytes = await BulkImport.extractEntry(buffer, csvEntries[0]);
+  assert.equal(new TextDecoder().decode(csvBytes), csv);
+  const imgBytes = await BulkImport.extractEntry(buffer, entries[0]);
+  assert.equal(Buffer.from(imgBytes).equals(image), true);
+  const twoCsv = BulkImport.listEntries(makeZip([{ name: 'a.csv', data: 'x' }, { name: 'b.csv', data: 'y' }, { name: 'img.png', data: image }]));
+  assert.equal(twoCsv.csvEntries.length, 2);
+});
+
 test('matchImages associa imagens ao SKU com capa, galeria e limites', () => {
   const skus = ['CAD001', 'OUTRO', 'A', 'A_B'];
   const names = [

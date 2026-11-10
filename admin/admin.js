@@ -93,6 +93,7 @@
     const [data,categories]=await Promise.all([api(`products?${query}`),api('categories')]);
     if(seq!==productsSeq)return;
     state.products=data.items;state.categories=categories;state.productsTotal=data.total;
+    state.filters.page=data.page;
     const f=state.filters,totalAll=categories.reduce((n,c)=>n+c.product_count,0);
     const newButton='<button class="primary" data-action="new">＋ Novo produto</button>';
     const more='<details class="more-actions"><summary>Mais ações ⋯</summary><div><button data-action="export">Exportar todos · WooCommerce CSV</button><button data-page="import">Importar planilha CSV</button><button data-action="template">Baixar modelo CSV</button><button data-action="reload">Atualizar lista</button></div></details>';
@@ -181,24 +182,36 @@
   async function renderImport() {
     state.preview=null;bulkState={zipBuffer:null,plan:new Map(),uploaded:new Map(),unmatched:[],overflow:[],ignored:[],report:null,zipFile:null};
     $('pageContent').innerHTML=header('Importar produtos','Planilha CSV UTF-8 · até 2000 produtos e 2 MB. ZIP de imagens opcional.','<button data-action="template">↓ Baixar modelo CSV</button>')+
-      `<div class="notice">Use o modelo do painel. SKU identifica cada produto; categorias novas são criadas automaticamente. Preço em branco significa Sob consulta. Com o ZIP (opcional), as imagens são associadas pelo SKU: <strong>CAD001.jpg</strong> vira capa e <strong>CAD001_1.jpg</strong> entra na galeria — JPEG, PNG ou WebP, até 13 por produto. Nada é gravado sem a sua confirmação. O CSV de exportação WooCommerce segue disponível em Produtos → Mais ações.</div><section class="account-box import-area" style="max-width:none"><div class="form-grid"><label>Arquivo CSV *<input id="importFile" type="file" accept=".csv,text/csv"></label><label>ZIP com imagens (opcional)<input id="importZip" type="file" accept=".zip,application/zip"></label><label class="full">Como tratar os SKUs<select id="importMode"><option value="create">Somente criar novos produtos</option><option value="update">Somente atualizar SKUs existentes</option><option value="upsert">Criar novos e atualizar existentes</option><option value="skip">Ignorar produtos já existentes (criar só os novos)</option></select></label></div><button class="primary" data-action="preview-import" id="previewImport">Validar arquivos</button><p class="error" id="importError" role="alert"></p><div id="importPreview"></div><div id="importProgress" hidden style="margin-top:14px"><p id="importProgressText" role="status" style="margin:0 0 6px"></p><div style="background:#e6e1d6;border-radius:99px;height:10px;overflow:hidden"><div id="importProgressBar" style="height:100%;width:0;background:#2f6f4e;transition:width .2s"></div></div></div><div id="importReport"></div></section>`;
+      `<div class="notice"><strong>Como importar:</strong> envie um <strong>ZIP completo</strong> com o CSV e as imagens juntos, ou um CSV separado + ZIP de imagens. No ZIP, as imagens são associadas pelo SKU: <strong>CAD001.jpg</strong> vira capa e <strong>CAD001_1.jpg</strong> entra na galeria — JPEG, PNG ou WebP, até 13 por produto. SKU identifica cada produto; categorias novas são criadas automaticamente. Preço em branco significa Sob consulta. Nada é gravado sem a sua confirmação.</div><section class="account-box import-area" style="max-width:none"><div class="form-grid"><label>ZIP completo (CSV + imagens)<input id="importZip" type="file" accept=".zip,application/zip"></label><label>ou CSV separado<input id="importFile" type="file" accept=".csv,text/csv"></label><label class="full">Como tratar os SKUs<select id="importMode"><option value="create">Somente criar novos produtos</option><option value="update">Somente atualizar SKUs existentes</option><option value="upsert">Criar novos e atualizar existentes</option><option value="skip">Ignorar produtos já existentes (criar só os novos)</option></select></label></div><button class="primary" data-action="preview-import" id="previewImport">Validar arquivos</button><p class="error" id="importError" role="alert"></p><div id="importPreview"></div><div id="importProgress" hidden style="margin-top:14px"><p id="importProgressText" role="status" style="margin:0 0 6px"></p><div style="background:#e6e1d6;border-radius:99px;height:10px;overflow:hidden"><div id="importProgressBar" style="height:100%;width:0;background:#2f6f4e;transition:width .2s"></div></div></div><div id="importReport"></div></section>`;
     $('importFile').onchange=()=>invalidatePreview();
     $('importZip').onchange=()=>{if(bulkState&&bulkState.zipFile!==$('importZip').files[0]){bulkState.uploaded=new Map();bulkState.zipFile=$('importZip').files[0]||null;}invalidatePreview();};
     $('importMode').onchange=()=>invalidatePreview();
   }
   function invalidatePreview(){state.preview=null;$('importPreview')?.replaceChildren();$('importReport')?.replaceChildren();if($('importProgress'))$('importProgress').hidden=true;}
   async function previewImport() {
-    const file=$('importFile').files[0];if(!file)throw new Error('Selecione uma planilha CSV.');if(file.size>2*1024*1024)throw new Error('Use um CSV de até 2 MB.');
+    const file=$('importFile').files[0];
+    const zipFile=$('importZip').files[0];
+    if(!file&&!zipFile)throw new Error('Selecione uma planilha CSV ou um ZIP completo (CSV + imagens).');
     $('importError').textContent='';$('importReport').replaceChildren();$('previewImport').disabled=true;
     try {
-      const zipFile=$('importZip').files[0];
-      let zipBuffer=null,zipEntries=[],zipIgnored=[];
+      let zipBuffer=null,zipEntries=[],zipIgnored=[],csvEntries=[];
       if(zipFile) {
         if(zipFile.size>BulkImport.limits.maxZipBytes)throw new Error('ZIP muito grande. O máximo é 350 MB.');
         zipBuffer=await zipFile.arrayBuffer();
-        const listed=BulkImport.listEntries(zipBuffer);zipEntries=listed.entries;zipIgnored=listed.ignored;
+        const listed=BulkImport.listEntries(zipBuffer);zipEntries=listed.entries;csvEntries=listed.csvEntries||[];zipIgnored=listed.ignored;
       }
-      const preview=await api('import/preview','POST',{csv:await file.text(),mode:$('importMode').value});state.preview=preview;
+      let csvText;
+      if(file) {
+        if(file.size>2*1024*1024)throw new Error('Use um CSV de até 2 MB.');
+        csvText=await file.text();
+      } else if(csvEntries.length) {
+        if(csvEntries.length>1)throw new Error(`O ZIP contém ${csvEntries.length} arquivos CSV. Mantenha apenas um.`);
+        const bytes=await BulkImport.extractEntry(zipBuffer,csvEntries[0]);
+        csvText=new TextDecoder('utf-8').decode(bytes);
+      } else {
+        throw new Error('Selecione uma planilha CSV ou um ZIP que contenha um arquivo .csv.');
+      }
+      const preview=await api('import/preview','POST',{csv:csvText,mode:$('importMode').value});state.preview=preview;
       const skus=preview.rows.map(r=>r.product&&r.product.sku).filter(Boolean);
       const matched=zipEntries.length?BulkImport.matchImages(zipEntries.map(e=>e.name),skus):{bySku:new Map(skus.map(s=>[s,[]])),unmatched:[],overflow:[]};
       const entryByName=new Map(zipEntries.map(e=>[e.name,e]));
@@ -346,6 +359,9 @@
       const target=Math.min(maxPage,Math.max(1,state.filters.page+(action==='next'?1:-1)));
       if(target===state.filters.page)return;
       state.filters.page=target;productsBusy=true;
+      node.disabled=true;
+      const prevBtn=document.querySelector('[data-action="previous"]'),nextBtn=document.querySelector('[data-action="next"]');
+      if(prevBtn)prevBtn.disabled=true;if(nextBtn)nextBtn.disabled=true;
       try{await refreshProducts();}finally{productsBusy=false;}
       return;
     }

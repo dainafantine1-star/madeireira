@@ -26,7 +26,7 @@
     throw new Error('Não foi possível encontrar o índice do ZIP. O arquivo pode estar incompleto.');
   }
   // Valida a estrutura sem descompactar: nomes, limites, caminhos e taxas.
-  // Retorna entradas de imagens prontas para extração e a lista de arquivos ignorados.
+  // Retorna entradas de imagens e CSV prontas para extração, e a lista de arquivos ignorados.
   function listEntries(buffer) {
     if(!(buffer instanceof ArrayBuffer))throw new Error('ZIP inválido.');
     if(buffer.byteLength>limits.maxZipBytes)throw new Error('ZIP muito grande. O máximo é 350 MB.');
@@ -36,7 +36,7 @@
     if(u16(view,eocd+4)!==0||u16(view,eocd+6)!==0)throw new Error('ZIP com múltiplos discos não é suportado.');
     if(total===0xffff||cdSize===0xffffffff||cdOffset===0xffffffff)throw new Error('ZIP64 não é suportado. Divida o arquivo em lotes menores.');
     if(cdOffset+cdSize>byteLength)throw new Error('ZIP corrompido.');
-    const entries=[],ignored=[];const seen=new Set();
+    const entries=[],csvEntries=[],ignored=[];const seen=new Set();
     let offset=cdOffset,totalBytes=0;
     for(let i=0;i<total;i++) {
       if(offset+46>byteLength||u32(view,offset)!==CDH_SIG)throw new Error('ZIP corrompido no diretório central.');
@@ -50,20 +50,27 @@
       validateName(name);
       if(name.endsWith('/'))continue;
       if(flags&0x1)throw new Error(`Arquivo protegido por senha não é suportado: ${name}`);
-      if(!IMAGE_EXT.test(name)) {ignored.push(name);continue;}
       if(method!==0&&method!==8)throw new Error(`Formato de compressão não suportado em ${name}.`);
       if(compSize===0||uncompSize===0)throw new Error(`${name} está vazio.`);
-      if(uncompSize>limits.maxFileBytes)throw new Error(`${name} excede 3 MB. Reduza a imagem antes de importar.`);
-      if(uncompSize/compSize>limits.maxRatio)throw new Error(`${name} tem taxa anormal de compressão (possível bomba de ZIP).`);
-      if(seen.has(name))throw new Error(`Imagem duplicada no ZIP: ${name}`);
-      seen.add(name);
-      totalBytes+=uncompSize;
-      if(totalBytes>limits.maxTotalBytes)throw new Error('As imagens somam mais de 400 MB. Divida em lotes menores.');
-      entries.push({name,crc,method,compSize,uncompSize,localOffset});
+      if(IMAGE_EXT.test(name)) {
+        if(uncompSize>limits.maxFileBytes)throw new Error(`${name} excede 3 MB. Reduza a imagem antes de importar.`);
+        if(uncompSize/compSize>limits.maxRatio)throw new Error(`${name} tem taxa anormal de compressão (possível bomba de ZIP).`);
+        if(seen.has(name))throw new Error(`Imagem duplicada no ZIP: ${name}`);
+        seen.add(name);
+        totalBytes+=uncompSize;
+        if(totalBytes>limits.maxTotalBytes)throw new Error('As imagens somam mais de 400 MB. Divida em lotes menores.');
+        entries.push({name,crc,method,compSize,uncompSize,localOffset});
+      } else if(/\.csv$/i.test(name)) {
+        if(uncompSize>2*1024*1024)throw new Error(`${name} excede 2 MB. Reduza o CSV antes de importar.`);
+        if(uncompSize/compSize>limits.maxRatio)throw new Error(`${name} tem taxa anormal de compressão (possível bomba de ZIP).`);
+        csvEntries.push({name,crc,method,compSize,uncompSize,localOffset});
+      } else {
+        ignored.push(name);
+      }
     }
-    if(entries.length+ignored.length>limits.maxEntries)throw new Error('ZIP com arquivos demais. O máximo é 5000.');
-    if(!entries.length)throw new Error(ignored.length?'O ZIP não contém imagens JPEG, PNG ou WebP.':'O ZIP está vazio.');
-    return {entries,ignored};
+    if(entries.length+csvEntries.length+ignored.length>limits.maxEntries)throw new Error('ZIP com arquivos demais. O máximo é 5000.');
+    if(!entries.length&&!csvEntries.length)throw new Error(ignored.length?'O ZIP não contém imagens JPEG, PNG ou WebP nem arquivos CSV.':'O ZIP está vazio.');
+    return {entries,csvEntries,ignored};
   }
   async function extractEntry(buffer,entry) {
     const view=new DataView(buffer);
