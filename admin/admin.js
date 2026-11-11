@@ -242,18 +242,8 @@
         perRow.set(row.line,{count:list.length});
       }
       if(zipBuffer) {
-        const allItems=[...plan.values()].flat();
-        let validated=0;
-        for(const item of allItems) {
-          validated++;
-          if(validated===1||validated%10===0||validated===allItems.length)
-            setPreviewProgress(`Validando imagens (${validated}/${allItems.length})…`,validated,allItems.length);
-          const bytes=await BulkImport.extractEntry(zipBuffer,item.entry);
-          if(!BulkImport.sniffType(bytes))throw new Error(`${item.name}: o conteúdo não é uma imagem JPEG, PNG ou WebP válida.`);
-          if(validated%20===0)await new Promise(r=>setTimeout(r,0));
-        }
+        setPreviewProgress('Montando prévia…',1,1);
       }
-      setPreviewProgress('Montando prévia…',1,1);
       bulkState.zipBuffer=zipBuffer;bulkState.plan=plan;bulkState.unmatched=matched.unmatched;bulkState.overflow=matched.overflow;bulkState.ignored=zipIgnored;
       const s=preview.summary;
       $('importPreview').innerHTML=`<div class="import-summary"><span><strong>${s.total}</strong>Produtos identificados</span><span><strong>${imagesIdentified}</strong>Imagens identificadas</span><span><strong>${productsWithout}</strong>Produtos sem imagens</span><span><strong>${matched.unmatched.length}</strong>Imagens sem correspondência</span><span><strong>${s.create}</strong>Novos</span><span><strong>${s.update}</strong>Atualizações</span>${s.ignored?`<span><strong>${s.ignored}</strong>Ignorados</span>`:''}<span><strong>${s.errors}</strong>Linhas com erro</span>${s.newCategories?`<span><strong>${s.newCategories}</strong>Categorias novas</span>`:''}</div>
