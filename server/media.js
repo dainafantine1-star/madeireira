@@ -31,12 +31,35 @@ async function upload(db,user,input) {
   return {id,url:`uploads/${filename}`,width:info.width,height:info.height};
 }
 export function deleteImage(db,user,id){return withMediaLock(()=>remove(db,user,id));}
+export function bulkDeleteImages(db,user,ids){return withMediaLock(()=>bulkRemove(db,user,ids));}
+function linkReason(db,url) {
+  if(db.prepare('SELECT 1 FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=?').get(url))return 'galeria de produto';
+  if(db.prepare('SELECT 1 FROM products WHERE deleted_at IS NULL AND image=? UNION SELECT 1 FROM categories WHERE image=?').get(url,url))return 'produto ou categoria';
+  if(db.prepare("SELECT 1 FROM banners WHERE image=? OR image_mobile=? UNION SELECT 1 FROM company_settings WHERE json_extract(public_json,'$.logo')=? OR json_extract(public_json,'$.heroImage')=?").get(url,url,url,url))return 'empresa ou campanha';
+  return null;
+}
+async function bulkRemove(db,user,ids) {
+  v.check(Array.isArray(ids)&&ids.length>=1&&ids.length<=500,'Selecione de 1 a 500 imagens.');
+  const deleted=[],skipped=[];
+  for(const id of ids) {
+    v.text(id,100);
+    const media=db.prepare('SELECT * FROM media WHERE id=?').get(id);
+    if(!media){skipped.push({id,reason:'Imagem inexistente.'});continue;}
+    const url=`uploads/${media.filename}`;
+    const reason=linkReason(db,url);
+    if(reason){skipped.push({id,name:media.original_name,reason:`Em uso por ${reason}.`});continue;}
+    const variants=db.prepare('SELECT filename FROM media_variants WHERE media_id=?').all(id);
+    transaction(db,()=>{db.prepare('DELETE FROM media WHERE id=?').run(id);audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});
+    await Promise.all([media.filename,...variants.map(x=>x.filename)].map(filename=>unlink(resolve(mediaDirectory(),filename)).catch(()=>{})));
+    deleted.push(id);
+  }
+  return {deleted:deleted.length,skipped};
+}
 async function remove(db,user,id) {
   const media=db.prepare('SELECT * FROM media WHERE id=?').get(v.text(id,100));v.check(media,'Imagem inexistente.',404);
   const url=`uploads/${media.filename}`;
-  v.check(!db.prepare('SELECT 1 FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=?').get(url),'Foto vinculada à galeria de um produto. Retire-a da galeria antes de excluir.',409);
-  v.check(!db.prepare('SELECT 1 FROM products WHERE deleted_at IS NULL AND image=? UNION SELECT 1 FROM categories WHERE image=?').get(url,url),'Imagem vinculada a um produto ou categoria. Substitua-a antes de excluir.',409);
-  v.check(!db.prepare("SELECT 1 FROM banners WHERE image=? OR image_mobile=? UNION SELECT 1 FROM company_settings WHERE json_extract(public_json,'$.logo')=? OR json_extract(public_json,'$.heroImage')=?").get(url,url,url,url),'Imagem vinculada à empresa ou campanha. Substitua-a antes de excluir.',409);
+  const reason=linkReason(db,url);
+  v.check(!reason,reason==='galeria de produto'?'Foto vinculada à galeria de um produto. Retire-a da galeria antes de excluir.':reason==='produto ou categoria'?'Imagem vinculada a um produto ou categoria. Substitua-a antes de excluir.':'Imagem vinculada à empresa ou campanha. Substitua-a antes de excluir.',409);
   const variants=db.prepare('SELECT filename FROM media_variants WHERE media_id=?').all(id);
   // Remove access first; a failed filesystem cleanup leaves an inaccessible orphan.
   transaction(db,()=>{db.prepare('DELETE FROM media WHERE id=?').run(id);audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});
