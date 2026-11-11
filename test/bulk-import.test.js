@@ -286,6 +286,34 @@ test('mídia: produto excluído deixa de bloquear a exclusão da imagem', async 
   assert.equal((await req('/api/admin/media')).data.some(m => `uploads/${m.filename}` === url), false);
 });
 
+test('mídia: exclusão em massa remove livres e mantém vinculadas', async t => {
+  const { req } = await harness(t);
+  const png = await pngBytes(60, 60, 60);
+  const up1 = await req('/api/admin/media', 'POST', { name: 'livre1.png', type: 'image/png', data: png.toString('base64') });
+  const up2 = await req('/api/admin/media', 'POST', { name: 'livre2.png', type: 'image/png', data: png.toString('base64') });
+  const up3 = await req('/api/admin/media', 'POST', { name: 'em-uso.png', type: 'image/png', data: png.toString('base64') });
+  assert.equal(up1.status, 201);
+  const product = (await req('/api/admin/products/1')).data;
+  const linked = await req('/api/admin/products/1', 'PUT', { ...product, image: up3.data.url });
+  assert.equal(linked.status, 200);
+
+  const result = await req('/api/admin/media/bulk-delete', 'POST', { ids: [up1.data.id, up2.data.id, up3.data.id] });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.deleted, 2);
+  assert.equal(result.data.skipped.length, 1);
+  assert.equal(result.data.skipped[0].id, up3.data.id);
+  assert.match(result.data.skipped[0].reason, /uso/);
+
+  const remaining = await req('/api/admin/media');
+  const filenames = remaining.data.map(m => m.filename);
+  assert.ok(!filenames.includes(up1.data.url.replace('uploads/', '')));
+  assert.ok(!filenames.includes(up2.data.url.replace('uploads/', '')));
+  assert.ok(filenames.includes(up3.data.url.replace('uploads/', '')));
+
+  assert.equal((await req('/api/admin/media/bulk-delete', 'POST', { ids: [] })).status, 400);
+  assert.equal((await req('/api/admin/media/bulk-delete', 'POST', { ids: ['nao-existe'] })).data.deleted, 0);
+});
+
 test('paginação de produtos clampa página fora do intervalo', async t => {
   const { req } = await harness(t);
   const all = await req('/api/admin/products?size=100');

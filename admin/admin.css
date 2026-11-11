@@ -14,3 +14,8 @@
 @media(max-width:520px){.login-brand .login-lead{display:block;font-size:24px;max-width:none}}
 
 .campaign-card>img{width:100%;height:auto;object-fit:contain}.campaign-preview{display:block}.campaign-preview img{width:100%;height:auto;object-fit:contain}.campaign-preview>div{display:none}
+
+.media-card{position:relative}
+.media-check{position:absolute;top:10px;left:10px;z-index:2;background:#ffffffdd;border-radius:4px;padding:4px;min-height:auto;gap:0}
+.media-check input{margin:0}
+.media-card:has([data-media-select]:checked){outline:2px solid #5b733f;outline-offset:-2px}

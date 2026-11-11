@@ -28,7 +28,7 @@
       button.innerHTML=icon(button.dataset.page||(button.id==='mobileNew'?'plus':'menu'))+`<span>${esc(label.textContent)}</span>`;
     });
   }
-  const state={user:null,csrf:'',page:'products',categories:[],products:[],selected:new Map(),filters:{q:'',category:'',status:'',featured:'',stock:'',price:'',sort:'newest',size:'20',page:1},preview:null};
+  const state={user:null,csrf:'',page:'products',categories:[],products:[],selected:new Map(),filters:{q:'',category:'',status:'',featured:'',stock:'',price:'',sort:'newest',size:'20',page:1},preview:null,mediaImages:[],mediaSelected:new Set()};
   let submitEditor=null,editProduct=null,saveBusy=false,searchTimer,productsSeq=0,productsBusy=false,bulkState=null;
   function toast(message){$('toast').textContent=message;$('toast').classList.add('visible');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('visible'),4500);}
   async function api(path,method='GET',data) {
@@ -176,8 +176,26 @@
     $('categoryImage').onchange=async e=>{try{if(!e.target.files[0])return;$('saveEditor').disabled=true;const media=await uploadFile(e.target.files[0]);$('editorForm').elements.image.value=media.url;$('categoryImageStatus').textContent='Nova imagem pronta. Salve a categoria.';}catch(error){$('formError').textContent=error.message;}finally{$('saveEditor').disabled=false;}};
   }
   async function renderMedia() {
-    const images=await api('media');$('pageContent').innerHTML=header('Biblioteca de imagens','Envie, substitua no cadastro e exclua arquivos que não estão em uso.','<button class="primary" data-action="upload-media">＋ Enviar imagem</button>')+`<input type="file" id="libraryFile" accept="image/jpeg,image/png,image/webp" hidden><div class="media-grid">${images.map(m=>`<article class="media-card"><img src="/uploads/${esc(m.filename)}" alt="${esc(m.original_name)}" loading="lazy"><strong title="${esc(m.original_name)}">${esc(m.original_name)}</strong><small>${m.width} × ${m.height} · ${Math.round(m.bytes/1024)} KB · ${m.links} vínculo(s)</small><div class="actions"><button data-action="copy-media" data-url="uploads/${esc(m.filename)}">Copiar URL</button><button data-action="delete-media" data-media-id="${esc(m.id)}" data-media-links="${m.links}">Excluir</button></div></article>`).join('') || '<div class="empty">Sua biblioteca ainda está vazia.</div>'}</div>`;
+    const images=await api('media');state.mediaImages=images;state.mediaSelected=new Set();
+    $('pageContent').innerHTML=header('Biblioteca de imagens','Envie, substitua no cadastro e exclua arquivos que não estão em uso.','<button class="primary" data-action="upload-media">＋ Enviar imagem</button>')+
+      `<input type="file" id="libraryFile" accept="image/jpeg,image/png,image/webp" hidden>
+      <div class="bulk" id="mediaBulkBar" hidden><strong id="mediaSelectedCount">0 selecionada(s)</strong>
+        <label class="check-label"><input type="checkbox" id="mediaSelectAll"> Selecionar todas</label>
+        <button data-action="bulk-delete-media" class="danger">Excluir selecionadas</button>
+        <button data-action="media-deselect">Desmarcar</button>
+      </div>
+      <div class="media-grid">${images.map(m=>`<article class="media-card" data-media-card="${esc(m.id)}"><label class="check-label media-check"><input type="checkbox" data-media-select="${esc(m.id)}" data-media-links="${m.links}" aria-label="Selecionar ${esc(m.original_name)}"></label><img src="/uploads/${esc(m.filename)}" alt="${esc(m.original_name)}" loading="lazy"><strong title="${esc(m.original_name)}">${esc(m.original_name)}</strong><small>${m.width} × ${m.height} · ${Math.round(m.bytes/1024)} KB · ${m.links} vínculo(s)</small><div class="actions"><button data-action="copy-media" data-url="uploads/${esc(m.filename)}">Copiar URL</button><button data-action="delete-media" data-media-id="${esc(m.id)}" data-media-links="${m.links}">Excluir</button></div></article>`).join('') || '<div class="empty">Sua biblioteca ainda está vazia.</div>'}</div>`;
     $('libraryFile').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{await uploadFile(file);toast('Imagem enviada.');await renderMedia();}catch(error){toast(error.message);}};
+    $('mediaSelectAll').onchange=e=>{document.querySelectorAll('[data-media-select]').forEach(cb=>{if(!Number(cb.dataset.mediaLinks))cb.checked=e.target.checked;});syncMediaSelection();};
+    document.querySelectorAll('[data-media-select]').forEach(cb=>cb.onchange=syncMediaSelection);
+  }
+  function syncMediaSelection(){
+    state.mediaSelected=new Set([...document.querySelectorAll('[data-media-select]:checked')].map(cb=>cb.dataset.mediaSelect));
+    const bar=$('mediaBulkBar');if(!bar)return;
+    bar.hidden=!state.mediaSelected.size;
+    $('mediaSelectedCount').textContent=`${state.mediaSelected.size} selecionada(s)`;
+    const all=document.getElementById('mediaSelectAll');
+    if(all){const total=document.querySelectorAll('[data-media-select]').length;all.checked=total>0&&state.mediaSelected.size===total;}
   }
   async function renderImport() {
     state.preview=null;bulkState={zipBuffer:null,plan:new Map(),uploaded:new Map(),unmatched:[],overflow:[],ignored:[],report:null,zipFile:null};
@@ -399,6 +417,17 @@
     }
     if(action==='upload-media')return $('libraryFile').click();
     if(action==='copy-media'){await navigator.clipboard.writeText(new URL('/'+node.dataset.url,location.origin).href);return toast('URL copiada.');}
+    if(action==='media-deselect'){document.querySelectorAll('[data-media-select]').forEach(cb=>cb.checked=false);const all=$('mediaSelectAll');if(all)all.checked=false;return syncMediaSelection();}
+    if(action==='bulk-delete-media'){
+      const ids=[...state.mediaSelected];
+      if(!ids.length){toast('Nenhuma imagem selecionada.');return;}
+      if(!(await confirmed(`Excluir permanentemente ${ids.length} imagem(ns)? Imagens em uso por produtos, categorias, banners ou empresa serão mantidas.`,'Excluir imagens selecionadas')))return;
+      const result=await api('media/bulk-delete','POST',{ids});
+      if(result.deleted)toast(`${result.deleted} imagem(ns) excluída(s).`);
+      else toast('Nenhuma imagem foi excluída.');
+      if(result.skipped.length)setTimeout(()=>toast(`${result.skipped.length} mantida(s) por estar em uso.`),2000);
+      return renderMedia();
+    }
     if(action==='delete-media'){
       const links=Number(node.dataset.mediaLinks||0);
       if(links>0){toast(`Esta imagem está em uso por ${links} vínculo(s) ativo(s) (produto, categoria, campanha ou empresa). Remova o vínculo antes de excluir.`);return;}

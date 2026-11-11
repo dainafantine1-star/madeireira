@@ -1,7 +1,7 @@
 import { transaction, productDTO } from './db.js';
 import { productList, productSelect, getProduct, saveProduct, deleteProduct, bulkProducts } from './products.js';
 import { previewImport, applyImport, exportWooCSV, templateCSV } from './csv.js';
-import { uploadImage, deleteImage } from './media.js';
+import { uploadImage, deleteImage, bulkDeleteImages } from './media.js';
 import { createAdmin, hashPassword, csrfToken, sessionToken } from './auth.js';
 import { audit } from './audit.js';
 import * as v from './validation.js';
@@ -72,6 +72,7 @@ export async function management({db,user,req,url,p,origin}) {
   }
   if(path==='/api/admin/media'&&method==='GET')return ok(db.prepare('SELECT m.*, (SELECT count(*) FROM products WHERE deleted_at IS NULL AND image=\'uploads/\'||m.filename)+(SELECT count(*) FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=\'uploads/\'||m.filename)+(SELECT count(*) FROM categories WHERE image=\'uploads/\'||m.filename)+(SELECT count(*) FROM banners WHERE image=\'uploads/\'||m.filename OR image_mobile=\'uploads/\'||m.filename)+(SELECT count(*) FROM company_settings WHERE json_extract(public_json,\'$.logo\')=\'uploads/\'||m.filename OR json_extract(public_json,\'$.heroImage\')=\'uploads/\'||m.filename) AS links FROM media m ORDER BY created_at DESC').all());
   if(path==='/api/admin/media'&&method==='POST')return {status:201,data:await uploadImage(db,user,p)};
+  if(path==='/api/admin/media/bulk-delete'&&method==='POST')return ok(await bulkDeleteImages(db,user,p.ids));
   const media=path.match(/^\/api\/admin\/media\/([a-f0-9-]{36})$/);
   if(media&&method==='DELETE')return ok(await deleteImage(db,user,media[1]));
   if(path==='/api/admin/audit'&&method==='GET') {
