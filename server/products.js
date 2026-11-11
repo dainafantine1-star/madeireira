@@ -4,10 +4,10 @@ import { quantity } from './validation.js';
 import { audit } from './audit.js';
 
 export const productSelect='SELECT p.*,c.label AS category_label,c.active AS category_active FROM products p JOIN categories c ON c.id=p.category_id';
-export function getProduct(db,id) {const p=db.prepare(`${productSelect} WHERE p.id=? AND p.deleted_at IS NULL`).get(v.integer(id));v.check(p,'Produto inexistente.',404);return p;}
-export function validateProduct(db,p,options={}) {
+export async function getProduct(db,id) {const p=await db.get(`${productSelect} WHERE p.id=? AND p.deleted_at IS NULL`, v.integer(id));v.check(p,'Produto inexistente.',404);return p;}
+export async function validateProduct(db,p,options={}) {
   const category=v.slug(p.category);
-  if(!options.allowNewCategory)v.check(db.prepare('SELECT 1 FROM categories WHERE id=?').get(category),'Categoria inexistente.');
+  if(!options.allowNewCategory)v.check(await db.get('SELECT 1 FROM categories WHERE id=?', category),'Categoria inexistente.');
   const price=v.money(p.price),old=v.money(p.oldPrice ?? null);
   v.check(old===null || (price!==null && old>price),'O preço anterior deve ser maior que o atual.');
   const status=p.status || (old!==null?'promotion':'active');v.check(['active','promotion','unavailable'].includes(status),'Status inválido.');
@@ -20,35 +20,36 @@ export function validateProduct(db,p,options={}) {
   v.check(p.images===undefined || (Array.isArray(p.images)&&p.images.length<=12),'Use até 12 fotos na galeria.');
   const images=[...new Set((p.images || []).map(value=>v.image(value)))].filter(Boolean);
   const stock=p.stock==null?null:p.stock===0?0:quantity(p.stock,unit,100000000);
-  if(image.startsWith('uploads/')) v.check(db.prepare('SELECT 1 FROM media WHERE filename=?').get(image.slice(8)),'Imagem não encontrada.');
-  for(const photo of images) if(photo.startsWith('uploads/')) v.check(db.prepare('SELECT 1 FROM media WHERE filename=?').get(photo.slice(8)),'Foto da galeria não encontrada.');
+  if(image.startsWith('uploads/')) v.check(await db.get('SELECT 1 FROM media WHERE filename=?', image.slice(8)),'Imagem não encontrada.');
+  for(const photo of images) if(photo.startsWith('uploads/')) v.check(await db.get('SELECT 1 FROM media WHERE filename=?', photo.slice(8)),'Foto da galeria não encontrada.');
+  const defaultLowStock=(await settings(db)).defaultLowStock;
   return {
     reference:v.text(p.reference || sku,80),name:v.text(p.name),category_id:category,price_cents:price,
     old_price_cents:status==='promotion'?old:null,description:v.text(p.description ?? '',20000,false),
     short_description:v.text(p.shortDescription ?? '',600,false),images_json:JSON.stringify(images),
     specs_json:v.specs(p.specs || {}),image,commercial_terms:v.text(p.commercialTerms || 'Preço, disponibilidade, entrega e pagamento sujeitos à confirmação.',2000),
     active:v.flag(p.active ?? true),sku,dimensions:v.text(p.dimensions ?? '',200,false),length_mm:p.lengthMm==null?null:v.integer(p.lengthMm,1,1000000),
-    unit,status,featured:v.flag(p.featured ?? false),stock:stock===null?null:Math.ceil(stock),stock_milli:stock===null?null:Math.round(stock*1000),low_stock:v.integer(p.lowStock ?? settings(db).defaultLowStock,0,100000000)
+    unit,status,featured:v.flag(p.featured ?? false),stock:stock===null?null:Math.ceil(stock),stock_milli:stock===null?null:Math.round(stock*1000),low_stock:v.integer(p.lowStock ?? defaultLowStock,0,100000000)
   };
 }
-export function saveProduct(db,user,input,id,action='product_updated') {
-  return transaction(db,()=>writeProduct(db,user,input,id,action));
+export async function saveProduct(db,user,input,id,action='product_updated') {
+  return await transaction(db,async()=>await writeProduct(db,user,input,id,action));
 }
-export function writeProduct(db,user,input,id,action='product_updated') {
-  const before=id?getProduct(db,id):null;
+export async function writeProduct(db,user,input,id,action='product_updated') {
+  const before=id?await getProduct(db,id):null;
   if(before && input.version!==undefined) v.check(input.version===before.version,'Este produto mudou em outra operação. Atualize a lista.',409);
-  const data=validateProduct(db,input),keys=Object.keys(data);
+  const data=await validateProduct(db,input),keys=Object.keys(data);
   let productId=id;
-  if(id) db.prepare(`UPDATE products SET ${keys.map(k=>`${k}=?`).join(',')},version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?`).run(...Object.values(data),id);
-  else {const r=db.prepare(`INSERT INTO products(${keys.join(',')}) VALUES(${keys.map(()=>'?').join(',')})`).run(...Object.values(data));productId=Number(r.lastInsertRowid);}
-  const after=getProduct(db,productId);audit(db,user,before?action:'product_created','product',productId,before,after);return productDTO(after);
+  if(id) await db.run(`UPDATE products SET ${keys.map(k=>`${k}=?`).join(',')},version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?`, ...Object.values(data),id);
+  else {const r=await db.get(`INSERT INTO products(${keys.join(',')}) VALUES(${keys.map(()=>'?').join(',')}) RETURNING id`, ...Object.values(data));productId=Number(r.id);}
+  const after=await getProduct(db,productId);await audit(db,user,before?action:'product_created','product',productId,before,after);return productDTO(after);
 }
-export function deleteProduct(db,user,id,version) {
-  const before=getProduct(db,id);if(version!==undefined)v.check(version===before.version,'Produto alterado. Atualize a lista.',409);
-  db.prepare('UPDATE products SET active=0,deleted_at=CURRENT_TIMESTAMP,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?').run(id);
-  audit(db,user,'product_deleted','product',id,before,{...before,active:0,deleted:true});
+export async function deleteProduct(db,user,id,version) {
+  const before=await getProduct(db,id);if(version!==undefined)v.check(version===before.version,'Produto alterado. Atualize a lista.',409);
+  await db.run('UPDATE products SET active=0,deleted_at=CURRENT_TIMESTAMP,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?', id);
+  await audit(db,user,'product_deleted','product',id,before,{...before,active:0,deleted:true});
 }
-export function productList(db,url) {
+export async function productList(db,url) {
   const q=url.searchParams;
   // Deleted products are kept for history; the archive view restores them.
   const archived=q.get('archived')==='1';
@@ -62,52 +63,52 @@ export function productList(db,url) {
   if(q.get('stock')) {v.check(['low','zero','unmanaged'].includes(q.get('stock')));where.push({low:'p.stock_milli>0 AND p.stock_milli<=p.low_stock*1000',zero:'p.stock_milli=0',unmanaged:'p.stock_milli IS NULL'}[q.get('stock')]);}
   if(q.get('price')) {v.check(['defined','consultation'].includes(q.get('price')));where.push(q.get('price')==='defined'?'p.price_cents IS NOT NULL':'p.price_cents IS NULL');}
   let page=v.integer(Number(q.get('page') || 1),1,1000000);const size=v.integer(Number(q.get('size') || 20),1,100);
-  const orders={name:'p.name COLLATE NOCASE,p.id',newest:'p.id DESC',stock:'p.stock_milli ASC,p.id',price:'p.price_cents ASC,p.id'},sort=q.get('sort') || 'newest';
+  const orders={name:'lower(p.name),p.id',newest:'p.id DESC',stock:'p.stock_milli ASC,p.id',price:'p.price_cents ASC,p.id'},sort=q.get('sort') || 'newest';
   v.check(Object.hasOwn(orders,sort),'Ordenação inválida.');const order=orders[sort];
-  const clause=where.join(' AND '),total=db.prepare(`SELECT count(*) AS n FROM products p WHERE ${clause}`).get(...args).n;
+  const clause=where.join(' AND '),total=(await db.get(`SELECT count(*) AS n FROM products p WHERE ${clause}`, ...args)).n;
   // Clamp an out-of-range page so a stale link lands on the last page instead of empty.
   const lastPage=Math.max(1,Math.ceil(total/size));if(page>lastPage)page=lastPage;
-  return {items:db.prepare(`${productSelect} WHERE ${clause} ORDER BY ${order} LIMIT ? OFFSET ?`).all(...args,size,(page-1)*size).map(productDTO),total,page,size,archived,
-    alerts:db.prepare('SELECT sum(CASE WHEN stock_milli=0 THEN 1 ELSE 0 END) AS zero,sum(CASE WHEN stock_milli>0 AND stock_milli<=low_stock*1000 THEN 1 ELSE 0 END) AS low FROM products WHERE deleted_at IS NULL').get(),
-    archivedTotal:db.prepare('SELECT count(*) AS n FROM products WHERE deleted_at IS NOT NULL').get().n};
+  return {items:(await db.all(`${productSelect} WHERE ${clause} ORDER BY ${order} LIMIT ? OFFSET ?`, ...args,size,(page-1)*size)).map(productDTO),total,page,size,archived,
+    alerts:await db.get('SELECT sum(CASE WHEN stock_milli=0 THEN 1 ELSE 0 END) AS zero,sum(CASE WHEN stock_milli>0 AND stock_milli<=low_stock*1000 THEN 1 ELSE 0 END) AS low FROM products WHERE deleted_at IS NULL'),
+    archivedTotal:(await db.get('SELECT count(*) AS n FROM products WHERE deleted_at IS NOT NULL')).n};
 }
 // Restoring clears the soft-delete flag. A product still without a billing unit
 // cannot go back to an available status, so it returns archived-but-visible.
-export function restoreProduct(db,user,id) {
-  return transaction(db,()=>{
-    const row=db.prepare(`${productSelect} WHERE p.id=? AND p.deleted_at IS NOT NULL`).get(v.integer(id));
+export async function restoreProduct(db,user,id) {
+  return await transaction(db,async()=>{
+    const row=await db.get(`${productSelect} WHERE p.id=? AND p.deleted_at IS NOT NULL`, v.integer(id));
     v.check(row,'Produto não está excluído.',404);
-    db.prepare("UPDATE products SET deleted_at=NULL,active=0,status='unavailable',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(row.id);
-    const after=getProduct(db,row.id);
-    audit(db,user,'product_restored','product',row.id,row,after);
+    await db.run("UPDATE products SET deleted_at=NULL,active=0,status='unavailable',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?", row.id);
+    const after=await getProduct(db,row.id);
+    await audit(db,user,'product_restored','product',row.id,row,after);
     return productDTO(after);
   });
 }
-export function restoreAllProducts(db,user) {
-  return transaction(db,()=>{
-    const rows=db.prepare(`${productSelect} WHERE p.deleted_at IS NOT NULL`).all();
+export async function restoreAllProducts(db,user) {
+  return await transaction(db,async()=>{
+    const rows=await db.all(`${productSelect} WHERE p.deleted_at IS NOT NULL`);
     for(const row of rows) {
-      db.prepare("UPDATE products SET deleted_at=NULL,active=0,status='unavailable',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?").run(row.id);
-      audit(db,user,'product_restored','product',row.id,row,{...row,deleted_at:null,active:0,status:'unavailable'});
+      await db.run("UPDATE products SET deleted_at=NULL,active=0,status='unavailable',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?", row.id);
+      await audit(db,user,'product_restored','product',row.id,row,{...row,deleted_at:null,active:0,status:'unavailable'});
     }
     return {restored:rows.length};
   });
 }
-export function bulkProducts(db,user,input) {
+export async function bulkProducts(db,user,input) {
   v.check(Array.isArray(input.items)&&input.items.length>=1&&input.items.length<=100,'Selecione de 1 a 100 produtos.');
   v.check(['delete','activate','deactivate','available','unavailable','feature','unfeature','price'].includes(input.action),'Ação inválida.');
   v.check(new Set(input.items.map(i=>i.id)).size===input.items.length,'Seleção duplicada.');
-  return transaction(db,()=>{
+  return await transaction(db,async()=>{
     for(const item of input.items) {
-      const row=getProduct(db,item.id);v.integer(item.version);v.check(row.version===item.version,'Um produto da seleção mudou. Atualize a lista.',409);
-      if(input.action==='delete') deleteProduct(db,user,row.id,item.version);
+      const row=await getProduct(db,item.id);v.integer(item.version);v.check(row.version===item.version,'Um produto da seleção mudou. Atualize a lista.',409);
+      if(input.action==='delete') await deleteProduct(db,user,row.id,item.version);
       else {
         const p=productDTO(row);
         if(input.action==='activate') p.active=true;if(input.action==='deactivate')p.active=false;
         if(input.action==='available')p.status=p.oldPrice?'promotion':'active';if(input.action==='unavailable')p.status='unavailable';
         if(input.action==='feature')p.featured=true;if(input.action==='unfeature')p.featured=false;
         if(input.action==='price'){p.price=input.price;p.oldPrice=null;if(p.status==='promotion')p.status='active';}
-        writeProduct(db,user,p,row.id,`bulk_${input.action}`);
+        await writeProduct(db,user,p,row.id,`bulk_${input.action}`);
       }
     }
     return {updated:input.items.length};

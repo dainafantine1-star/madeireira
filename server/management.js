@@ -9,71 +9,71 @@ import { commerce } from './commerce.js';
 
 export async function management({db,user,req,url,p,origin}) {
   const path=url.pathname,method=req.method,ok=data=>({status:200,data});
-  const handled=commerce({db,user,req,url,p});if(handled)return handled;
+  const handled=await commerce({db,user,req,url,p});if(handled)return handled;
   if(path==='/api/admin/me' && method==='GET')return ok({...user,isOwner:!!user.isOwner,csrfToken:csrfToken(sessionToken(req))});
-  if(path==='/api/admin/products/export' && method==='GET') {audit(db,user,'products_exported','catalog','all',null,{format:'woocommerce-csv'});return {csv:exportWooCSV(db,origin),filename:'produtos-woocommerce.csv'};}
+  if(path==='/api/admin/products/export' && method==='GET') {await audit(db,user,'products_exported','catalog','all',null,{format:'woocommerce-csv'});return {csv:await exportWooCSV(db,origin),filename:'produtos-woocommerce.csv'};}
   if(path==='/api/admin/import/template'&&method==='GET')return {csv:templateCSV(),filename:'modelo-produtos.csv'};
-  if(path==='/api/admin/import/preview'&&method==='POST')return ok(previewImport(db,user,p));
-  if(path==='/api/admin/import/apply'&&method==='POST')return ok(applyImport(db,user,p));
+  if(path==='/api/admin/import/preview'&&method==='POST')return ok(await previewImport(db,user,p));
+  if(path==='/api/admin/import/apply'&&method==='POST')return ok(await applyImport(db,user,p));
   if(path==='/api/admin/import/images'&&method==='POST') {
     v.check(Array.isArray(p.items)&&p.items.length>=1&&p.items.length<=6,'Envie de 1 a 6 imagens por lote.');
     const items=[];
     for(const item of p.items)items.push(await uploadImage(db,user,item));
     return ok({items});
   }
-  if(path==='/api/admin/products/bulk'&&method==='POST')return ok(bulkProducts(db,user,p));
-  if(path==='/api/admin/products/restore-all'&&method==='POST')return ok(restoreAllProducts(db,user));
+  if(path==='/api/admin/products/bulk'&&method==='POST')return ok(await bulkProducts(db,user,p));
+  if(path==='/api/admin/products/restore-all'&&method==='POST')return ok(await restoreAllProducts(db,user));
   const restore=path.match(/^\/api\/admin\/products\/(\d+)\/restore$/);
-  if(restore&&method==='POST')return ok(restoreProduct(db,user,Number(restore[1])));
-  if(path==='/api/admin/products'&&method==='GET')return ok(productList(db,url));
-  if(path==='/api/admin/products'&&method==='POST')return {status:201,data:saveProduct(db,user,p)};
+  if(restore&&method==='POST')return ok(await restoreProduct(db,user,Number(restore[1])));
+  if(path==='/api/admin/products'&&method==='GET')return ok(await productList(db,url));
+  if(path==='/api/admin/products'&&method==='POST')return {status:201,data:await saveProduct(db,user,p)};
   const product=path.match(/^\/api\/admin\/products\/(\d+)$/);
   if(product) {
     const id=Number(product[1]);
-    if(method==='GET')return ok(productDTO(getProduct(db,id)));
-    if(method==='PUT')return ok(saveProduct(db,user,p,id));
-    if(method==='PATCH') {v.check(Object.keys(p).every(k=>['price','stock','active','status','featured','version','oldPrice'].includes(k)),'Campo de atalho inválido.');const current=productDTO(getProduct(db,id));return ok(saveProduct(db,user,{...current,...p},id));}
-    if(method==='DELETE'){transaction(db,()=>deleteProduct(db,user,id,url.searchParams.has('version')?v.integer(Number(url.searchParams.get('version'))):undefined));return ok({ok:true});}
+    if(method==='GET')return ok(productDTO(await getProduct(db,id)));
+    if(method==='PUT')return ok(await saveProduct(db,user,p,id));
+    if(method==='PATCH') {v.check(Object.keys(p).every(k=>['price','stock','active','status','featured','version','oldPrice'].includes(k)),'Campo de atalho inválido.');const current=productDTO(await getProduct(db,id));return ok(await saveProduct(db,user,{...current,...p},id));}
+    if(method==='DELETE'){await transaction(db,async()=>await deleteProduct(db,user,id,url.searchParams.has('version')?v.integer(Number(url.searchParams.get('version'))):undefined));return ok({ok:true});}
   }
-  if(path==='/api/admin/categories'&&method==='GET')return ok(db.prepare('SELECT c.*,count(p.id) AS product_count,(SELECT count(*) FROM products WHERE category_id=c.id) AS linked_count FROM categories c LEFT JOIN products p ON p.category_id=c.id AND p.deleted_at IS NULL GROUP BY c.id ORDER BY c.sort_order,c.label').all());
+  if(path==='/api/admin/categories'&&method==='GET')return ok(await db.all('SELECT c.*,count(p.id) AS product_count,(SELECT count(*) FROM products WHERE category_id=c.id) AS linked_count FROM categories c LEFT JOIN products p ON p.category_id=c.id AND p.deleted_at IS NULL GROUP BY c.id ORDER BY c.sort_order,c.label'));
   const category=path.match(/^\/api\/admin\/categories\/([a-z0-9-]+)$/);
   if(category&&method==='DELETE') {
     const id=category[1];
-    const result=transaction(db,()=>{
-      const before=db.prepare('SELECT * FROM categories WHERE id=?').get(id);
+    const result=await transaction(db,async()=>{
+      const before=await db.get('SELECT * FROM categories WHERE id=?', id);
       v.check(before,'Categoria inexistente.',404);
       if(url.searchParams.has('version'))v.check(before.version===Number(url.searchParams.get('version')),'Categoria alterada. Atualize a lista.',409);
-      const linked=db.prepare('SELECT count(*) AS n FROM products WHERE category_id=?').get(id).n;
+      const linked=(await db.get('SELECT count(*) AS n FROM products WHERE category_id=?', id)).n;
       let moved=0,target=null;
       if(linked>0) {
         const rawTarget=url.searchParams.get('target')||'';
         v.check(rawTarget,'Informe outra categoria de destino para os produtos.',400);
         target=v.slug(rawTarget);
         v.check(target!==id,'Escolha uma categoria de destino diferente.',400);
-        const destination=db.prepare('SELECT id FROM categories WHERE id=?').get(target);
+        const destination=await db.get('SELECT id FROM categories WHERE id=?', target);
         v.check(destination,'Categoria de destino inexistente.',404);
-        db.prepare('UPDATE products SET category_id=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE category_id=?').run(target,id);
+        await db.run('UPDATE products SET category_id=?,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE category_id=?', target,id);
         moved=linked;
       }
-      db.prepare('DELETE FROM categories WHERE id=?').run(id);
+      await db.run('DELETE FROM categories WHERE id=?', id);
       const after={...before,deleted:true,movedProducts:moved,movedTo:target};
-      audit(db,user,'category_deleted','category',id,before,after);
+      await audit(db,user,'category_deleted','category',id,before,after);
       return {ok:true,moved};
     });
     return ok(result);
   }
   if((path==='/api/admin/categories'&&method==='POST')||(category&&method==='PUT')) {
-    const result=transaction(db,()=>{
-      const id=category?.[1] || v.slug(p.slug || p.id),before=category?db.prepare('SELECT * FROM categories WHERE id=?').get(id):null;
+    const result=await transaction(db,async()=>{
+      const id=category?.[1] || v.slug(p.slug || p.id),before=category?await db.get('SELECT * FROM categories WHERE id=?', id):null;
       if(category){v.check(before,'Categoria inexistente.',404);if(p.version!==undefined)v.check(before.version===p.version,'Categoria alterada. Atualize a lista.',409);}
       const label=v.text(p.label,100),slug=v.slug(p.slug || before?.slug || id),image=v.image(p.image || ''),icon=v.text(p.icon || '',20,false),order=v.integer(p.sortOrder ?? p.sort_order ?? 0,0,10000),active=v.flag(p.active);
-      if(image.startsWith('uploads/'))v.check(db.prepare('SELECT 1 FROM media WHERE filename=?').get(image.slice(8)),'Imagem inexistente.');
-      if(before)db.prepare('UPDATE categories SET label=?,slug=?,image=?,icon=?,sort_order=?,active=?,version=version+1 WHERE id=?').run(label,slug,image,icon,order,active,id);
-      else db.prepare('INSERT INTO categories(id,label,slug,image,icon,sort_order,active) VALUES(?,?,?,?,?,?,?)').run(id,label,slug,image,icon,order,active);
-      const after=db.prepare('SELECT * FROM categories WHERE id=?').get(id);audit(db,user,before?'category_updated':'category_created','category',id,before,after);return after;
+      if(image.startsWith('uploads/'))v.check(await db.get('SELECT 1 FROM media WHERE filename=?', image.slice(8)),'Imagem inexistente.');
+      if(before)await db.run('UPDATE categories SET label=?,slug=?,image=?,icon=?,sort_order=?,active=?,version=version+1 WHERE id=?', label,slug,image,icon,order,active,id);
+      else await db.run('INSERT INTO categories(id,label,slug,image,icon,sort_order,active) VALUES(?,?,?,?,?,?,?)', id,label,slug,image,icon,order,active);
+      const after=await db.get('SELECT * FROM categories WHERE id=?', id);await audit(db,user,before?'category_updated':'category_created','category',id,before,after);return after;
     });return {status:category?200:201,data:result};
   }
-  if(path==='/api/admin/media'&&method==='GET')return ok(db.prepare('SELECT m.*, (SELECT count(*) FROM products WHERE deleted_at IS NULL AND image=\'uploads/\'||m.filename)+(SELECT count(*) FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=\'uploads/\'||m.filename)+(SELECT count(*) FROM categories WHERE image=\'uploads/\'||m.filename)+(SELECT count(*) FROM banners WHERE image=\'uploads/\'||m.filename OR image_mobile=\'uploads/\'||m.filename)+(SELECT count(*) FROM company_settings WHERE json_extract(public_json,\'$.logo\')=\'uploads/\'||m.filename OR json_extract(public_json,\'$.heroImage\')=\'uploads/\'||m.filename) AS links FROM media m ORDER BY created_at DESC').all());
+  if(path==='/api/admin/media'&&method==='GET')return ok(await db.all('SELECT m.*, (SELECT count(*) FROM products WHERE deleted_at IS NULL AND image=\'uploads/\'||m.filename)+(SELECT count(*) FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=\'uploads/\'||m.filename)+(SELECT count(*) FROM categories WHERE image=\'uploads/\'||m.filename)+(SELECT count(*) FROM banners WHERE image=\'uploads/\'||m.filename OR image_mobile=\'uploads/\'||m.filename)+(SELECT count(*) FROM company_settings WHERE json_extract(public_json,\'$.logo\')=\'uploads/\'||m.filename OR json_extract(public_json,\'$.heroImage\')=\'uploads/\'||m.filename) AS links FROM media m ORDER BY created_at DESC'));
   if(path==='/api/admin/media'&&method==='POST')return {status:201,data:await uploadImage(db,user,p)};
   if(path==='/api/admin/media/bulk-delete'&&method==='POST')return ok(await bulkDeleteImages(db,user,p.ids));
   const media=path.match(/^\/api\/admin\/media\/([a-f0-9-]{36})$/);
@@ -81,30 +81,30 @@ export async function management({db,user,req,url,p,origin}) {
   if(path==='/api/admin/audit'&&method==='GET') {
     v.check(user.isOwner || user.role==='admin','Acesso restrito.',403);
     const page=v.integer(Number(url.searchParams.get('page') || 1),1,1000000);
-    return ok({items:db.prepare('SELECT * FROM audit_log ORDER BY id DESC LIMIT 50 OFFSET ?').all((page-1)*50),total:db.prepare('SELECT count(*) AS n FROM audit_log').get().n,page});
+    return ok({items:await db.all('SELECT * FROM audit_log ORDER BY id DESC LIMIT 50 OFFSET ?', (page-1)*50),total:(await db.get('SELECT count(*) AS n FROM audit_log')).n,page});
   }
   if(path==='/api/admin/users' || /^\/api\/admin\/users\//.test(path)) {
     v.check(user.isOwner,'Somente o proprietário gerencia acessos.',403);
-    if(path==='/api/admin/users'&&method==='GET')return ok(db.prepare('SELECT id,email,role,active,is_owner AS isOwner,created_at FROM admin_users ORDER BY is_owner DESC,id').all());
-    if(path==='/api/admin/users'&&method==='POST')return {status:201,data:transaction(db,()=>{const created=createAdmin(db,p);const active=v.flag(p.active ?? true);db.prepare('UPDATE admin_users SET active=? WHERE id=?').run(active,created.id);audit(db,user,'user_created','user',created.id,null,{email:p.email,role:p.role || 'admin',active});return created;})};
+    if(path==='/api/admin/users'&&method==='GET')return ok(await db.all('SELECT id,email,role,active,is_owner AS isOwner,created_at FROM admin_users ORDER BY is_owner DESC,id'));
+    if(path==='/api/admin/users'&&method==='POST')return {status:201,data:await transaction(db,async()=>{const created=await createAdmin(db,p);const active=v.flag(p.active ?? true);await db.run('UPDATE admin_users SET active=? WHERE id=?', active,created.id);await audit(db,user,'user_created','user',created.id,null,{email:p.email,role:p.role || 'admin',active});return created;})};
     const match=path.match(/^\/api\/admin\/users\/(\d+)$/);
-    if(match&&method==='PUT')return ok(transaction(db,()=>{
-      const before=db.prepare('SELECT id,email,role,active,is_owner AS isOwner FROM admin_users WHERE id=?').get(Number(match[1]));v.check(before,'Usuário inexistente.',404);
+    if(match&&method==='PUT')return ok(await transaction(db,async()=>{
+      const before=await db.get('SELECT id,email,role,active,is_owner AS isOwner FROM admin_users WHERE id=?', Number(match[1]));v.check(before,'Usuário inexistente.',404);
       v.check(!before.isOwner,'O acesso do proprietário não pode ser desativado ou rebaixado.',403);
       v.check(['admin','editor'].includes(p.role),'Perfil inválido.');const active=v.flag(p.active);
-      db.prepare('UPDATE admin_users SET role=?,active=? WHERE id=?').run(p.role,active,before.id);
-      if(p.password)db.prepare('UPDATE admin_users SET password_hash=? WHERE id=?').run(hashPassword(p.password),before.id);
-      db.prepare('DELETE FROM admin_sessions WHERE user_id=?').run(before.id);
-      audit(db,user,'user_updated','user',before.id,before,{email:before.email,role:p.role,active,passwordReset:!!p.password});return {ok:true};
+      await db.run('UPDATE admin_users SET role=?,active=? WHERE id=?', p.role,active,before.id);
+      if(p.password)await db.run('UPDATE admin_users SET password_hash=? WHERE id=?', hashPassword(p.password),before.id);
+      await db.run('DELETE FROM admin_sessions WHERE user_id=?', before.id);
+      await audit(db,user,'user_updated','user',before.id,before,{email:before.email,role:p.role,active,passwordReset:!!p.password});return {ok:true};
     }));
   }
   if(path==='/api/admin/password'&&method==='PUT') {
     const { scryptSync, timingSafeEqual }=await import('node:crypto');
-    const found=db.prepare('SELECT password_hash FROM admin_users WHERE id=?').get(user.id);const [salt,hash]=found.password_hash.split(':');
+    const found=await db.get('SELECT password_hash FROM admin_users WHERE id=?', user.id);const [salt,hash]=found.password_hash.split(':');
     v.text(p.currentPassword,200);v.check(timingSafeEqual(scryptSync(p.currentPassword,salt,64),Buffer.from(hash,'hex')),'Senha atual inválida.',400);
     const passwordHash=hashPassword(p.password);
-    transaction(db,()=>{db.prepare('UPDATE admin_users SET password_hash=? WHERE id=?').run(passwordHash,user.id);db.prepare('DELETE FROM admin_sessions WHERE user_id=?').run(user.id);audit(db,user,'password_changed','user',user.id,null,{sessionsRevoked:true});});return ok({ok:true});
+    await transaction(db,async()=>{await db.run('UPDATE admin_users SET password_hash=? WHERE id=?', passwordHash,user.id);await db.run('DELETE FROM admin_sessions WHERE user_id=?', user.id);await audit(db,user,'password_changed','user',user.id,null,{sessionsRevoked:true});});return ok({ok:true});
   }
-  if(path==='/api/admin/revoke-sessions'&&method==='POST'){transaction(db,()=>{db.prepare('DELETE FROM admin_sessions WHERE user_id=?').run(user.id);audit(db,user,'sessions_revoked','user',user.id,null,{all:true});});return ok({ok:true});}
+  if(path==='/api/admin/revoke-sessions'&&method==='POST'){await transaction(db,async()=>{await db.run('DELETE FROM admin_sessions WHERE user_id=?', user.id);await audit(db,user,'sessions_revoked','user',user.id,null,{all:true});});return ok({ok:true});}
   return null;
 }

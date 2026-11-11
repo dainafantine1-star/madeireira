@@ -44,7 +44,7 @@ function slugifyCategory(label) {
 }
 // Resolves the CSV category cell against existing categories; a new name is
 // reported as pending so the apply step can create it inside the same transaction.
-function resolveCategory(db, raw) {
+async function resolveCategory(db, raw) {
   const label=String(raw ?? '').trim();
   v.check(label,'Informe a categoria.');v.check(label.length<=100,'Categoria muito longa. Use até 100 caracteres.');
   const slug=slugifyCategory(label);
@@ -53,9 +53,9 @@ function resolveCategory(db, raw) {
   if(/^[a-z0-9][a-z0-9-]{0,79}$/.test(label))candidates.push(label);
   if(!candidates.includes(slug))candidates.push(slug);
   for(const candidate of candidates) {
-    const byId=db.prepare('SELECT id,slug FROM categories WHERE id=?').get(candidate);
+    const byId=await db.get('SELECT id,slug FROM categories WHERE id=?', candidate);
     if(byId)return {id:byId.id,slug:byId.slug,label,create:false};
-    const bySlug=db.prepare('SELECT id,slug FROM categories WHERE slug=?').get(candidate);
+    const bySlug=await db.get('SELECT id,slug FROM categories WHERE slug=?', candidate);
     if(bySlug)return {id:bySlug.id,slug:bySlug.slug,label,create:false};
   }
   return {id:slug,slug,label,create:true};
@@ -67,7 +67,7 @@ function convert(row,old,defaultLowStock=5) {
     unit:row.unit || 'un',description:row.description || '',image:row.image || old?.image || '',specs:old?.specs || {},
     commercialTerms:row.commercialTerms || old?.commercialTerms || 'Preço, disponibilidade, entrega e pagamento sujeitos à confirmação.'};
 }
-export function previewImport(db,user,input) {
+export async function previewImport(db,user,input) {
   v.check(['create','update','upsert','skip'].includes(input.mode),'Modo de importação inválido.');
   const seen=new Set(),rows=[];
   for(const entry of parseCSV(input.csv)) {
@@ -75,7 +75,7 @@ export function previewImport(db,user,input) {
     try {
       v.check(entry.values,'Quantidade de colunas incorreta.');const key=entry.values.sku.toLowerCase();
       v.check(!seen.has(key),'SKU repetido no arquivo.');seen.add(key);
-      const found=db.prepare(`${productSelect} WHERE p.sku=? COLLATE NOCASE`).get(entry.values.sku);
+      const found=await db.get(`${productSelect} WHERE lower(p.sku)=lower(?)`, entry.values.sku);
       v.check(!found?.deleted_at,'SKU pertence a produto excluído. Use um novo SKU.');
       if(found&&input.mode==='skip') {
         result.operation='skip';result.id=found.id;result.version=found.version;result.product=productDTO(found);
@@ -83,30 +83,30 @@ export function previewImport(db,user,input) {
       }
       v.check(input.mode!=='create'||!found,'SKU já existe; selecione Atualizar, Ignorar ou Criar e atualizar.');
       v.check(input.mode!=='update'||found,'SKU não encontrado para atualização.');
-      const category=resolveCategory(db,entry.values.category);
-      const product=convert(entry.values,found?productDTO(found):null,settings(db).defaultLowStock);
+      const category=await resolveCategory(db,entry.values.category);
+      const product=convert(entry.values,found?productDTO(found):null,await settings(db).defaultLowStock);
       product.category=category.id;
       // Draft import keeps new rows unpublished so a bulk load can be reviewed
       // before it reaches the storefront. Existing products keep their current
       // visibility — re-importing a price must not take a live product offline.
       if(input.draft&&!found){product.active=false;}
-      validateProduct(db,product,{allowNewCategory:category.create});
+      await validateProduct(db,product,{allowNewCategory:category.create});
       result.product=product;
       if(category.create)result.pendingCategory={id:category.id,slug:category.slug,label:category.label};
       result.id=found?.id || null;result.version=found?.version || null;result.operation=found?'update':'create';
     }catch(error){result.errors.push(error.status?error.message:'Não foi possível validar esta linha.');}
     rows.push(result);
   }
-  db.prepare('DELETE FROM import_previews WHERE expires_at<? AND applied_at IS NULL').run(Date.now());
+  await db.run('DELETE FROM import_previews WHERE expires_at<? AND applied_at IS NULL', Date.now());
   const id=randomUUID(),expiresAt=Date.now()+15*60*1000;
   // Rows go back to the browser because the ZIP importer pairs each SKU with its
   // images before confirming. The stored payload keeps only what applyImport needs.
   const payload=rows.map(r=>({id:r.id,version:r.version,operation:r.operation,product:r.product,pendingCategory:r.pendingCategory,errors:r.errors}));
-  db.prepare('INSERT INTO import_previews(id,actor_id,payload_json,expires_at) VALUES(?,?,?,?)').run(id,user.id,JSON.stringify(payload),expiresAt);
+  await db.run('INSERT INTO import_previews(id,actor_id,payload_json,expires_at) VALUES(?,?,?,?)', id,user.id,JSON.stringify(payload),expiresAt);
   const errors=rows.filter(r=>r.errors.length).map(r=>({line:r.line,sku:r.sku,name:r.name,errors:r.errors}));
   // A file whose SKUs match nothing in the catalogue creates duplicates instead of
   // updating. Surface that before the operator confirms.
-  const active=db.prepare('SELECT count(*) AS n FROM products WHERE deleted_at IS NULL').get().n;
+  const active=(await db.get('SELECT count(*) AS n FROM products WHERE deleted_at IS NULL')).n;
   const create=rows.filter(r=>r.operation==='create').length,update=rows.filter(r=>r.operation==='update').length;
   const warning=active>0&&update===0&&create>0
     ? `Nenhum SKU da planilha corresponde aos ${active} produto(s) do catálogo. A importação vai criar ${create} produto(s) novos e manter os existentes. Para atualizar os atuais, os SKUs precisam ser os mesmos.`
@@ -114,7 +114,7 @@ export function previewImport(db,user,input) {
   return {id,expiresAt,rows,valid:errors.length===0,errors:errors.slice(0,200),truncated:errors.length>200,warning,
     summary:{total:rows.length,errors:errors.length,create,update,ignored:rows.filter(r=>r.operation==='skip').length,newCategories:new Set(rows.filter(r=>r.pendingCategory).map(r=>r.pendingCategory.id)).size}};
 }
-export function applyImport(db,user,input) {
+export async function applyImport(db,user,input) {
   let images=input.images;
   if(images!==undefined) {
     v.check(images&&typeof images==='object'&&!Array.isArray(images),'Mapa de imagens inválido.');
@@ -124,37 +124,37 @@ export function applyImport(db,user,input) {
       for(const url of list)v.image(url);
     }
   }
-  return transaction(db,()=>{
-    const found=db.prepare('SELECT * FROM import_previews WHERE id=? AND actor_id=?').get(v.text(input.previewId,100),user.id);
+  return await transaction(db,async()=>{
+    const found=await db.get('SELECT * FROM import_previews WHERE id=? AND actor_id=?', v.text(input.previewId,100),user.id);
     v.check(found,'Prévia inexistente.',404);if(found.applied_at)return JSON.parse(found.result_json);
     v.check(found.expires_at>Date.now(),'Prévia expirada. Gere novamente.',409);
     const rows=JSON.parse(found.payload_json);v.check(rows.every(r=>!r.errors.length),'Corrija as linhas com erro antes de importar.');
     const newCategories=[];
     for(const row of rows) {
       const pending=row.pendingCategory;if(!pending)continue;
-      const existing=db.prepare('SELECT id FROM categories WHERE id=?').get(pending.id)||db.prepare('SELECT id FROM categories WHERE slug=?').get(pending.slug);
+      const existing=await db.get('SELECT id FROM categories WHERE id=?', pending.id)||await db.get('SELECT id FROM categories WHERE slug=?', pending.slug);
       if(existing){if(existing.id!==pending.id)row.product.category=existing.id;continue;}
-      db.prepare('INSERT INTO categories(id,label,slug) VALUES(?,?,?)').run(pending.id,pending.label,pending.slug);
-      audit(db,user,'category_created','category',pending.id,null,{label:pending.label,slug:pending.slug,source:'import'});
+      await db.run('INSERT INTO categories(id,label,slug) VALUES(?,?,?)', pending.id,pending.label,pending.slug);
+      await audit(db,user,'category_created','category',pending.id,null,{label:pending.label,slug:pending.slug,source:'import'});
       newCategories.push(pending.id);
     }
     for(const row of rows) {
       if(row.operation==='skip')continue;
-      if(row.id){const current=db.prepare('SELECT version,deleted_at FROM products WHERE id=?').get(row.id);v.check(current&&!current.deleted_at&&current.version===row.version,'O catálogo mudou após a prévia. Gere outra prévia.',409);}
-      else v.check(!db.prepare('SELECT 1 FROM products WHERE sku=? COLLATE NOCASE').get(row.product.sku),'Um SKU foi cadastrado após a prévia. Gere outra prévia.',409);
+      if(row.id){const current=await db.get('SELECT version,deleted_at FROM products WHERE id=?', row.id);v.check(current&&!current.deleted_at&&current.version===row.version,'O catálogo mudou após a prévia. Gere outra prévia.',409);}
+      else v.check(!(await db.get('SELECT 1 FROM products WHERE lower(sku)=lower(?)', row.product.sku)),'Um SKU foi cadastrado após a prévia. Gere outra prévia.',409);
       const product={...row.product};
       const urls=images&&images[product.sku];
       if(Array.isArray(urls)&&urls.length){product.image=urls[0];product.images=urls.slice(1,13);}
-      writeProduct(db,user,{...product,version:row.version ?? undefined},row.id,'product_imported');
+      await writeProduct(db,user,{...product,version:row.version ?? undefined},row.id,'product_imported');
     }
     const result={created:rows.filter(r=>!r.id&&r.operation!=='skip').length,updated:rows.filter(r=>r.id&&r.operation!=='skip').length,skipped:rows.filter(r=>r.operation==='skip').length,total:rows.length,newCategories:newCategories.length};
-    db.prepare('UPDATE import_previews SET applied_at=CURRENT_TIMESTAMP,result_json=? WHERE id=?').run(JSON.stringify(result),found.id);
-    audit(db,user,'import_applied','import',found.id,null,result);return result;
+    await db.run('UPDATE import_previews SET applied_at=CURRENT_TIMESTAMP,result_json=? WHERE id=?', JSON.stringify(result),found.id);
+    await audit(db,user,'import_applied','import',found.id,null,result);return result;
   });
 }
-export function exportWooCSV(db,base) {
+export async function exportWooCSV(db,base) {
   const headers=['Type','SKU','Name','Published','Is featured?','Visibility in catalog','Short description','Description','In stock?','Stock','Low stock amount','Backorders allowed?','Regular price','Sale price','Categories','Images','Length (cm)','Attribute 1 name','Attribute 1 value(s)','Attribute 1 visible','Attribute 1 global','Attribute 2 name','Attribute 2 value(s)','Attribute 2 visible','Attribute 2 global','Meta: mp_reference','Meta: mp_dimensions','Meta: mp_commercial_terms','Meta: mp_price_on_request'];
-  const rows=db.prepare(`${productSelect} WHERE p.deleted_at IS NULL ORDER BY p.id`).all().map(row=>{
+  const rows=(await db.all(`${productSelect} WHERE p.deleted_at IS NULL ORDER BY p.id`)).map(row=>{
     const p=productDTO(row);return ['simple',p.sku,p.name,p.active&&p.categoryActive?1:-1,p.featured?1:0,'visible',p.shortDescription,p.description,p.available?1:0,p.stock??'',p.lowStock,0,
       p.offer?p.oldPrice:p.price??'',p.offer?p.price:'',row.category_label.replace(/,/g,'\\,'),[...new Set([p.image,...p.images])].filter(Boolean).map(image=>new URL(image,base+'/').href).join(', '),p.lengthMm==null?'':p.lengthMm/10,
       'Unidade de cobrança',p.unit,1,0,'Dimensões',p.dimensions,1,0,p.reference,p.dimensions,p.commercialTerms,p.price==null?'yes':'no'];

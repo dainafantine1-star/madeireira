@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readFile, realpath } from 'node:fs/promises';
 import { resolve, extname, relative, isAbsolute, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { root, openDatabase, catalog, settings, productDTO } from './db.js';
+import { root, openDatabase, catalog, settings, productDTO, db as app_db } from './db.js';
 import { authorize, login, digest, sessionToken, sessionCookie, csrfToken, loginThrottle } from './auth.js';
 import { management } from './management.js';
 import { mediaDirectory } from './media.js';
@@ -22,11 +22,11 @@ async function body(req,max=65536) {
   try { const data=JSON.parse(Buffer.concat(chunks).toString('utf8')); v.check(data && typeof data==='object' && !Array.isArray(data)); return data; }
   catch (e) { if (e.status) throw e; throw new v.HttpError(400,'JSON inválido.'); }
 }
-export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,backgroundTasks=true,readMedia=null}={}) {
+export async function createApp({db=app_db,origin=process.env.PUBLIC_ORIGIN,backgroundTasks=true,readMedia=null}={}) {
   if (process.env.NODE_ENV==='production') v.check(origin && /^https:\/\//.test(origin),'Configure PUBLIC_ORIGIN com HTTPS.');
   const limits=new Map();
-  if(backgroundTasks)snapshot(db);
-  const snapshotTimer=backgroundTasks?setInterval(()=>{try{snapshot(db);}catch(error){console.error(JSON.stringify({event:'snapshot_failed',code:error.code||error.name}));}},300000):null;
+  if(backgroundTasks)await snapshot(db);
+  const snapshotTimer=backgroundTasks?setInterval(()=>{snapshot(db).catch(error=>{console.error(JSON.stringify({event:'snapshot_failed',code:error.code||error.name}));});},300000):null;
   snapshotTimer?.unref();
   const server=createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
@@ -49,42 +49,42 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,ba
           v.check(!req.headers.origin || req.headers.origin===expected,'Origem não permitida.',403);
           v.check(req.headers['sec-fetch-site']!=='cross-site','Origem não permitida.',403);
         }
-        if(path==='/api/health' && method==='GET') {db.prepare('SELECT 1').get();return send(200,{status:'ok'});}
-        if(path==='/api/catalog' && method==='GET') return send(200,catalog(db));
-        if(path==='/api/settings' && method==='GET') return send(200,settings(db));
+        if(path==='/api/health' && method==='GET') {await db.get('SELECT 1');return send(200,{status:'ok'});}
+        if(path==='/api/catalog' && method==='GET') return send(200,await catalog(db));
+        if(path==='/api/settings' && method==='GET') return send(200,await settings(db));
         if(path==='/api/quotes' && method==='POST') {
           limit.quotes=(limit.quotes || 0)+1;
           v.check(limit.quotes<=10,'Muitos orçamentos. Aguarde um minuto.',429);
-          return send(201,createQuote(db,await body(req,786432)));
+          return send(201,await createQuote(db,await body(req,786432)));
         }
         if(path==='/api/events' && method==='POST') {
-          return send(201,recordEvent(db,await body(req)));
+          return send(201,await recordEvent(db,await body(req)));
         }
         if(path==='/api/admin/login' && method==='POST') {
-          v.check(++limit.logins<=5,'Muitas tentativas. Aguarde um minuto.',429);const input=await body(req);loginThrottle(db,input.email,ip);
-          const auth=login(db,input);
+          v.check(++limit.logins<=5,'Muitas tentativas. Aguarde um minuto.',429);const input=await body(req);await loginThrottle(db,input.email,ip);
+          const auth=await login(db,input);
           if(input.session==='cookie') {
-            const previous=sessionToken(req);if(previous)db.prepare('DELETE FROM admin_sessions WHERE token_hash=?').run(digest(previous));
+            const previous=sessionToken(req);if(previous)await db.run('DELETE FROM admin_sessions WHERE token_hash=?', digest(previous));
             res.setHeader('Set-Cookie',sessionCookie(auth.token,auth.expiresAt,process.env.NODE_ENV==='production'));
             return send(200,{expiresAt:auth.expiresAt,csrfToken:csrfToken(auth.token)});
           }
           return send(200,auth);
         }
         if(path.startsWith('/api/admin/')) {
-          const user=authorize(db,req,path.includes('/users') || path==='/api/admin/settings');
+          const user=await authorize(db,req,path.includes('/users') || path==='/api/admin/settings');
           // CSV and ZIP uploads are large; they are not counted in the small-change limit.
           if(!['GET','HEAD'].includes(method) && !path.startsWith('/api/admin/import/')) {limit.sensitive=(limit.sensitive || 0)+1;v.check(limit.sensitive<=50,'Muitas alterações. Aguarde um minuto.',429);}
           const p=['POST','PUT','PATCH'].includes(method) ? await body(req,path==='/api/admin/media'?7200000:path==='/api/admin/import/images'?6500000:path==='/api/admin/import/preview'?8800000:path==='/api/admin/import/apply'?1600000:/^\/api\/admin\/products(?:\/\d+)?$/.test(path)?196608:65536) : null;
-          if(path==='/api/admin/logout' && method==='POST') {db.prepare('DELETE FROM admin_sessions WHERE token_hash=?').run(digest(sessionToken(req)));res.setHeader('Set-Cookie',sessionCookie('',0,process.env.NODE_ENV==='production'));return send(200,{ok:true});}
+          if(path==='/api/admin/logout' && method==='POST') {await db.run('DELETE FROM admin_sessions WHERE token_hash=?', digest(sessionToken(req)));res.setHeader('Set-Cookie',sessionCookie('',0,process.env.NODE_ENV==='production'));return send(200,{ok:true});}
           const handled=await management({db,user,req,url,p,origin:origin || `http://${req.headers.host}`});
           if(handled) {
             if(handled.csv!==undefined){res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':`attachment; filename="${handled.filename}"`,'Cache-Control':'no-store'});return res.end(handled.csv);}
             return send(handled.status,handled.data);
           }
-          if(path==='/api/admin/catalog' && method==='GET') return send(200,{...catalog(db),products:db.prepare('SELECT p.*,c.label AS category_label,c.active AS category_active FROM products p JOIN categories c ON c.id=p.category_id WHERE p.deleted_at IS NULL').all().map(productDTO),categories:db.prepare('SELECT * FROM categories').all()});
+          if(path==='/api/admin/catalog' && method==='GET') return send(200,{...await catalog(db),products:(await db.all('SELECT p.*,c.label AS category_label,c.active AS category_active FROM products p JOIN categories c ON c.id=p.category_id WHERE p.deleted_at IS NULL')).map(productDTO),categories:await db.all('SELECT * FROM categories')});
           if((path==='/api/admin/metrics'||path==='/api/admin/reports/export')&&method==='GET') {
             v.check(user.isOwner||user.role==='admin','Acesso restrito.',403);
-            const data=metrics(db,url.searchParams);
+            const data=await metrics(db,url.searchParams);
             if(path.endsWith('/export')){const type=url.searchParams.get('type');const csv=reportCSV(data,type);res.writeHead(200,{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':`attachment; filename="relatorio-${type}.csv"`,'Cache-Control':'no-store'});return res.end(csv);}
             return send(200,data);
           }
@@ -99,12 +99,12 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,ba
       catch { throw new v.HttpError(400,'URL inválida.'); }
       v.check(!requested.split('/').some(segment=>segment==='.'||segment==='..'),'Página inexistente.',404);
       if(/^\/uploads\/[a-f0-9-]{36}(?:-(?:320|640|960))?\.(?:webp|png)$/.test(requested)) {
-        const filename=requested.slice(9);v.check(db.prepare('SELECT 1 FROM media WHERE filename=? UNION SELECT 1 FROM media_variants WHERE filename=?').get(filename,filename),'Imagem inexistente.',404);
+        const filename=requested.slice(9);v.check(await db.get('SELECT 1 FROM media WHERE filename=? UNION SELECT 1 FROM media_variants WHERE filename=?', filename,filename),'Imagem inexistente.',404);
         const bytes=readMedia?await readMedia(filename):await readFile(resolve(mediaDirectory(),filename));res.writeHead(200,{'Content-Type':filename.endsWith('.png')?'image/png':'image/webp','Cache-Control':'public, max-age=31536000, immutable'});return res.end(method==='HEAD'?undefined:bytes);
       }
       const productPage=requested.match(/^\/produto\/(\d+)(?:\/[a-z0-9-]+)?\/?$/);
       if(productPage){
-        const visible=catalog(db).products.some(p=>p.id===Number(productPage[1]));
+        const visible=await catalog(db).products.some(p=>p.id===Number(productPage[1]));
         if(!visible){res.writeHead(404,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(method==='HEAD'?undefined:'<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Produto indisponível</title><h1>Produto não encontrado</h1><p>Este produto não está disponível no catálogo.</p><a href="/">Voltar para a loja</a></html>');}
         requested='/index.html';
       }
@@ -132,7 +132,9 @@ export function createApp({db=openDatabase(),origin=process.env.PUBLIC_ORIGIN,ba
   return server;
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
-  const db=openDatabase();const stopBackups=scheduleBackups(db);const server=createApp({db});const port=Number(process.env.PORT || 3000);
+  const { openDatabase, closeDatabase } = await import('./db.js');
+  await openDatabase();
+  const stopBackups=await scheduleBackups(app_db);const server=await createApp({db:app_db});const port=Number(process.env.PORT || 3000);
   server.listen(port,process.env.HOST || '127.0.0.1',()=>console.log(`Loja disponível na porta ${port}.`));
-  for(const signal of ['SIGTERM','SIGINT']) process.once(signal,()=>server.close(async()=>{await stopBackups();db.close();process.exit(0);}));
+  for(const signal of ['SIGTERM','SIGINT']) process.once(signal,()=>server.close(async()=>{await stopBackups();await closeDatabase();process.exit(0);}));
 }

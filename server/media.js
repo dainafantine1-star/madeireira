@@ -9,7 +9,7 @@ import { withMediaLock } from './media-lock.js';
 import { requestContext } from './request-context.js';
 
 export function mediaDirectory() {return requestContext.getStore()?.uploads || process.env.UPLOAD_DIR || resolve(dirname(process.env.DATABASE_PATH || resolve(root,'storage/store.sqlite')),'uploads');}
-export function uploadImage(db,user,input){return withMediaLock(()=>upload(db,user,input));}
+export async function uploadImage(db,user,input){return withMediaLock(async()=>await upload(db,user,input));}
 async function upload(db,user,input) {
   v.check(input.usage===undefined||['photo','logo','banner'].includes(input.usage),'Uso de imagem inválido.');
   v.text(input.name,200);v.check(['image/jpeg','image/png','image/webp'].includes(input.type),'Use JPEG, PNG ou WebP.');
@@ -26,16 +26,16 @@ async function upload(db,user,input) {
   await writeFile(path,output,{flag:'wx'});
   const variants=[];
   try{for(const width of [320,640,960]){if(width>=info.width)continue;const data=await sharp(output).resize({width}).webp(input.usage==='logo'?{lossless:true}:{quality:80}).toBuffer();const filename=`${id}-${width}.webp`;await writeFile(resolve(mediaDirectory(),filename),data,{flag:'wx'});variants.push({width,filename,bytes:data.length});}}catch(error){await Promise.all([path,...variants.map(x=>resolve(mediaDirectory(),x.filename))].map(p=>unlink(p).catch(()=>{})));throw error;}
-  try {transaction(db,()=>{db.prepare('INSERT INTO media(id,filename,original_name,mime,bytes,width,height,created_by) VALUES(?,?,?,?,?,?,?,?)').run(id,filename,input.name,'image/webp',output.length,info.width,info.height,user.id);for(const x of variants)db.prepare('INSERT INTO media_variants VALUES(?,?,?,?)').run(id,x.width,x.filename,x.bytes);audit(db,user,'image_uploaded','media',id,null,{filename,bytes:output.length});});}
+  try {await transaction(db,async()=>{await db.run('INSERT INTO media(id,filename,original_name,mime,bytes,width,height,created_by) VALUES(?,?,?,?,?,?,?,?)', id,filename,input.name,'image/webp',output.length,info.width,info.height,user.id);for(const x of variants)await db.run('INSERT INTO media_variants VALUES(?,?,?,?)', id,x.width,x.filename,x.bytes);await audit(db,user,'image_uploaded','media',id,null,{filename,bytes:output.length});});}
   catch(error){await Promise.all([path,...variants.map(x=>resolve(mediaDirectory(),x.filename))].map(p=>unlink(p).catch(()=>{})));throw error;}
   return {id,url:`uploads/${filename}`,width:info.width,height:info.height};
 }
-export function deleteImage(db,user,id){return withMediaLock(()=>remove(db,user,id));}
-export function bulkDeleteImages(db,user,ids){return withMediaLock(()=>bulkRemove(db,user,ids));}
-function linkReason(db,url) {
-  if(db.prepare('SELECT 1 FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=?').get(url))return 'galeria de produto';
-  if(db.prepare('SELECT 1 FROM products WHERE deleted_at IS NULL AND image=? UNION SELECT 1 FROM categories WHERE image=?').get(url,url))return 'produto ou categoria';
-  if(db.prepare("SELECT 1 FROM banners WHERE image=? OR image_mobile=? UNION SELECT 1 FROM company_settings WHERE json_extract(public_json,'$.logo')=? OR json_extract(public_json,'$.heroImage')=?").get(url,url,url,url))return 'empresa ou campanha';
+export async function deleteImage(db,user,id){return withMediaLock(async()=>await remove(db,user,id));}
+export async function bulkDeleteImages(db,user,ids){return withMediaLock(async()=>await bulkRemove(db,user,ids));}
+async function linkReason(db,url) {
+  if(await db.get('SELECT 1 FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=?', url))return 'galeria de produto';
+  if(await db.get('SELECT 1 FROM products WHERE deleted_at IS NULL AND image=? UNION SELECT 1 FROM categories WHERE image=?', url,url))return 'produto ou categoria';
+  if(await db.get("SELECT 1 FROM banners WHERE image=? OR image_mobile=? UNION SELECT 1 FROM company_settings WHERE json_extract(public_json,'$.logo')=? OR json_extract(public_json,'$.heroImage')=?", url,url,url,url))return 'empresa ou campanha';
   return null;
 }
 async function bulkRemove(db,user,ids) {
@@ -43,25 +43,25 @@ async function bulkRemove(db,user,ids) {
   const deleted=[],skipped=[];
   for(const id of ids) {
     v.text(id,100);
-    const media=db.prepare('SELECT * FROM media WHERE id=?').get(id);
+    const media=await db.get('SELECT * FROM media WHERE id=?', id);
     if(!media){skipped.push({id,reason:'Imagem inexistente.'});continue;}
     const url=`uploads/${media.filename}`;
-    const reason=linkReason(db,url);
+    const reason=await linkReason(db,url);
     if(reason){skipped.push({id,name:media.original_name,reason:`Em uso por ${reason}.`});continue;}
-    const variants=db.prepare('SELECT filename FROM media_variants WHERE media_id=?').all(id);
-    transaction(db,()=>{db.prepare('DELETE FROM media WHERE id=?').run(id);audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});
+    const variants=await db.all('SELECT filename FROM media_variants WHERE media_id=?', id);
+    await transaction(db,async()=>{await db.run('DELETE FROM media WHERE id=?', id);await audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});
     await Promise.all([media.filename,...variants.map(x=>x.filename)].map(filename=>unlink(resolve(mediaDirectory(),filename)).catch(()=>{})));
     deleted.push(id);
   }
   return {deleted:deleted.length,skipped};
 }
 async function remove(db,user,id) {
-  const media=db.prepare('SELECT * FROM media WHERE id=?').get(v.text(id,100));v.check(media,'Imagem inexistente.',404);
+  const media=await db.get('SELECT * FROM media WHERE id=?', v.text(id,100));v.check(media,'Imagem inexistente.',404);
   const url=`uploads/${media.filename}`;
-  const reason=linkReason(db,url);
+  const reason=await linkReason(db,url);
   v.check(!reason,reason==='galeria de produto'?'Foto vinculada à galeria de um produto. Retire-a da galeria antes de excluir.':reason==='produto ou categoria'?'Imagem vinculada a um produto ou categoria. Substitua-a antes de excluir.':'Imagem vinculada à empresa ou campanha. Substitua-a antes de excluir.',409);
-  const variants=db.prepare('SELECT filename FROM media_variants WHERE media_id=?').all(id);
+  const variants=await db.all('SELECT filename FROM media_variants WHERE media_id=?', id);
   // Remove access first; a failed filesystem cleanup leaves an inaccessible orphan.
-  transaction(db,()=>{db.prepare('DELETE FROM media WHERE id=?').run(id);audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});
+  await transaction(db,async()=>{await db.run('DELETE FROM media WHERE id=?', id);await audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});
   await Promise.all([media.filename,...variants.map(x=>x.filename)].map(filename=>unlink(resolve(mediaDirectory(),filename)).catch(()=>{})));return {ok:true};
 }

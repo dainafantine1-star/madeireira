@@ -8,26 +8,27 @@ export function hashPassword(password) {
   const salt = randomBytes(16).toString('hex');
   return `${salt}:${scryptSync(password,salt,64).toString('hex')}`;
 }
-export function createAdmin(db, input) {
+export async function createAdmin(db, input) {
   check(['admin','editor'].includes(input.role || 'admin'),'Perfil inválido.');
-  const result = db.prepare('INSERT INTO admin_users(email,password_hash,role) VALUES(?,?,?)').run(email(input.email), hashPassword(input.password), input.role || 'admin');
-  return { id:Number(result.lastInsertRowid), email:input.email };
+  // RETURNING id replaces SQLite's lastInsertRowid.
+  const row = await db.get('INSERT INTO admin_users(email,password_hash,role) VALUES(?,?,?) RETURNING id', email(input.email), hashPassword(input.password), input.role || 'admin');
+  return { id:Number(row.id), email:input.email };
 }
-export function login(db, input) {
-  const user = db.prepare('SELECT * FROM admin_users WHERE email=? AND active=1').get(email(input.email));
+export async function login(db, input) {
+  const user = await db.get('SELECT * FROM admin_users WHERE email=? AND active=1', email(input.email));
   text(input.password,200); const password = input.password;
   const [salt,expected] = (user?.password_hash || `${'0'.repeat(32)}:${'0'.repeat(128)}`).split(':');
   const actual = scryptSync(password,salt,64);
   check(timingSafeEqual(actual,Buffer.from(expected,'hex')) && !!user, 'Credenciais inválidas.',401);
   const token = randomBytes(32).toString('hex');
   const expiresAt = Date.now()+8*60*60*1000;
-  db.prepare('DELETE FROM admin_sessions WHERE expires_at<=?').run(Date.now());
-  db.prepare('INSERT INTO admin_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(digest(token),user.id,expiresAt);
+  await db.run('DELETE FROM admin_sessions WHERE expires_at<=?', Date.now());
+  await db.run('INSERT INTO admin_sessions(token_hash,user_id,expires_at) VALUES(?,?,?)', digest(token),user.id,expiresAt);
   return { token, expiresAt, role:user.role };
 }
-export function authorize(db, req, adminOnly = false) {
+export async function authorize(db, req, adminOnly = false) {
   const token = sessionToken(req);
-  const user = db.prepare('SELECT u.id,u.email,u.role,u.is_owner AS isOwner,s.expires_at AS expiresAt FROM admin_sessions s JOIN admin_users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1').get(digest(token),Date.now());
+  const user = await db.get('SELECT u.id,u.email,u.role,u.is_owner AS isOwner,s.expires_at AS expiresAt FROM admin_sessions s JOIN admin_users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1', digest(token),Date.now());
   check(user, 'Autenticação necessária.',401); check(!adminOnly || user.isOwner || user.role === 'admin', 'Acesso restrito.',403);
   if (!req.headers.authorization && !['GET','HEAD'].includes(req.method)) check(req.headers['x-csrf-token']===csrfToken(token),'Requisição não autorizada. Atualize a página.',403);
   return user;
@@ -40,20 +41,20 @@ export const csrfToken = token => digest(`csrf:${token}`);
 export function sessionCookie(token, expiresAt, secure) {
   return `mp_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.max(0,Math.floor((expiresAt-Date.now())/1000))}${secure?'; Secure':''}`;
 }
-export function createOwner(db, input) {
-  return transaction(db,()=>{
-    check(!db.prepare('SELECT 1 FROM admin_users WHERE is_owner=1').get(),'O proprietário já foi cadastrado.',409);
+export async function createOwner(db, input) {
+  return await transaction(db,async()=>{
+    check(!(await db.get('SELECT 1 FROM admin_users WHERE is_owner=1')),'O proprietário já foi cadastrado.',409);
     const address=email(input.email);const hash=hashPassword(input.password);
-    check(!db.prepare('SELECT 1 FROM admin_users WHERE email=?').get(address),'Este e-mail já existe. Use outro e-mail para o proprietário.',409);
-    const r=db.prepare("INSERT INTO admin_users(email,password_hash,role,is_owner) VALUES(?,?,'admin',1)").run(address,hash);
-    const user={id:Number(r.lastInsertRowid),email:address};audit(db,user,'owner_created','user',user.id,null,{email:address,isOwner:true});return user;
+    check(!(await db.get('SELECT 1 FROM admin_users WHERE email=?', address)),'Este e-mail já existe. Use outro e-mail para o proprietário.',409);
+    const r=await db.get("INSERT INTO admin_users(email,password_hash,role,is_owner) VALUES(?,?,'admin',1) RETURNING id", address,hash);
+    const user={id:Number(r.id),email:address};await audit(db,user,'owner_created','user',user.id,null,{email:address,isOwner:true});return user;
   });
 }
-export function loginThrottle(db,address,ip) {
-  const now=Date.now();db.prepare('DELETE FROM login_attempts WHERE reset_at<=?').run(now);
+export async function loginThrottle(db,address,ip) {
+  const now=Date.now();await db.run('DELETE FROM login_attempts WHERE reset_at<=?', now);
   for(const key of [digest(`email:${String(address).trim().toLowerCase()}`),digest(`ip:${ip}`)]) {
-    const found=db.prepare('SELECT attempts FROM login_attempts WHERE key=?').get(key);
+    const found=await db.get('SELECT attempts FROM login_attempts WHERE key=?', key);
     check(!found || found.attempts<10,'Muitas tentativas. Aguarde 15 minutos.',429);
   }
-  for(const key of [digest(`email:${String(address).trim().toLowerCase()}`),digest(`ip:${ip}`)]) db.prepare('INSERT INTO login_attempts(key,attempts,reset_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=attempts+1').run(key,now+900000);
+  for(const key of [digest(`email:${String(address).trim().toLowerCase()}`),digest(`ip:${ip}`)]) await db.run('INSERT INTO login_attempts(key,attempts,reset_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET attempts=login_attempts.attempts+1', key,now+900000);
 }

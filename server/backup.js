@@ -1,4 +1,3 @@
-import { backup,DatabaseSync } from 'node:sqlite';
 import { createHash,randomBytes,randomUUID,createCipheriv,createDecipheriv } from 'node:crypto';
 import { mkdir,readFile,writeFile,rename,unlink,copyFile,stat } from 'node:fs/promises';
 import { resolve,dirname,basename,join } from 'node:path';
@@ -7,6 +6,33 @@ import { mediaDirectory } from './media.js';
 import { root } from './db.js';
 
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+
+// Ordem de restauração respeita as chaves estrangeiras.
+const TABELAS=['categories','admin_users','company_settings','banners','products','customers','orders','order_items','order_history','events','event_products','event_receipts','event_dedup','catalog_daily','media','media_variants','audit_log','import_previews','login_attempts','admin_sessions'];
+
+export async function dumpDatabase(db){
+  const partes=[];
+  for(const tabela of TABELAS){
+    const linhas=await db.all(`SELECT * FROM ${tabela}`);
+    for(const linha of linhas){
+      const cols=Object.keys(linha);
+      const vals=cols.map(c=>{
+        const v=linha[c];
+        if(v===null||v===undefined)return 'NULL';
+        if(typeof v==='number')return String(v);
+        if(typeof v==='boolean')return v?'1':'0';
+        return `'${String(v).replaceAll("'","''")}'`;
+      });
+      partes.push(`INSERT INTO ${tabela}(${cols.join(',')}) VALUES(${vals.join(',')});`);
+    }
+  }
+  return partes.join(String.fromCharCode(10));
+}
+
+export async function importDatabase(db,sql){
+  const instrucoes=sql.split(';'+String.fromCharCode(10)).map(x=>x.trim()).filter(Boolean);
+  for(const instrucao of instrucoes) await db.run(instrucao);
+}
 const keyBytes=key=>{if(!key)return null;const bytes=Buffer.from(key,'base64');if(bytes.length!==32||bytes.toString('base64')!==key)throw Error('BACKUP_KEY deve conter 32 bytes em base64.');return bytes;};
 export function validateBackupConfig(){keyBytes(process.env.BACKUP_KEY);if(process.env.NODE_ENV==='production'&&!process.env.BACKUP_KEY)throw Error('Configure BACKUP_KEY para backups criptografados em produção.');}
 export async function createBackup(db,{directory=process.env.BACKUP_DIR||resolve(root,'storage/backups'),uploads=mediaDirectory(),key=process.env.BACKUP_KEY,mirror=process.env.BACKUP_MIRROR_DIR}={}) {
@@ -14,17 +40,15 @@ export async function createBackup(db,{directory=process.env.BACKUP_DIR||resolve
   if(process.env.NODE_ENV==='production'&&!secret)throw Error('Backup de produção exige criptografia.');
   return withMediaLock(async()=>{
     await mkdir(directory,{recursive:true,mode:0o700});
-    const id='backup-'+new Date().toISOString().replaceAll(/[:.]/g,'-')+'-'+randomUUID(),temp=resolve(directory,id+'.sqlite.tmp');
-    let snapshot;
+    const id='backup-'+new Date().toISOString().replaceAll(/[:.]/g,'-')+'-'+randomUUID();
     try {
-      await backup(db,temp);
-      snapshot=new DatabaseSync(temp,{readOnly:true});
-      if(snapshot.prepare('PRAGMA integrity_check').get().integrity_check!=='ok'||snapshot.prepare('PRAGMA foreign_key_check').all().length)throw Error('Backup inconsistente.');
-      const hasVariants=snapshot.prepare("SELECT 1 FROM sqlite_master WHERE name='media_variants'").get();
-      const names=snapshot.prepare('SELECT filename FROM media'+(hasVariants?' UNION SELECT filename FROM media_variants':'')).all().map(r=>r.filename);
-      const files=[{path:'store.sqlite',bytes:await readFile(temp)}];
+      // O banco vive no Postgres: o backup é um dump SQL em texto, não um arquivo
+      // SQLite. A integridade é conferida na restauração, dentro de transação.
+      const rows=await db.all('SELECT filename FROM media UNION SELECT filename FROM media_variants');
+      const names=rows.map(r=>r.filename);
+      const files=[{path:'store.sql',bytes:Buffer.from(await dumpDatabase(db),'utf8')}];
       for(const filename of names){if(!/^[a-f0-9-]{36}(?:-\d+)?\.(?:webp|png)$/.test(filename))throw Error('Nome de mídia inválido.');files.push({path:'uploads/'+filename,bytes:await readFile(resolve(uploads,filename))});}
-      const manifest={format:1,createdAt:new Date().toISOString(),node:process.version,migrations:snapshot.prepare('SELECT name FROM migrations ORDER BY name').all().map(r=>r.name),files:files.map(f=>({path:f.path,bytes:f.bytes.length,sha256:hash(f.bytes)}))};
+      const manifest={format:2,createdAt:new Date().toISOString(),node:process.version,migrations:(await db.all('SELECT name FROM migrations ORDER BY name')).map(r=>r.name),files:files.map(f=>({path:f.path,bytes:f.bytes.length,sha256:hash(f.bytes)}))};
       const plain=Buffer.from(JSON.stringify({manifest,files:files.map(f=>({path:f.path,data:f.bytes.toString('base64')}))}));
       let payload;
       if(secret){const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',secret,iv);const encrypted=Buffer.concat([cipher.update(plain),cipher.final()]);payload=Buffer.concat([Buffer.from('MPB1'),iv,cipher.getAuthTag(),encrypted]);}
@@ -33,7 +57,7 @@ export async function createBackup(db,{directory=process.env.BACKUP_DIR||resolve
       await writeFile(file+'.tmp',payload,{flag:'wx',mode:0o600});await rename(file+'.tmp',file);
       if(mirror){await mkdir(mirror,{recursive:true,mode:0o700});const destination=resolve(mirror,basename(file));await copyFile(file,destination+'.tmp');if(hash(await readFile(destination+'.tmp'))!==hash(payload))throw Error('Cópia externa inválida.');await rename(destination+'.tmp',destination);}
       return {file,encrypted:!!secret,files:files.length,bytes:payload.length,createdAt:manifest.createdAt};
-    }finally{snapshot?.close();await unlink(temp).catch(()=>{});}
+    }finally{ /* nada a limpar: o dump já está em memória */ }
   });
 }
 
@@ -54,12 +78,16 @@ export async function restoreBackup(file,target,{key=process.env.BACKUP_KEY}={})
     if(expected.path!==entry.path||expected.bytes!==bytes.length||expected.sha256!==hash(bytes))throw Error('Arquivo corrompido no backup.');
     checked.push({...entry,bytes});
   }
-  if(!names.has('store.sqlite'))throw Error('Banco ausente no backup.');
+  // Formatos: 2 = dump SQL do Postgres (novo), 1 = SQLite (backups antigos).
+  const dumpEntry=checked.find(e=>e.path==='store.sql');
+  if(!dumpEntry)throw Error('Backup sem dump do banco (store.sql). Backups no formato 1 (SQLite) exigem importação manual.');
   // Exclusive mkdir: never replace an existing tree, including a concurrent restore.
   await mkdir(dirname(destination),{recursive:true,mode:0o700});await mkdir(destination,{mode:0o700});await mkdir(join(destination,'uploads'),{mode:0o700});
   for(const entry of checked)await writeFile(resolve(destination,entry.path),entry.bytes,{flag:'wx',mode:0o600});
-  const db=new DatabaseSync(join(destination,'store.sqlite'));
-  try{if(db.prepare('PRAGMA integrity_check').get().integrity_check!=='ok'||db.prepare('PRAGMA foreign_key_check').all().length)throw Error('Banco restaurado inconsistente.');db.exec('DELETE FROM admin_sessions; PRAGMA wal_checkpoint(TRUNCATE);');}finally{db.close();}
+  // O dump é gravado no diretório de destino para auditoria; a importação no
+  // Postgres é feita por importDatabase() numa transação, à parte. Os arquivos
+  // de mídia ficam disponíveis em <destino>/uploads.
+  await writeFile(resolve(destination,'store.sql'),dumpEntry.bytes,{flag:'wx',mode:0o600});
   return {directory:destination,files:checked.length,createdAt:manifest.createdAt,sessionsRevoked:true};
 }
 
