@@ -10,31 +10,86 @@ export const root = fileURLToPath(new URL('../', import.meta.url));
 
 const connectionString = () => process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
 
+// O schema é configurável para que os testes usem um schema descartável em vez
+// de escrever no banco de produção.
+export const schema = () => process.env.DATABASE_SCHEMA || 'loja';
+// Nome seguro para interpolar em SQL de DDL (não é parâmetro vinculável).
+export function schemaName(value = schema()) {
+  if (!/^[a-z_][a-z0-9_]{0,62}$/.test(value)) throw Error('Nome de schema inválido.');
+  return value;
+}
+
 let poolPromise = null;
+
+function criarPool(nomeSchema = schemaName()) {
+  const { default: pg } = requirePg();
+  const url = connectionString();
+  if (!url) throw Error('Configure DATABASE_URL com a conexão do Postgres.');
+  const local = /localhost|127\.0\.0\.1/.test(url);
+  // O Supabase usa uma CA própria. O certificado está versionado em
+  // server/certs; TLS segue verificado (rejectUnauthorized: true).
+  const caPath = process.env.DATABASE_CA_PATH || fileURLToPath(new URL('./certs/supabase-ca.pem', import.meta.url));
+  const ca = process.env.DATABASE_CA_CERT || (existsSync(caPath) ? readFileSync(caPath, 'utf8') : undefined);
+  return new pg.Pool({
+    connectionString: url,
+    ssl: local ? false : (ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true }),
+    max: Number(process.env.DATABASE_POOL_SIZE || 4),
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 15_000,
+    statement_timeout: 20_000,
+    // A loja vive no schema `loja`, isolada das tabelas do projeto legado.
+    options: `-c search_path=${nomeSchema},public`,
+  });
+}
+
+let pgModule = null;
+function requirePg() {
+  if (!pgModule) throw Error('Driver pg não carregado. Use loadDriver().');
+  return pgModule;
+}
+export async function loadDriver() {
+  if (!pgModule) pgModule = await import('pg');
+  return pgModule;
+}
+await loadDriver();
+
 async function pool() {
-  if (!poolPromise) {
-    poolPromise = (async () => {
-      const { default: pg } = await import('pg');
-      const url = connectionString();
-      if (!url) throw Error('Configure DATABASE_URL com a conexão do Postgres.');
-      const local = /localhost|127\.0\.0\.1/.test(url);
-      // O Supabase usa uma CA própria. O certificado está versionado em
-      // server/certs; TLS segue verificado (rejectUnauthorized: true).
-      const caPath = process.env.DATABASE_CA_PATH || fileURLToPath(new URL('./certs/supabase-ca.pem', import.meta.url));
-      const ca = process.env.DATABASE_CA_CERT || (existsSync(caPath) ? readFileSync(caPath, 'utf8') : undefined);
-      return new pg.Pool({
-        connectionString: url,
-        ssl: local ? false : (ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true }),
-        max: Number(process.env.DATABASE_POOL_SIZE || 4),
-        idleTimeoutMillis: 10_000,
-        connectionTimeoutMillis: 15_000,
-        statement_timeout: 20_000,
-        // A loja vive no schema `loja`, isolada das tabelas do projeto legado.
-        options: '-c search_path=loja,public',
-      });
-    })();
-  }
+  if (!poolPromise) poolPromise = criarPool();
   return poolPromise;
+}
+
+// Banco isolado, com pool e schema próprios. Usado pelos testes para que cada
+// um trabalhe num schema descartável sem compartilhar conexão com os demais.
+export async function createIsolatedDatabase(nomeSchema) {
+  const schemaAlvo = schemaName(nomeSchema);
+  const p = criarPool(schemaAlvo);
+  const exec = (sql, params = []) => p.query(positional(sql), params);
+  const banco = createDatabase(exec);
+  let fechado = false;
+  return {
+    db: banco,
+    schema: schemaAlvo,
+    async transaction(work) {
+      const conn = await p.connect();
+      try {
+        await conn.query('BEGIN');
+        const escopo = createDatabase((sql, params) => conn.query(positional(sql), params));
+        const resultado = await work(escopo);
+        await conn.query('COMMIT');
+        return resultado;
+      } catch (error) {
+        try { await conn.query('ROLLBACK'); } catch { /* conexão perdida */ }
+        throw error;
+      } finally {
+        conn.release();
+      }
+    },
+    async close() {
+      if (fechado) return;
+      fechado = true;
+      await p.end();
+    },
+  };
 }
 
 // Normalises `?` placeholders to `$1, $2, …` so existing queries stay readable.
@@ -99,7 +154,10 @@ export async function transaction(primeiro, segundo) {
 const MIGRATION_LOCK = 8274531;
 
 export async function migrate(database = db) {
-  await database.exec('CREATE TABLE IF NOT EXISTS loja.migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
+  const schema = schemaName();
+  // O schema precisa existir antes de qualquer conexão que o use no search_path.
+  await database.exec(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
+  await database.exec(`CREATE TABLE IF NOT EXISTS ${schema}.migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
   // Several serverless invocations may start at once; one applies the schema.
   await database.exec(`SELECT pg_advisory_lock(${MIGRATION_LOCK})`);
   try {
@@ -108,16 +166,21 @@ export async function migrate(database = db) {
     try { files = readdirSync(directory).filter(n => n.endsWith('.sql')).sort(); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
     for (const name of files) {
-      if (await database.get('SELECT 1 AS applied FROM loja.migrations WHERE name=?', [name])) continue;
+      if (await database.get(`SELECT 1 AS applied FROM ${schema}.migrations WHERE name=?`, [name])) continue;
       // O schema já pode ter sido aplicado pelo painel do Supabase: nesse caso
       // apenas registra a migração, sem recriar as tabelas.
-      const existente = await database.get("SELECT 1 AS found FROM information_schema.tables WHERE table_schema='loja' AND table_name='products'");
+      const existente = await database.get('SELECT 1 AS found FROM information_schema.tables WHERE table_schema=? AND table_name=?', [schema, 'products']);
       if (name === '001-schema.sql' && existente) {
-        await database.run('INSERT INTO loja.migrations(name) VALUES(?) ON CONFLICT (name) DO NOTHING', [name]);
+        await database.run(`INSERT INTO ${schema}.migrations(name) VALUES(?) ON CONFLICT (name) DO NOTHING`, [name]);
         continue;
       }
-      await database.exec(readFileSync(new URL(name, directory), 'utf8'));
-      await database.run('INSERT INTO loja.migrations(name) VALUES(?)', [name]);
+      // O arquivo de migração nomeia o schema de produção; para um schema
+      // descartável (testes) o nome é reescrito antes da execução.
+      const sql = readFileSync(new URL(name, directory), 'utf8')
+        .replaceAll('loja.', `${schema}.`)
+        .replace('CREATE SCHEMA IF NOT EXISTS loja', `CREATE SCHEMA IF NOT EXISTS ${schema}`);
+      await database.exec(sql);
+      await database.run(`INSERT INTO ${schema}.migrations(name) VALUES(?)`, [name]);
     }
   } finally {
     await database.exec(`SELECT pg_advisory_unlock(${MIGRATION_LOCK})`);
