@@ -10,10 +10,10 @@ import { saveProduct } from '../server/products.js';
 // duplicates instead of updating. These tests pin the raised limit and the
 // warning that surfaces a SKU mismatch.
 
-function fixture(t) {
-  const db = openDatabase(':memory:');
-  t.after(() => db.close());
-  const owner = createOwner(db, { email: `csv-${crypto.randomUUID()}@example.test`, password: 'CsvLimitTest1234' });
+async function fixture(t) {
+  const db = await openDatabase();
+  t.after(async () => { await db.close(); });
+  const owner = await createOwner(db, { email: `csv-${crypto.randomUUID()}@example.test`, password: 'CsvLimitTest1234' });
   return { db, owner };
 }
 
@@ -36,9 +36,9 @@ test('the limit is 5.000, not 500: 501 products pass', t => {
   assert.equal(parseCSV(csvDe(501)).length, 501);
 });
 
-test('the preview reports only errors and stays small', t => {
-  const { db, owner } = fixture(t);
-  const preview = previewImport(db, owner, { mode: 'upsert', csv: csvDe(490) });
+test('the preview reports only errors and stays small', async t => {
+  const { db, owner } = await fixture(t);
+  const preview = await previewImport(db, owner, { mode: 'upsert', csv: csvDe(490) });
   assert.equal(preview.summary.total, 490);
   assert.equal(preview.summary.errors, 0);
   assert.equal(preview.errors.length, 0);
@@ -47,10 +47,10 @@ test('the preview reports only errors and stays small', t => {
   assert.ok(preview.errors.length === 0);
 });
 
-test('a preview with errors lists only the failing lines', t => {
-  const { db, owner } = fixture(t);
+test('a preview with errors lists only the failing lines', async t => {
+  const { db, owner } = await fixture(t);
   const csv = 'sku,name,category,price\nOK-1,Válido,tabuas,10\nBAD-1,Sem categoria,,10\nBAD-2,Preço ruim,tabuas,abc';
-  const preview = previewImport(db, owner, { mode: 'upsert', csv });
+  const preview = await previewImport(db, owner, { mode: 'upsert', csv });
   assert.equal(preview.summary.total, 3);
   assert.equal(preview.summary.errors, 2);
   assert.equal(preview.errors.length, 2);
@@ -59,32 +59,32 @@ test('a preview with errors lists only the failing lines', t => {
   assert.equal(preview.valid, false);
 });
 
-test('a file whose SKUs match nothing in the catalogue warns about duplicates', t => {
-  const { db, owner } = fixture(t);
+test('a file whose SKUs match nothing in the catalogue warns about duplicates', async t => {
+  const { db, owner } = await fixture(t);
   // Catálogo com produtos de SKU diferente do arquivo
-  const category = db.prepare('SELECT id FROM categories LIMIT 1').get();
+  const category = await db.get('SELECT id FROM categories LIMIT 1');
   for (let i = 1; i <= 3; i++) {
-    saveProduct(db, owner, {
+    await saveProduct(db, owner, {
       name: `Existente ${i}`, reference: `EX-${i}`, sku: `EX-${i}`, category: category.id,
       price: 10, status: 'active', active: true, unit: 'un', stock: 5,
     }, undefined);
   }
-  const preview = previewImport(db, owner, { mode: 'upsert', csv: csvDe(5) });
+  const preview = await previewImport(db, owner, { mode: 'upsert', csv: csvDe(5) });
   assert.equal(preview.summary.create, 5);
   assert.equal(preview.summary.update, 0);
   assert.ok(preview.warning, 'deve avisar que nada corresponde ao catálogo');
   assert.match(preview.warning, /Nenhum SKU da planilha corresponde/);
 });
 
-test('a file that matches existing SKUs updates them and does not warn', t => {
-  const { db, owner } = fixture(t);
-  const category = db.prepare('SELECT id FROM categories LIMIT 1').get();
-  const criado = saveProduct(db, owner, {
+test('a file that matches existing SKUs updates them and does not warn', async t => {
+  const { db, owner } = await fixture(t);
+  const category = await db.get('SELECT id FROM categories LIMIT 1');
+  const criado = await saveProduct(db, owner, {
     name: 'Existente', reference: 'EX-1', sku: 'EX-1', category: category.id,
     price: 10, status: 'active', active: true, unit: 'un', stock: 5,
   }, undefined);
   const csv = `sku,name,category,price\n${criado.sku},Existente atualizado,tabuas,99`;
-  const preview = previewImport(db, owner, { mode: 'upsert', csv });
+  const preview = await previewImport(db, owner, { mode: 'upsert', csv });
   assert.equal(preview.summary.update, 1);
   assert.equal(preview.summary.create, 0);
   assert.equal(preview.warning, null);

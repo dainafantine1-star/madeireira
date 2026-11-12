@@ -13,17 +13,17 @@ import { createApp } from '../server/index.js';
 const edge=process.env.EDGE_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 test('browser: storefront, hostile content, cart recovery, storage failure, WhatsApp and API outage', {skip:!existsSync(edge),timeout:60000}, async(t)=>{
-  const db=openDatabase(':memory:');
-  db.prepare('UPDATE company_settings SET public_json=?').run(JSON.stringify({...settings(db),whatsapp:'5571999998888',confirmed:true}));
-  db.prepare('UPDATE products SET name=?,image=?,price_cents=NULL,old_price_cents=NULL WHERE id=1').run('Porta " onerror="window.injected=true <b>Teste</b>','https://example.invalid/image.jpg');
-  const app=createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');
+  const db=await openDatabase();
+  await db.run('UPDATE company_settings SET public_json=?',JSON.stringify({...await settings(db),whatsapp:'5571999998888',confirmed:true}));
+  await db.run('UPDATE products SET name=?,image=?,price_cents=NULL,old_price_cents=NULL WHERE id=1','Porta " onerror="window.injected=true <b>Teste</b>','https://example.invalid/image.jpg');
+  const app=await createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');
   const origin=`http://127.0.0.1:${app.address().port}`;
   const portFinder=createServer();portFinder.listen(0,'127.0.0.1');await once(portFinder,'listening');const debugPort=portFinder.address().port;await new Promise(r=>portFinder.close(r));
   const profile=mkdtempSync(join(tmpdir(),'mp-edge-'));
   const browser=spawn(edge,['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check',`--remote-debugging-port=${debugPort}`,`--user-data-dir=${profile}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
   let ws;
   t.after(async()=>{
-    ws?.close();browser.kill();app.closeAllConnections();await new Promise(r=>app.close(r));db.close();
+    ws?.close();browser.kill();app.closeAllConnections();await new Promise(r=>app.close(r));await db.close();
     await delay(700);
     assert.equal(resolve(dirname(profile)),resolve(tmpdir()));
     for(let n=0;n<5;n++) {try {rmSync(profile,{recursive:true,force:true});break;} catch {await delay(300);}}
@@ -65,7 +65,7 @@ test('browser: storefront, hostile content, cart recovery, storage failure, What
   await waitFor('!!window.sentQuoteUrl');
   const url=await evaluate('window.sentQuoteUrl');assert.ok(url.startsWith('https://wa.me/5571999998888?text='));
   const message=new URL(url).searchParams.get('text');assert.match(message,/Referência: MP-0001/);assert.match(message,/Total: Sob consulta/);
-  assert.equal(db.prepare('SELECT count(*) AS n FROM orders').get().n,0);
+  assert.equal((await db.get('SELECT count(*) AS n FROM orders')).n,0);
   assert.equal(await evaluate('document.getElementById("quoteDialog").open'),false);
   // Hide the API from the browser to check the actual error/retry UI.
   await command('Network.enable');await command('Network.setBlockedURLs',{urls:['*api/catalog*']});await command('Page.reload');
@@ -79,7 +79,7 @@ test('browser: storefront, hostile content, cart recovery, storage failure, What
   assert.equal(await evaluate(`document.querySelectorAll('#productsGrid .product').length`),1);
   await evaluate(`document.getElementById('searchInput').value='80 x 210 cm';document.getElementById('searchInput').dispatchEvent(new Event('input'))`);
   assert.equal(await evaluate(`document.querySelectorAll('#productsGrid .product').length`),1);
-  db.prepare("UPDATE products SET name='Porta de Madeira Maciça',featured=1,status='promotion',price_cents=89000,old_price_cents=95000 WHERE id=1").run();
+  await db.run("UPDATE products SET name='Porta de Madeira Maciça',featured=1,status='promotion',price_cents=89000,old_price_cents=95000 WHERE id=1");
   await command('Page.reload');await waitFor(`document.querySelectorAll('#productsGrid .product').length===10 && !document.getElementById('destaques').hidden`);
   await command('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await command('Page.captureScreenshot',{format:'png',captureBeyondViewport:false}).then(r=>writeFileSync(join(root,'screenshot-storefront-desktop.png'),Buffer.from(r.data,'base64')));

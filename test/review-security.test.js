@@ -6,9 +6,9 @@ import {createApp} from '../server/index.js';
 import {createOwner} from '../server/auth.js';
 
 test('direct administrative mutations require authentication and oversized uploads are rejected',async t=>{
-  const db=openDatabase(':memory:');createOwner(db,{email:'review-security@example.test',password:'TemporaryReview12345'});
-  const app=createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');
-  t.after(async()=>{app.closeAllConnections();await new Promise(r=>app.close(r));db.close();});
+  const db=await openDatabase();await createOwner(db,{email:'review-security@example.test',password:'TemporaryReview12345'});
+  const app=await createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');
+  t.after(async()=>{app.closeAllConnections();await new Promise(r=>app.close(r));await db.close();});
   const base=`http://127.0.0.1:${app.address().port}`;
   for(const [method,path] of [['POST','products'],['PUT','products/1'],['DELETE','products/1'],['POST','banners'],['PUT','banners/1'],['DELETE','banners/1?version=1'],['POST','media'],['DELETE','media/temporary'],['PUT','settings']]){
     const response=await fetch(`${base}/api/admin/${path}`,{method,headers:{'Content-Type':'application/json'},body:method==='DELETE'?undefined:'{}'});
@@ -20,7 +20,7 @@ test('direct administrative mutations require authentication and oversized uploa
     const response=await fetch(base+'/api/admin/media',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({name:'REVISAO-upload.png',type:'image/png',data})});
     assert.equal(response.status,400);assert.match((await response.json()).error,/3 MB/);
   }
-  assert.equal(db.prepare('SELECT count(*) n FROM media').get().n,0);
+  assert.equal((await db.get('SELECT count(*) n FROM media')).n,0);
   const request=async(path,method,data)=>{
     const response=await fetch(base+'/api/admin/'+path,{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:data?JSON.stringify(data):undefined});
     return {status:response.status,data:await response.json()};
@@ -29,22 +29,22 @@ test('direct administrative mutations require authentication and oversized uploa
   assert.equal(created.status,201);const banner=created.data;
   assert.equal((await request(`banners/${banner.id}?version=${banner.version+1}`,'DELETE')).status,409);
   assert.equal((await request(`banners/${banner.id}?version=${banner.version}`,'DELETE')).status,200);
-  assert.equal(db.prepare('SELECT 1 FROM banners WHERE id=?').get(banner.id),undefined);
-  const home=db.prepare("SELECT * FROM banners WHERE placement='home'").get();
+  assert.equal(await db.get('SELECT 1 FROM banners WHERE id=?', banner.id),undefined);
+  const home=await db.get("SELECT * FROM banners WHERE placement='home'");
   assert.equal((await request(`banners/${home.id}?version=${home.version}`,'DELETE')).status,200);
-  assert.equal(db.prepare('SELECT * FROM banners WHERE id=?').get(home.id),undefined);
+  assert.equal(await db.get('SELECT * FROM banners WHERE id=?', home.id),undefined);
   const recreated=await request('banners','POST',{title:'REVISAO - home recriada',placement:'home',image:'assets/hero-madeira.webp',active:true});
   assert.equal(recreated.status,201);
-  assert.equal(db.prepare("SELECT count(*) n FROM audit_log WHERE action='banner_deleted'").get().n,2);
+  assert.equal((await db.get("SELECT count(*) n FROM audit_log WHERE action='banner_deleted'")).n,2);
 });
 
 test('HTTP login rate limit rejects further attempts without creating sessions',async t=>{
-  const db=openDatabase(':memory:'),app=createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');
-  t.after(async()=>{app.closeAllConnections();await new Promise(r=>app.close(r));db.close();});
+  const db=await openDatabase(),app=await createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');
+  t.after(async()=>{app.closeAllConnections();await new Promise(r=>app.close(r));await db.close();});
   const base=`http://127.0.0.1:${app.address().port}`;
   for(let i=0;i<6;i++){
     const response=await fetch(base+'/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json','X-Forwarded-For':`192.0.2.${i+1}`},body:JSON.stringify({email:'missing@example.test',password:'InvalidTemporary12345'})});
     assert.equal(response.status,i<5?401:429);if(i===5)assert.ok(Number(response.headers.get('retry-after'))>0);await response.arrayBuffer();
   }
-  assert.equal(db.prepare('SELECT count(*) n FROM admin_sessions').get().n,0);
+  assert.equal((await db.get('SELECT count(*) n FROM admin_sessions')).n,0);
 });

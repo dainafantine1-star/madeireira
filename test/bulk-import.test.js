@@ -168,15 +168,15 @@ async function harness(t) {
   const dir = mkdtempSync(join(tmpdir(), 'mp-bulk-'));
   const previousUpload = process.env.UPLOAD_DIR;
   process.env.UPLOAD_DIR = join(dir, 'uploads');
-  const db = openDatabase(':memory:');
-  createOwner(db, { email: 'owner@example.com', password: 'StrongPassword123' });
-  const server = createApp({ db });
+  const db = await openDatabase();
+  await createOwner(db, { email: 'owner@example.com', password: 'StrongPassword123' });
+  const server = await createApp({ db });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
   t.after(async () => {
     await new Promise(r => server.close(r));
-    db.close();
+    await db.close();
     if (previousUpload === undefined) delete process.env.UPLOAD_DIR;
     else process.env.UPLOAD_DIR = previousUpload;
     rmSync(dir, { recursive: true, force: true });

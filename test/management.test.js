@@ -11,11 +11,11 @@ import { createOwner,createAdmin,digest,loginThrottle } from '../server/auth.js'
 import { parseCSV,exportWooCSV } from '../server/csv.js';
 
 test('owner bootstrap, cookies, CSRF, disabled accounts, expiry and revocation',async(t)=>{
-  const db=openDatabase(':memory:');const owner=createOwner(db,{email:'owner@example.com',password:'  StrongPassword123  '});
-  assert.throws(()=>createOwner(db,{email:'other@example.com',password:'StrongPassword123'}),/já foi/);
-  const editor=createAdmin(db,{email:'editor@example.com',password:'StrongPassword123',role:'editor'});
-  const server=createApp({db});server.listen(0,'127.0.0.1');await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`;
-  t.after(async()=>{await new Promise(r=>server.close(r));db.close();});
+  const db=await openDatabase();const owner=await createOwner(db,{email:'owner@example.com',password:'  StrongPassword123  '});
+  await assert.rejects(()=>createOwner(db,{email:'other@example.com',password:'StrongPassword123'}),/já foi/);
+  const editor=await createAdmin(db,{email:'editor@example.com',password:'StrongPassword123',role:'editor'});
+  const server=await createApp({db});server.listen(0,'127.0.0.1');await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`;
+  t.after(async()=>{await new Promise(r=>server.close(r));await db.close();});
   async function req(path,method='GET',data,headers={}) {const response=await fetch(base+path,{method,headers:{...(data?{'Content-Type':'application/json'}:{}),...headers},body:data?JSON.stringify(data):undefined});return {status:response.status,data:await response.json(),cookie:response.headers.get('set-cookie')};}
   for(const path of ['products','categories','users','audit','media','products/export','import/template','me'])assert.equal((await req('/api/admin/'+path)).status,401);
   const auth=await req('/api/admin/login','POST',{email:'owner@example.com',password:'  StrongPassword123  ',session:'cookie'});
@@ -34,24 +34,24 @@ test('owner bootstrap, cookies, CSRF, disabled accounts, expiry and revocation',
   assert.equal((await req('/api/admin/logout','POST',{},headers)).status,200);
   assert.equal((await req('/api/admin/me','GET',undefined,headers)).status,401);
   const renewed=await req('/api/admin/login','POST',{email:'owner@example.com',password:'  StrongPassword123  '});
-  db.prepare('UPDATE admin_sessions SET expires_at=? WHERE token_hash=?').run(Date.now()-1,digest(renewed.data.token));
+  await db.run('UPDATE admin_sessions SET expires_at=? WHERE token_hash=?',Date.now()-1,digest(renewed.data.token));
   assert.equal((await req('/api/admin/me','GET',undefined,{Authorization:`Bearer ${renewed.data.token}`})).status,401);
-  db.prepare('UPDATE admin_sessions SET expires_at=? WHERE token_hash=?').run(Date.now()+60000,digest(renewed.data.token));
+  await db.run('UPDATE admin_sessions SET expires_at=? WHERE token_hash=?',Date.now()+60000,digest(renewed.data.token));
   const renewedHeaders={Authorization:`Bearer ${renewed.data.token}`};
   assert.equal((await req('/api/admin/password','PUT',{currentPassword:'wrong',password:'NewPassword12345'},renewedHeaders)).status,400);
   assert.equal((await req('/api/admin/password','PUT',{currentPassword:'  StrongPassword123  ',password:'NewPassword12345'},renewedHeaders)).status,200);
   assert.equal((await req('/api/admin/me','GET',undefined,renewedHeaders)).status,401);
   const newPassword=await req('/api/admin/login','POST',{email:'owner@example.com',password:'NewPassword12345'});assert.equal(newPassword.status,200);
   assert.equal((await req('/api/admin/revoke-sessions','POST',{}, {Authorization:`Bearer ${newPassword.data.token}`})).status,200);
-  assert.equal(db.prepare('SELECT password_hash FROM admin_users WHERE id=?').get(owner.id).password_hash.includes('StrongPassword'),false);
-  for(let i=0;i<10;i++)loginThrottle(db,'target@example.com','new-ip');assert.throws(()=>loginThrottle(db,'target@example.com','new-ip'),e=>e.status===429);
+  assert.equal((await db.get('SELECT password_hash FROM admin_users WHERE id=?',owner.id)).password_hash.includes('StrongPassword'),false);
+  for(let i=0;i<10;i++)await loginThrottle(db,'target@example.com','new-ip');await assert.rejects(()=>loginThrottle(db,'target@example.com','new-ip'),e=>e.status===429);
 });
 
 test('products, stock, filters, audit, bulk rollback, CSV import/export and validated images',async(t)=>{
   const dir=mkdtempSync(join(tmpdir(),'mp-management-'));const previousUpload=process.env.UPLOAD_DIR;process.env.UPLOAD_DIR=join(dir,'uploads');
-  const db=openDatabase(':memory:');createOwner(db,{email:'owner@example.com',password:'StrongPassword123'});
-  const server=createApp({db});server.listen(0,'127.0.0.1');await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`;
-  t.after(async()=>{await new Promise(r=>server.close(r));db.close();if(previousUpload===undefined)delete process.env.UPLOAD_DIR;else process.env.UPLOAD_DIR=previousUpload;assert.equal(resolve(dirname(dir)),resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});});
+  const db=await openDatabase();await createOwner(db,{email:'owner@example.com',password:'StrongPassword123'});
+  const server=await createApp({db});server.listen(0,'127.0.0.1');await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`;
+  t.after(async()=>{await new Promise(r=>server.close(r));await db.close();if(previousUpload===undefined)delete process.env.UPLOAD_DIR;else process.env.UPLOAD_DIR=previousUpload;assert.equal(resolve(dirname(dir)),resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});});
   let token;async function req(path,method='GET',data){if(path==='/api/quotes'&&method==='POST')data={customer:{name:'Cliente de teste',phone:'71988887777'},...data};const response=await fetch(base+path,{method,headers:{...(data?{'Content-Type':'application/json'}:{}),...(token?{Authorization:`Bearer ${token}`} : {})},body:data?JSON.stringify(data):undefined});return {status:response.status,data:response.headers.get('content-type')?.includes('application/json')?await response.json():await response.text()};}
   token=(await req('/api/admin/login','POST',{email:'owner@example.com',password:'StrongPassword123'})).data.token;
   const original=(await req('/api/catalog')).data;assert.ok(original.products.every(p=>p.sku));assert.ok(original.categories.every(c=>c.slug));
@@ -109,12 +109,12 @@ test('products, stock, filters, audit, bulk rollback, CSV import/export and vali
   assert.equal((await req('/api/admin/products/1')).status,404);assert.equal((await req('/api/catalog')).data.products.some(p=>p.id===1),false);
   assert.equal((await req(`/api/admin/orders/${quote.data.id}`)).data.items[0].name_snapshot,original.products.find(p=>p.id===1).name);
   const audit=(await req('/api/admin/audit')).data;assert.ok(audit.items.some(a=>a.action==='product_deleted'));assert.ok(audit.items.some(a=>a.action==='import_applied'));
-  const log=db.prepare("SELECT * FROM audit_log WHERE action='product_updated' AND entity_id='1' ORDER BY id DESC LIMIT 1").get();assert.ok(JSON.parse(log.before_json).stock!==undefined);assert.equal(log.actor_email,'owner@example.com');
-  assert.doesNotMatch(JSON.stringify(audit),/password_hash|StrongPassword|token_hash/);assert.throws(()=>db.prepare('DELETE FROM audit_log WHERE id=1').run(),/immutable/);
+  const log=await db.get("SELECT * FROM audit_log WHERE action='product_updated' AND entity_id='1' ORDER BY id DESC LIMIT 1");assert.ok(JSON.parse(log.before_json).stock!==undefined);assert.equal(log.actor_email,'owner@example.com');
+  assert.doesNotMatch(JSON.stringify(audit),/password_hash|StrongPassword|token_hash/);await assert.rejects(()=>db.run('DELETE FROM audit_log WHERE id=1'),/immutable/);
 });
 
-test('CSV parser handles semicolons, embedded quotes, formulas and invalid files',()=>{
+test('CSV parser handles semicolons, embedded quotes, formulas and invalid files',async()=>{
   const rows=parseCSV('sku;name;category;price\r\nSKU1;"Porta ""A""";tabuas;"10,50"');assert.equal(rows[0].values.name,'Porta "A"');
   assert.throws(()=>parseCSV('sku,name,category,price\nA,"not closed'),/Aspas/);
-  const db=openDatabase(':memory:');db.prepare('UPDATE products SET name=?,active=0 WHERE id=1').run('=HYPERLINK("bad")');const exported=exportWooCSV(db,'https://store.example');assert.match(exported,/"'=HYPERLINK/);assert.match(exported,/"-1"/);assert.doesNotMatch(exported,/"'-1"/);db.close();
+  const db=await openDatabase();await db.run('UPDATE products SET name=?,active=0 WHERE id=1','=HYPERLINK("bad")');const exported=await exportWooCSV(db,'https://store.example');assert.match(exported,/"'=HYPERLINK/);assert.match(exported,/"-1"/);assert.doesNotMatch(exported,/"'-1"/);await db.close();
 });

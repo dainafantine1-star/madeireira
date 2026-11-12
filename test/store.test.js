@@ -1,9 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { openDatabase } from '../test/fixtures/database.js';
 import { createApp } from '../server/index.js';
@@ -26,12 +24,11 @@ test('HTML attributes and price absence are handled explicitly',()=>{
   assert.match(ui.formatPrice(12.5),/12,50/);
 });
 test('HTTP API, admin access, snapshots, validation, idempotency and persistence',async(t)=>{
-  const dir=mkdtempSync(join(tmpdir(),'mp-test-')), path=join(dir,'store.sqlite');
-  let db=openDatabase(path);createAdmin(db,{email:'admin@example.com',password:'StrongPassword-123'});
-  createAdmin(db,{email:'editor@example.com',password:'StrongPassword-123',role:'editor'});
-  const server=createApp({db});server.listen(0,'127.0.0.1');await once(server,'listening');
+  let db=await openDatabase();await createAdmin(db,{email:'admin@example.com',password:'StrongPassword-123'});
+  await createAdmin(db,{email:'editor@example.com',password:'StrongPassword-123',role:'editor'});
+  const server=await createApp({db});server.listen(0,'127.0.0.1');await once(server,'listening');
   const base=`http://127.0.0.1:${server.address().port}`;
-  t.after(async()=>{await new Promise(r=>server.close(r));db.close();rmSync(dir,{recursive:true,force:true});});
+  t.after(async()=>{await new Promise(r=>server.close(r));await db.close();});
   let token;
   async function request(path,method='GET',data,headers={}) {
     if(path==='/api/quotes'&&method==='POST')data={customer:{name:'Cliente de teste',phone:'71988887777'},...data};
@@ -58,7 +55,7 @@ test('HTTP API, admin access, snapshots, validation, idempotency and persistence
   assert.match(quote.data.message,/Sob consulta/);assert.match(quote.data.message,/Referência: MP-0001/);assert.match(quote.data.message,/Medidas\/especificações/);assert.match(quote.data.message,/Condição comercial/);
   const again=await request('/api/quotes','POST',input);assert.equal(again.data.id,quote.data.id);
   assert.equal((await request('/api/quotes','POST',{...input,items:[{id:1,qty:3}]})).status,409);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM orders').get().n,1);
+  assert.equal((await db.get('SELECT COUNT(*) AS n FROM orders')).n,1);
   await request('/api/admin/products/1','PUT',{...p,name:'Changed',price:500});
   const saved=(await request(`/api/admin/orders/${quote.data.id}`)).data;
   assert.equal(saved.items[0].name_snapshot,p.name);assert.equal(saved.items[0].unit_price_cents,null);
@@ -76,5 +73,5 @@ test('HTTP API, admin access, snapshots, validation, idempotency and persistence
   assert.equal((await request('/api/admin/settings','PUT',cat.settings)).status,403);token=adminToken;
   assert.equal((await request('/api/admin/logout','POST',{})).status,200);assert.equal((await request('/api/admin/orders')).status,401);
   // A separate connection proves the data is persisted outside the process state.
-  const reopened=openDatabase(path);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM orders').get().n,1);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM migrations').get().n,11);reopened.close();
+  const reopened=await openDatabase();assert.equal((await reopened.get('SELECT COUNT(*) AS n FROM orders')).n,1);assert.equal((await reopened.get('SELECT COUNT(*) AS n FROM migrations')).n,11);await reopened.close();
 });

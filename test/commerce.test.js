@@ -19,9 +19,9 @@ test('search normalizes accents, SKU, dimensional notation and metric lengths',(
 });
 
 test('registered quotes, fractional lines, duplicate prevention, customers, transitions and campaigns',async(t)=>{
-  const db=openDatabase(':memory:'),owner=createOwner(db,{email:'owner@example.com',password:'StrongPassword123'});
-  const server=createApp({db});server.listen(0,'127.0.0.1');await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`;
-  t.after(async()=>{await new Promise(r=>server.close(r));db.close();});let token;
+  const db=await openDatabase(),owner=await createOwner(db,{email:'owner@example.com',password:'StrongPassword123'});
+  const server=await createApp({db});server.listen(0,'127.0.0.1');await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`;
+  t.after(async()=>{await new Promise(r=>server.close(r));await db.close();});let token;
   async function req(path,method='GET',data,authenticated=true){const response=await fetch(base+path,{method,headers:{...(data?{'Content-Type':'application/json'}:{}),...(authenticated&&token?{Authorization:`Bearer ${token}`}:{})},body:data?JSON.stringify(data):undefined});return {status:response.status,data:await response.json()};}
   token=(await req('/api/admin/login','POST',{email:'owner@example.com',password:'StrongPassword123'})).data.token;
   assert.equal((await req('/api/admin/orders','GET',undefined,false)).status,401);
@@ -66,12 +66,12 @@ test('registered quotes, fractional lines, duplicate prevention, customers, tran
   assert.equal((await req('/api/admin/customers/'+client.id)).data.orders.length,2);
 });
 
-test('migration preserves populated version-2 customers, stock, orders and item snapshots',()=>{
+test('migration preserves populated version-2 customers, stock, orders and item snapshots',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'mp-v2-')),path=join(dir,'store.sqlite');
   try {
     let db=new DatabaseSync(path);db.exec(readFileSync(new URL('../server/migrations/001-initial.sql',import.meta.url),'utf8'));db.exec(readFileSync(new URL('../server/migrations/002-management.sql',import.meta.url),'utf8'));
     db.exec("CREATE TABLE migrations(name TEXT PRIMARY KEY,applied_at TEXT DEFAULT CURRENT_TIMESTAMP);INSERT INTO migrations(name) VALUES('001-initial.sql'),('002-management.sql');INSERT INTO categories(id,label,slug) VALUES('tabuas','Tábuas','tabuas');INSERT INTO products(id,reference,sku,name,category_id,price_cents,stock) VALUES(1,'OLD','OLD','Produto anterior','tabuas',1000,2);INSERT INTO customers(id,name,phone) VALUES(1,'Cliente anterior','71988887777');INSERT INTO company_settings(id,public_json) VALUES(1,'{}');INSERT INTO orders(id,request_key,customer_id,kind,known_total_cents,has_consultation,terms_snapshot) VALUES('old-order','old-key',1,'quote',1000,0,'Condição anterior');INSERT INTO order_items(order_id,product_id,reference_snapshot,name_snapshot,specs_snapshot,terms_snapshot,unit_price_cents,quantity) VALUES('old-order',1,'OLD','Nome original','{}','Termo original',1000,1);");db.close();
-    db=openDatabase(path);assert.equal(db.prepare('SELECT quantity FROM order_items').get().quantity,1);assert.equal(db.prepare('SELECT stock_milli FROM products').get().stock_milli,2000);assert.equal(JSON.parse(db.prepare('SELECT customer_snapshot FROM orders').get().customer_snapshot).name,'Cliente anterior');assert.equal(db.prepare('SELECT count(*) AS n FROM order_history').get().n,1);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);db.close();
-    db=openDatabase(path);assert.equal(db.prepare('SELECT count(*) AS n FROM order_items').get().n,1);db.close();
+    db=await openDatabase(path);assert.equal((await db.get('SELECT quantity FROM order_items')).quantity,1);assert.equal((await db.get('SELECT stock_milli FROM products')).stock_milli,2000);assert.equal(JSON.parse((await db.get('SELECT customer_snapshot FROM orders')).customer_snapshot).name,'Cliente anterior');assert.equal((await db.get('SELECT count(*) AS n FROM order_history')).n,1);assert.deepEqual(await db.all('PRAGMA foreign_key_check'),[]);await db.close();
+    db=await openDatabase(path);assert.equal((await db.get('SELECT count(*) AS n FROM order_items')).n,1);await db.close();
   }finally{assert.equal(resolve(dirname(dir)),resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});}
 });

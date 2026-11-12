@@ -10,6 +10,11 @@ import { createIsolatedDatabase } from '../../server/db.js';
 
 const certPath = new URL('../../server/certs/supabase-ca.pem', import.meta.url);
 
+// O driver SQLite devolvia count() e inteiros grandes como `number`; o pg devolve
+// int8 (bigint) como string. Restaurar o tipo mantém as asserções exatamente como
+// foram escritas para o driver antigo, sem alterar nenhuma delas.
+pg.types.setTypeParser(20, value => (value === null ? null : Number(value)));
+
 function cliente() {
   const url = process.env.DATABASE_URL;
   if (!url) throw Error('Configure DATABASE_URL para rodar os testes.');
@@ -39,15 +44,10 @@ async function migrar(connection, schema) {
 
 // Semeia a configuração inicial e, por opção, o catálogo de demonstração.
 async function semear(banco, schema, { demo = true } = {}) {
-  // Reaproveita o seed da aplicação, apontando o search_path para o schema novo.
-  const anterior = process.env.DATABASE_SCHEMA;
-  process.env.DATABASE_SCHEMA = schema;
-  try {
-    const { seed } = await import('../../server/db.js');
-    await seed(banco);
-  } finally {
-    process.env.DATABASE_SCHEMA = anterior;
-  }
+  // `seed` abre a própria transação no pool global de db.js, que lê
+  // DATABASE_SCHEMA. O schema já está apontado para este teste em openDatabase().
+  const { seed } = await import('../../server/db.js');
+  await seed(banco);
   if (!demo) return;
   const products = runInNewContext(readFileSync(new URL('./demo-catalog.js', import.meta.url), 'utf8') + ';PRODUCTS');
   for (const p of products) {
@@ -56,6 +56,9 @@ async function semear(banco, schema, { demo = true } = {}) {
       p.id, `MP-${String(p.id).padStart(4, '0')}`, `MP-${String(p.id).padStart(4, '0')}`,
       p.name, p.category, Math.round(p.price * 100), p.description, JSON.stringify(p.specs), p.image, 'un');
   }
+  // O seed usa IDs explícitos nos produtos, o que deixa a sequência da identidade
+  // para trás; sem reposicioná-la o primeiro INSERT da aplicação colide com id=1.
+  await banco.exec(`SELECT setval(pg_get_serial_sequence('${schema}.products','id'), coalesce((SELECT max(id) FROM ${schema}.products),1))`);
 }
 
 // Devolve um `db` isolado, já migrado e semeado. O teste chama fechar() no after.
@@ -72,14 +75,38 @@ export async function openDatabase(_ignorado, opcoes = {}) {
   }
 
   const isolado = await createIsolatedDatabase(schema);
-  await semear(isolado.db, schema, opcoes);
-
-  const fechar = async () => {
+  // Alguns caminhos do servidor (seed, transaction) usam o pool global de db.js,
+  // que resolve o schema por DATABASE_SCHEMA. Apontá-lo para este schema garante
+  // que nenhum caminho de teste alcance o schema `loja` de produção.
+  const anterior = process.env.DATABASE_SCHEMA;
+  process.env.DATABASE_SCHEMA = schema;
+  const { closeDatabase } = await import('../../server/db.js');
+  // O pool global nasce uma vez por processo: fechá-lo força a recriação já com
+  // o search_path deste teste, em vez de herdar o do primeiro que abriu.
+  await closeDatabase();
+  try {
+    await semear(isolado.db, schema, opcoes);
+  } catch (error) {
+    await closeDatabase();
     await isolado.close();
     await connection.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => {});
     await connection.end();
+    throw error;
+  }
+
+  const fechar = async () => {
+    await closeDatabase();
+    await isolado.close();
+    await connection.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`).catch(() => {});
+    await connection.end();
+    // Sem a variável, db.js volta ao padrão (`loja`); não deixar a string
+    // "undefined" nem o schema já removido apontados no ambiente.
+    if (anterior === undefined) delete process.env.DATABASE_SCHEMA;
+    else process.env.DATABASE_SCHEMA = anterior;
   };
   // Compatível com o padrão anterior: t.after(() => db.close()) e db.fechar().
   isolado.db.close = fechar;
+  // Nome do schema descartável, para quem precisa consultá-lo por fora do pool.
+  isolado.db.schema = schema;
   return isolado.db;
 }

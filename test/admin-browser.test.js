@@ -45,11 +45,11 @@ const edge=process.env.EDGE_PATH || 'C:/Program Files (x86)/Microsoft/Edge/Appli
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV and logout',{skip:!existsSync(edge),timeout:90000},async(t)=>{
   const temp=mkdtempSync(join(tmpdir(),'mp-admin-ui-')),previousUpload=process.env.UPLOAD_DIR;process.env.UPLOAD_DIR=join(temp,'uploads');
-  const db=openDatabase(':memory:');createOwner(db,{email:'proprietario@example.com',password:'TestPassword123456'});
-  const app=createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');const base=`http://127.0.0.1:${app.address().port}`;
+  const db=await openDatabase();await createOwner(db,{email:'proprietario@example.com',password:'TestPassword123456'});
+  const app=await createApp({db});app.listen(0,'127.0.0.1');await once(app,'listening');const base=`http://127.0.0.1:${app.address().port}`;
   const finder=createServer();finder.listen(0,'127.0.0.1');await once(finder,'listening');const port=finder.address().port;await new Promise(r=>finder.close(r));
   const browser=spawn(edge,['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check',`--remote-debugging-port=${port}`,`--user-data-dir=${join(temp,'profile')}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
-  let ws; t.after(async()=>{ws?.close();browser.kill();app.closeAllConnections();await new Promise(r=>app.close(r));db.close();if(previousUpload===undefined)delete process.env.UPLOAD_DIR;else process.env.UPLOAD_DIR=previousUpload;await delay(700);assert.equal(resolve(dirname(temp)),resolve(tmpdir()));for(let i=0;i<5;i++){try{rmSync(temp,{recursive:true,force:true});break;}catch{await delay(300);}}});
+  let ws; t.after(async()=>{ws?.close();browser.kill();app.closeAllConnections();await new Promise(r=>app.close(r));await db.close();if(previousUpload===undefined)delete process.env.UPLOAD_DIR;else process.env.UPLOAD_DIR=previousUpload;await delay(700);assert.equal(resolve(dirname(temp)),resolve(tmpdir()));for(let i=0;i<5;i++){try{rmSync(temp,{recursive:true,force:true});break;}catch{await delay(300);}}});
   let pages;for(let n=0;n<100;n++){try{pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();if(pages.some(p=>p.type==='page'))break;}catch{}await delay(100);}
   assert.ok(pages?.some(p=>p.type==='page'),'Headless browser starts');ws=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await once(ws,'open');
   let serial=0;const pending=new Map();ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const task=pending.get(m.id);pending.delete(m.id);if(m.error)task.reject(new Error(m.error.message));else task.resolve(m.result);}});
@@ -78,15 +78,15 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   await file('#galleryFiles',[galleryOne,galleryTwo]);
   await wait(`document.querySelectorAll('#productGallery .media-card').length===2 && !document.getElementById('saveEditor').disabled`);
   await evaluate(`document.getElementById('editorForm').requestSubmit()`);await wait(`!document.getElementById('editor').open && document.querySelector('.desktop-table')?.innerText.includes('TEST-UI-01')`);
-  let p=db.prepare("SELECT * FROM products WHERE sku='TEST-UI-01'").get();assert.equal(p.price_cents,7990);assert.equal(p.stock,2);assert.ok(p.image.startsWith('uploads/'));
+  let p=await db.get("SELECT * FROM products WHERE sku='TEST-UI-01'");assert.equal(p.price_cents,7990);assert.equal(p.stock,2);assert.ok(p.image.startsWith('uploads/'));
   assert.equal(p.short_description,shortDescription);assert.equal(p.description,description);
   const gallery=JSON.parse(p.images_json);assert.equal(gallery.length,2);assert.notEqual(gallery[0],gallery[1]);
   for(const photo of gallery)assert.ok(photo.startsWith('uploads/'));
   assert.ok(!gallery.includes(p.image),'The gallery photo under test must not be the cover');
-  const galleryMedia=db.prepare('SELECT id FROM media WHERE filename=?').get(gallery[0].slice(8));
+  const galleryMedia=await db.get('SELECT id FROM media WHERE filename=?',gallery[0].slice(8));
   const deletionStatus=await evaluate(`(async()=>{const me=await fetch('/api/admin/me').then(r=>r.json());const response=await fetch('/api/admin/media/'+${JSON.stringify(galleryMedia.id)},{method:'DELETE',headers:{'X-CSRF-Token':me.csrfToken}});return response.status;})()`);
   assert.equal(deletionStatus,409,'A photo referenced only by the product gallery cannot be deleted');
-  assert.ok(db.prepare('SELECT 1 FROM media WHERE id=?').get(galleryMedia.id));
+  assert.ok(await db.get('SELECT 1 FROM media WHERE id=?',galleryMedia.id));
   await command('Page.captureScreenshot',{format:'png',captureBeyondViewport:true}).then(r=>writeFileSync(join(root,'screenshot-admin-desktop.png'),Buffer.from(r.data,'base64')));
   // Paginação: 11 produtos com 10 por página exigem avançar e voltar sem pular páginas.
   await evaluate(`(()=>{const s=document.querySelector('[data-filter="size"]');s.value='10';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -101,7 +101,7 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await command('Emulation.setTouchEmulationEnabled',{enabled:true});
   assert.notEqual(await evaluate(`getComputedStyle(document.getElementById('mobileNav')).display`),'none');assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
   await click(`.mobile-products [data-action="availability"][data-id="${p.id}"]`);await wait(`document.querySelector('.mobile-products [data-action="availability"][data-id="${p.id}"]')?.getAttribute('aria-checked')==='false'`);
-  assert.equal(db.prepare('SELECT status FROM products WHERE id=?').get(p.id).status,'unavailable');
+  assert.equal((await db.get('SELECT status FROM products WHERE id=?',p.id)).status,'unavailable');
   await click(`.mobile-products [data-action="availability"][data-id="${p.id}"]`);await wait(`document.querySelector('.mobile-products [data-action="availability"][data-id="${p.id}"]')?.getAttribute('aria-checked')==='true'`);
   await command('Page.captureScreenshot',{format:'png',captureBeyondViewport:false}).then(r=>writeFileSync(join(root,'screenshot-admin-mobile.png'),Buffer.from(r.data,'base64')));
   await click(`.mobile-products [data-action="edit"][data-id="${p.id}"]`);await wait(`document.getElementById('editor').open`);assert.equal(await evaluate(`document.getElementById('editorForm').elements.lengthMm.value`),'3000');
@@ -115,7 +115,7 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   assert.deepEqual(savedProduct.images,gallery);assert.equal(savedProduct.shortDescription,shortDescription);assert.equal(savedProduct.description,editedDescription);
   await click(`.mobile-products [data-select="${p.id}"]`);await click('.mobile-products [data-select="1"]');assert.match(await evaluate(`document.getElementById('selectedCount').textContent`),/2 selecionado/);
   await click('[data-action="bulk"]');await wait(`document.getElementById('confirmDialog').open`);await click('#confirmYes');await wait(`document.getElementById('bulkBar')?.hidden`);
-  assert.equal(db.prepare('SELECT featured FROM products WHERE id=?').get(p.id).featured,1);
+  assert.equal((await db.get('SELECT featured FROM products WHERE id=?',p.id)).featured,1);
   await click('#mobileMore');await wait(`document.getElementById('moreDialog').open`);await click('#moreNav [data-page="import"]');await wait(`document.getElementById('importFile')!==null`);
   const csv=join(temp,'products.csv');writeFileSync(csv,'sku,name,category,price,stock\nCSV-UI-01,Importado pela interface,tabuas,120.50,4');
   const coverPng=await sharp({create:{width:64,height:64,channels:3,background:'#7a5230'}}).png().toBuffer();
@@ -127,7 +127,7 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   assert.match(await evaluate(`document.getElementById('importPreview').innerText`),/Imagens sem correspondência/);
   await click('[data-action="apply-import"]');await wait(`document.getElementById('confirmDialog').open`);await click('#confirmYes');
   await wait(`document.getElementById('importReport').innerText.includes('Relatório da importação') && document.getElementById('importReport').innerText.includes('Produtos criados')`);
-  const importedRow=db.prepare("SELECT * FROM products WHERE sku='CSV-UI-01'").get();
+  const importedRow=await db.get("SELECT * FROM products WHERE sku='CSV-UI-01'");
   assert.equal(importedRow.stock,4);
   assert.ok(importedRow.image.startsWith('uploads/'),'A primeira imagem do ZIP vira a capa');
   assert.equal(JSON.parse(importedRow.images_json).length,1,'A segunda imagem entra na galeria');
@@ -141,13 +141,13 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   await click('.crm-mobile [data-action="crm-customer"]');await wait(`document.getElementById('crmCustomerQuote')!==null`);await click('#crmCustomerQuote');await wait(`document.getElementById('crmNewItems')!==null`);
   await evaluate(`const line=document.querySelector('#crmNewItems .crm-new-line');line.querySelector('[name=product]').value='${p.id}';line.querySelector('[name=product]').dispatchEvent(new Event('change'));line.querySelector('[name=quantity]').value='1';line.querySelector('[name=measures]').value='80 × 30 cm';document.getElementById('editorForm').requestSubmit()`);
   await wait(`!document.getElementById('editor').open && document.querySelector('.crm-mobile [data-action="crm-order"]')!==null`);
-  const order=db.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT 1').get();assert.ok(order.protocol);assert.equal(order.source,'admin');
+  const order=await db.get('SELECT * FROM orders ORDER BY created_at DESC LIMIT 1');assert.ok(order.protocol);assert.equal(order.source,'admin');
   for(const stage of ['in_progress','awaiting_approval','approved','completed']){
     await click(`.crm-mobile [data-action="crm-order"][data-order-id="${order.id}"]`);await wait(`document.getElementById('editor').open && document.getElementById('editorForm').elements.stage!==undefined`);
     await fill({stage,assignedTo:'1',finalTotal:'149.90',note:'Andamento '+stage});await evaluate(`document.getElementById('editorForm').requestSubmit()`);
     if(['approved','completed'].includes(stage)){await wait(`document.getElementById('confirmDialog').open`);await click('#confirmYes');}
     await wait(`!document.getElementById('editor').open && document.querySelector('.crm-mobile [data-action="crm-order"]')!==null`);
-    assert.equal(db.prepare('SELECT stage FROM orders WHERE id=?').get(order.id).stage,stage);
+    assert.equal((await db.get('SELECT stage FROM orders WHERE id=?',order.id)).stage,stage);
   }
   await click('#mobileMore');await click('#moreNav [data-page="metrics"]');await wait(`document.getElementById('metricsRange')!==null`);
   assert.match(await evaluate(`document.getElementById('pageContent').innerText`),/DETALHES VISUALIZADOS/);
@@ -160,6 +160,6 @@ test('admin browser: login, product/image/price, desktop and mobile, bulk, CSV a
   await evaluate(`const config=document.getElementById('crmCompanyForm');config.elements.name.value='Progresso do teste';config.elements.heroTitle.value='Madeira para o seu projeto';config.elements.maxQuoteQuantity.value='3';config.elements.defaultLowStock.value='4';config.elements.stockZeroBehavior.value='hide';`);
   await file('#crmLogoFile',png);await wait(`document.getElementById('crmCompanyForm').elements.logo.value.startsWith('uploads/') && !document.querySelector('#crmCompanyForm [type=submit]').disabled`);await evaluate(`document.getElementById('crmCompanyForm').requestSubmit()`);
   await wait(`document.getElementById('crmCompanyForm')?.elements.name.value==='Progresso do teste' && !document.querySelector('#crmCompanyForm [type=submit]').disabled`);
-  const company=JSON.parse(db.prepare('SELECT public_json FROM company_settings').get().public_json);assert.equal(company.name,'Progresso do teste');assert.equal(company.stockZeroBehavior,'hide');assert.ok(company.logo.startsWith('uploads/'));
-  await click('#mobileMore');await click('#mobileLogout');await wait(`!document.getElementById('loginScreen').hidden`);assert.equal(db.prepare('SELECT count(*) AS n FROM admin_sessions').get().n,0);assert.deepEqual(errors,[]);
+  const company=JSON.parse((await db.get('SELECT public_json FROM company_settings')).public_json);assert.equal(company.name,'Progresso do teste');assert.equal(company.stockZeroBehavior,'hide');assert.ok(company.logo.startsWith('uploads/'));
+  await click('#mobileMore');await click('#mobileLogout');await wait(`!document.getElementById('loginScreen').hidden`);assert.equal((await db.get('SELECT count(*) AS n FROM admin_sessions')).n,0);assert.deepEqual(errors,[]);
 });

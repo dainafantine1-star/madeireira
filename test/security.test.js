@@ -13,9 +13,9 @@ import { csv, parseCSV, exportWooCSV } from '../server/csv.js';
 import { recordEvent, metrics, reportCSV } from '../server/analytics.js';
 
 test('public files reject encoded traversal and malformed URLs while preserving legitimate assets',async t=>{
-  const db=openDatabase(':memory:'),app=createApp({db});
+  const db=await openDatabase(),app=await createApp({db});
   app.listen(0,'127.0.0.1');await once(app,'listening');
-  t.after(async()=>{app.closeAllConnections();await new Promise(resolve=>app.close(resolve));db.close();});
+  t.after(async()=>{app.closeAllConnections();await new Promise(resolve=>app.close(resolve));await db.close();});
   const base=`http://127.0.0.1:${app.address().port}`;
   for(const path of [
     '/assets/..%2fserver/auth.js','/css/..%2ftest/store.test.js','/js/%2e%2e%2fserver/backup.js',
@@ -42,10 +42,10 @@ test('public files reject encoded traversal and malformed URLs while preserving 
 });
 
 test('product sorting accepts only declared keys and rejects inherited object properties',async t=>{
-  const db=openDatabase(':memory:');createAdmin(db,{email:'security@example.test',password:'SecurityTestPassword123'});
-  const auth=login(db,{email:'security@example.test',password:'SecurityTestPassword123'}),app=createApp({db});
+  const db=await openDatabase();await createAdmin(db,{email:'security@example.test',password:'SecurityTestPassword123'});
+  const auth=await login(db,{email:'security@example.test',password:'SecurityTestPassword123'}),app=await createApp({db});
   app.listen(0,'127.0.0.1');await once(app,'listening');
-  t.after(async()=>{app.closeAllConnections();await new Promise(resolve=>app.close(resolve));db.close();});
+  t.after(async()=>{app.closeAllConnections();await new Promise(resolve=>app.close(resolve));await db.close();});
   const base=`http://127.0.0.1:${app.address().port}`,headers={Authorization:`Bearer ${auth.token}`};
   for(const sort of ['constructor','toString','__proto__','hasOwnProperty','unknown','name; SELECT 1']) {
     const response=await fetch(base+'/api/admin/products?sort='+encodeURIComponent(sort),{headers});
@@ -58,7 +58,7 @@ test('product sorting accepts only declared keys and rejects inherited object pr
 });
 
 test('CSV output neutralizes ASCII, Unicode and control prefixes without losing importable product text',()=>{
-  const payloads=['=1+1','+1+1','-1+1','@SUM(1)','\uff1d1+1','\uff0b1+1','\uff0d1+1','\uff20SUM(1)','\ufe661+1',' \n=1+1','\u0000=1+1','\u200b=1+1','\ttext','\ntext','\rtext'];
+  const payloads=['=1+1','+1+1','-1+1','@SUM(1)','＝1+1','＋1+1','－1+1','＠SUM(1)','﹦1+1',' \n=1+1','\u0000=1+1','​=1+1','\ttext','\ntext','\rtext'];
   for(const name of payloads) {
     const report=reportCSV({products:[{id:1,name,views:2}]},'products');
     assert.ok(report.includes('"\t'+name+'"'),JSON.stringify(name));
@@ -72,13 +72,13 @@ test('CSV output neutralizes ASCII, Unicode and control prefixes without losing 
   assert.ok(reportCSV({products:[{id:1,name:'Normal',views:-2}]},'products').includes('"-2"'));
 });
 
-test('persisted Unicode product names are protected in analytics and WooCommerce exports',t=>{
-  const db=openDatabase(':memory:');t.after(()=>db.close());
-  const user=createAdmin(db,{email:'csv-security@example.test',password:'SecurityTestPassword123',role:'editor'});
-  const name='\uff1d1+1';
-  saveProduct(db,user,{...productDTO(db.prepare('SELECT * FROM products WHERE id=1').get()),name},1);
-  recordEvent(db,{name:'product_view',productId:1,eventKey:randomUUID(),sessionKey:randomUUID(),origin:'storefront'},new Date(Date.now()-2000));
-  assert.ok(reportCSV(metrics(db),'products').includes('"\t'+name+'"'));
-  assert.ok(exportWooCSV(db,'https://store.example').includes('"\''+name+'"'));
-  assert.equal(db.prepare('SELECT name FROM products WHERE id=1').get().name,name);
+test('persisted Unicode product names are protected in analytics and WooCommerce exports',async t=>{
+  const db=await openDatabase();t.after(()=>db.close());
+  const user=await createAdmin(db,{email:'csv-security@example.test',password:'SecurityTestPassword123',role:'editor'});
+  const name='＝1+1';
+  await saveProduct(db,user,{...productDTO(await db.get('SELECT * FROM products WHERE id=1')),name},1);
+  await recordEvent(db,{name:'product_view',productId:1,eventKey:randomUUID(),sessionKey:randomUUID(),origin:'storefront'},new Date(Date.now()-2000));
+  assert.ok(reportCSV(await metrics(db),'products').includes('"\t'+name+'"'));
+  assert.ok((await exportWooCSV(db,'https://store.example')).includes('"\''+name+'"'));
+  assert.equal((await db.get('SELECT name FROM products WHERE id=1')).name,name);
 });
