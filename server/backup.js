@@ -29,8 +29,12 @@ export async function dumpDatabase(db){
   return partes.join(String.fromCharCode(10));
 }
 
+// Importa um dump num banco vazio. As tabelas são limpas antes, porque um banco
+// recém-criado já vem com o seed (categorias e configuração) e os INSERTs do
+// dump colidiriam com essas linhas.
 export async function importDatabase(db,sql){
   const instrucoes=sql.split(';'+String.fromCharCode(10)).map(x=>x.trim()).filter(Boolean);
+  await db.exec(`TRUNCATE ${TABELAS.join(',')} RESTART IDENTITY CASCADE`);
   for(const instrucao of instrucoes) await db.run(instrucao);
 }
 const keyBytes=key=>{if(!key)return null;const bytes=Buffer.from(key,'base64');if(bytes.length!==32||bytes.toString('base64')!==key)throw Error('BACKUP_KEY deve conter 32 bytes em base64.');return bytes;};
@@ -69,10 +73,11 @@ export async function restoreBackup(file,target,{key=process.env.BACKUP_KEY}={})
   else if(data.subarray(0,4).toString()==='MPB0')plain=data.subarray(4);
   else throw Error('Formato de backup desconhecido.');
   const {manifest,files}=JSON.parse(plain.toString());
-  if(manifest?.format!==1||!Array.isArray(files)||files.length!==manifest.files?.length||!files.length)throw Error('Manifesto inválido.');
+  // Formato 2: dump SQL do Postgres. O 1 continha um arquivo SQLite.
+  if(![1,2].includes(manifest?.format)||!Array.isArray(files)||files.length!==manifest.files?.length||!files.length)throw Error('Manifesto inválido.');
   const checked=[],names=new Set();
   for(const [i,entry]of files.entries()){
-    if(entry.path!=='store.sqlite'&&!/^uploads\/[a-f0-9-]{36}(?:-\d+)?\.(?:webp|png)$/.test(entry.path))throw Error('Caminho inválido no backup.');
+    if(entry.path!=='store.sqlite'&&entry.path!=='store.sql'&&!/^uploads\/[a-f0-9-]{36}(?:-\d+)?\.(?:webp|png)$/.test(entry.path))throw Error('Caminho inválido no backup.');
     if(names.has(entry.path))throw Error('Arquivo duplicado no backup.');names.add(entry.path);
     const bytes=Buffer.from(entry.data,'base64'),expected=manifest.files[i];
     if(expected.path!==entry.path||expected.bytes!==bytes.length||expected.sha256!==hash(bytes))throw Error('Arquivo corrompido no backup.');
@@ -83,11 +88,15 @@ export async function restoreBackup(file,target,{key=process.env.BACKUP_KEY}={})
   if(!dumpEntry)throw Error('Backup sem dump do banco (store.sql). Backups no formato 1 (SQLite) exigem importação manual.');
   // Exclusive mkdir: never replace an existing tree, including a concurrent restore.
   await mkdir(dirname(destination),{recursive:true,mode:0o700});await mkdir(destination,{mode:0o700});await mkdir(join(destination,'uploads'),{mode:0o700});
-  for(const entry of checked)await writeFile(resolve(destination,entry.path),entry.bytes,{flag:'wx',mode:0o600});
-  // O dump é gravado no diretório de destino para auditoria; a importação no
-  // Postgres é feita por importDatabase() numa transação, à parte. Os arquivos
-  // de mídia ficam disponíveis em <destino>/uploads.
-  await writeFile(resolve(destination,'store.sql'),dumpEntry.bytes,{flag:'wx',mode:0o600});
+  for(const entry of checked)if(entry.path!=='store.sql')await writeFile(resolve(destination,entry.path),entry.bytes,{flag:'wx',mode:0o600});
+  // O dump já foi gravado pelo laço acima; a importação no Postgres é feita à
+  // parte, por importDatabase(). As sessões do dump são removidas do arquivo
+  // antes de gravar, para uma restauração nunca reativar logins antigos.
+  await writeFile(resolve(destination,'store.sql'),
+    dumpEntry.bytes.toString('utf8').split(String.fromCharCode(10))
+      .filter(linha => !/^INSERT INTO admin_sessions\(/.test(linha))
+      .join(String.fromCharCode(10)),
+    {flag:'wx',mode:0o600});
   return {directory:destination,files:checked.length,createdAt:manifest.createdAt,sessionsRevoked:true};
 }
 

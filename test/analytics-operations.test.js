@@ -10,7 +10,7 @@ import { openDatabase } from '../test/fixtures/database.js';
 import { createOwner,createAdmin,login } from '../server/auth.js';
 import { recordEvent,metrics,period,snapshot,reportCSV } from '../server/analytics.js';
 import { uploadImage } from '../server/media.js';
-import { createBackup,restoreBackup } from '../server/backup.js';
+import { createBackup,restoreBackup,importDatabase } from '../server/backup.js';
 import { createApp } from '../server/index.js';
 import { createQuote,updateOrder,orderDetail } from '../server/orders.js';
 import { clientAddress } from '../server/client-address.js';
@@ -56,8 +56,11 @@ test('backup: encrypted database/media, authenticated corruption detection and f
   await assert.rejects(restoreBackup(join(directory,'broken.mpbackup'),join(directory,'broken'),{key}));
   const recovered=await restoreBackup(archive.file,join(directory,'restored'),{key});assert.equal(recovered.sessionsRevoked,true);
   await assert.rejects(restoreBackup(archive.file,join(directory,'restored'),{key}),/inexistente/);
+  // A restauração grava o dump em disco; a importação no Postgres é explícita,
+  // num schema novo, para não sobrescrever o banco em uso.
   const restored=await openDatabase();
-  assert.equal((await restored.get('SELECT name FROM products WHERE id=1')).name,'Restaurado');assert.equal((await restored.get('SELECT count(*) AS n FROM admin_sessions')).n,0);assert.equal((await restored.get('PRAGMA integrity_check')).integrity_check,'ok');
+  await importDatabase(restored, await readFile(join(directory,'restored','store.sql'),'utf8'));
+  assert.equal((await restored.get('SELECT name FROM products WHERE id=1')).name,'Restaurado');assert.equal((await restored.get('SELECT count(*) AS n FROM admin_sessions')).n,0);
   const recoveredQuote=await orderDetail(restored,quote.id);assert.equal(recoveredQuote.stage,'in_progress');assert.equal(recoveredQuote.items[0].custom_measures,'80 x 210 cm');assert.equal(recoveredQuote.customer.name,'Cliente Recuperado');assert.equal(recoveredQuote.history.length,2);assert.equal((await restored.get('SELECT count(*) AS n FROM audit_log')).n,(await db.get('SELECT count(*) AS n FROM audit_log')).n);
   assert.deepEqual(await readFile(join(directory,'restored',image.url)),await readFile(join(directory,'media',image.url.slice(8))));
   process.env.UPLOAD_DIR=join(directory,'restored/uploads');

@@ -54,6 +54,10 @@ function requirePg() {
 }
 export async function loadDriver() {
   if (!pgModule) pgModule = await import('pg');
+  // A aplicação trata números como number, como fazia com o driver SQLite.
+  // Sem isto, o pg devolve numeric (1700) e int8 (20) como string.
+  pgModule.default.types.setTypeParser(20, v => (v === null ? null : Number(v)));
+  pgModule.default.types.setTypeParser(1700, v => (v === null ? null : Number(v)));
   return pgModule;
 }
 await loadDriver();
