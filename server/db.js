@@ -30,10 +30,15 @@ function criarPool(nomeSchema = schemaName()) {
   // server/certs; TLS segue verificado (rejectUnauthorized: true).
   const caPath = process.env.DATABASE_CA_PATH || fileURLToPath(new URL('./certs/supabase-ca.pem', import.meta.url));
   const ca = process.env.DATABASE_CA_CERT || (existsSync(caPath) ? readFileSync(caPath, 'utf8') : undefined);
+  // Em serverless cada instância atende uma requisição por vez: um pool grande
+  // só multiplicaria conexões sem uso. O Supabase aceita 60 no total, então
+  // uma conexão por instância deixa margem para dezenas delas em paralelo.
+  const serverless = process.env.VERCEL === '1' || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+  const padrao = serverless ? 1 : 4;
   return new pg.Pool({
     connectionString: url,
     ssl: local ? false : (ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true }),
-    max: Number(process.env.DATABASE_POOL_SIZE || 4),
+    max: Number(process.env.DATABASE_POOL_SIZE || padrao),
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 15_000,
     statement_timeout: 20_000,
