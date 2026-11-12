@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import * as v from './validation.js';
 import { transaction, productDTO,settings } from './db.js';
-import { productSelect, validateProduct, writeProduct } from './products.js';
-import { audit } from './audit.js';
+import { productSelect, validateProduct, writeProduct, writeProductValidated } from './products.js';
+import { audit, auditBulk } from './audit.js';
 import { encodeCSV, importedCSVText } from './csv-output.js';
 
 const columns=['sku','name','reference','category','price','oldPrice','stock','lowStock','status','active','featured','dimensions','lengthMm','unit','description','image','commercialTerms'];
@@ -44,7 +44,7 @@ function slugifyCategory(label) {
 }
 // Resolves the CSV category cell against existing categories; a new name is
 // reported as pending so the apply step can create it inside the same transaction.
-async function resolveCategory(db, raw) {
+async function resolveCategory(db, raw, cache) {
   const label=String(raw ?? '').trim();
   v.check(label,'Informe a categoria.');v.check(label.length<=100,'Categoria muito longa. Use até 100 caracteres.');
   const slug=slugifyCategory(label);
@@ -52,11 +52,23 @@ async function resolveCategory(db, raw) {
   const candidates=[];
   if(/^[a-z0-9][a-z0-9-]{0,79}$/.test(label))candidates.push(label);
   if(!candidates.includes(slug))candidates.push(slug);
+  // O cache é montado uma vez por importação: sem ele, cada linha custava duas
+  // consultas e uma planilha de 490 linhas levava minutos.
   for(const candidate of candidates) {
+    if(cache) {
+      const achado=cache.byId.get(candidate) || cache.bySlug.get(candidate);
+      if(achado)return {id:achado.id,slug:achado.slug,label,create:false};
+      continue;
+    }
     const byId=await db.get('SELECT id,slug FROM categories WHERE id=?', candidate);
     if(byId)return {id:byId.id,slug:byId.slug,label,create:false};
     const bySlug=await db.get('SELECT id,slug FROM categories WHERE slug=?', candidate);
     if(bySlug)return {id:bySlug.id,slug:bySlug.slug,label,create:false};
+  }
+  // Com cache, o que não está nele é categoria nova: registra para a próxima.
+  if(cache) {
+    const novo={id:slug,slug};
+    cache.byId.set(slug,novo);cache.bySlug.set(slug,novo);
   }
   return {id:slug,slug,label,create:true};
 }
@@ -70,12 +82,18 @@ function convert(row,old,defaultLowStock=5) {
 export async function previewImport(db,user,input) {
   v.check(['create','update','upsert','skip'].includes(input.mode),'Modo de importação inválido.');
   const seen=new Set(),rows=[];
+  // Dados que não mudam durante a prévia são carregados uma única vez.
+  const categorias=await db.all('SELECT id,slug FROM categories');
+  const cacheCategorias={byId:new Map(categorias.map(c=>[c.id,c])),bySlug:new Map(categorias.map(c=>[c.slug,c]))};
+  const idsCategorias=new Set(categorias.map(c=>c.id));
+  const defaultLowStock=(await settings(db)).defaultLowStock;
+  const skusExistentes=new Map((await db.all(`${productSelect} WHERE p.deleted_at IS NULL`)).map(p=>[p.sku.toLowerCase(),p]));
   for(const entry of parseCSV(input.csv)) {
     const result={line:entry.line,sku:entry.values?.sku || '',name:entry.values?.name || '',errors:[]};
     try {
       v.check(entry.values,'Quantidade de colunas incorreta.');const key=entry.values.sku.toLowerCase();
       v.check(!seen.has(key),'SKU repetido no arquivo.');seen.add(key);
-      const found=await db.get(`${productSelect} WHERE lower(p.sku)=lower(?)`, entry.values.sku);
+      const found=skusExistentes.get(String(entry.values.sku).toLowerCase()) ?? null;
       v.check(!found?.deleted_at,'SKU pertence a produto excluído. Use um novo SKU.');
       if(found&&input.mode==='skip') {
         result.operation='skip';result.id=found.id;result.version=found.version;result.product=productDTO(found);
@@ -83,14 +101,16 @@ export async function previewImport(db,user,input) {
       }
       v.check(input.mode!=='create'||!found,'SKU já existe; selecione Atualizar, Ignorar ou Criar e atualizar.');
       v.check(input.mode!=='update'||found,'SKU não encontrado para atualização.');
-      const category=await resolveCategory(db,entry.values.category);
-      const product=convert(entry.values,found?productDTO(found):null,await settings(db).defaultLowStock);
+      const category=await resolveCategory(db,entry.values.category,cacheCategorias);
+      const product=convert(entry.values,found?productDTO(found):null,defaultLowStock);
       product.category=category.id;
       // Draft import keeps new rows unpublished so a bulk load can be reviewed
       // before it reaches the storefront. Existing products keep their current
       // visibility — re-importing a price must not take a live product offline.
       if(input.draft&&!found){product.active=false;}
-      await validateProduct(db,product,{allowNewCategory:category.create});
+      // A categoria nova é válida porque será criada no apply.
+      if(category.create) idsCategorias.add(category.id);
+      await validateProduct(db,product,{allowNewCategory:category.create,categories:idsCategorias,defaultLowStock});
       result.product=product;
       if(category.create)result.pendingCategory={id:category.id,slug:category.slug,label:category.label};
       result.id=found?.id || null;result.version=found?.version || null;result.operation=found?'update':'create';
@@ -129,23 +149,52 @@ export async function applyImport(db,user,input) {
     v.check(found,'Prévia inexistente.',404);if(found.applied_at)return JSON.parse(found.result_json);
     v.check(found.expires_at>Date.now(),'Prévia expirada. Gere novamente.',409);
     const rows=JSON.parse(found.payload_json);v.check(rows.every(r=>!r.errors.length),'Corrija as linhas com erro antes de importar.');
+    // Uma leitura de cada coisa que a prévia já conhecia, em vez de consultar
+    // por linha: 490 linhas com três consultas cada custavam minutos.
+    const categorias=await db.all('SELECT id,slug FROM categories');
+    const porId=new Map(categorias.map(c=>[c.id,c]));
+    const porSlug=new Map(categorias.map(c=>[c.slug,c]));
     const newCategories=[];
     for(const row of rows) {
       const pending=row.pendingCategory;if(!pending)continue;
-      const existing=await db.get('SELECT id FROM categories WHERE id=?', pending.id)||await db.get('SELECT id FROM categories WHERE slug=?', pending.slug);
+      const existing=porId.get(pending.id)||porSlug.get(pending.slug);
       if(existing){if(existing.id!==pending.id)row.product.category=existing.id;continue;}
-      await db.run('INSERT INTO categories(id,label,slug) VALUES(?,?,?)', pending.id,pending.label,pending.slug);
+      await db.run('INSERT INTO categories(id,label,slug) VALUES(?,?,?) ON CONFLICT (id) DO NOTHING', pending.id,pending.label,pending.slug);
+      porId.set(pending.id,{id:pending.id,slug:pending.slug});porSlug.set(pending.slug,{id:pending.id,slug:pending.slug});
       await audit(db,user,'category_created','category',pending.id,null,{label:pending.label,slug:pending.slug,source:'import'});
       newCategories.push(pending.id);
     }
+    const atuais=new Map((await db.all('SELECT id,sku,version,deleted_at FROM products')).map(p=>[p.id,p]));
+    const skusUsados=new Set([...atuais.values()].filter(p=>!p.deleted_at).map(p=>String(p.sku).toLowerCase()));
+    const defaultLowStock=(await settings(db)).defaultLowStock;
+    const idsCategorias=new Set(porId.keys());
+    const preparados=[];
     for(const row of rows) {
       if(row.operation==='skip')continue;
-      if(row.id){const current=await db.get('SELECT version,deleted_at FROM products WHERE id=?', row.id);v.check(current&&!current.deleted_at&&current.version===row.version,'O catálogo mudou após a prévia. Gere outra prévia.',409);}
-      else v.check(!(await db.get('SELECT 1 FROM products WHERE lower(sku)=lower(?)', row.product.sku)),'Um SKU foi cadastrado após a prévia. Gere outra prévia.',409);
+      if(row.id){const current=atuais.get(row.id);v.check(current&&!current.deleted_at&&current.version===row.version,'O catálogo mudou após a prévia. Gere outra prévia.',409);}
+      else v.check(!skusUsados.has(String(row.product.sku).toLowerCase()),'Um SKU foi cadastrado após a prévia. Gere outra prévia.',409);
       const product={...row.product};
       const urls=images&&images[product.sku];
       if(Array.isArray(urls)&&urls.length){product.image=urls[0];product.images=urls.slice(1,13);}
-      await writeProduct(db,user,{...product,version:row.version ?? undefined},row.id,'product_imported');
+      const data=await validateProduct(db,{...product,version:row.version ?? undefined},{categories:idsCategorias,defaultLowStock});
+      preparados.push({data,id:row.id});
+      if(!row.id) skusUsados.add(String(product.sku).toLowerCase());
+    }
+    // Cada ida ao banco custa ~125 ms neste host. Agrupar em lotes de 50 reduz
+    // 490 linhas de ~980 idas para 10. A transação garante que ou entra tudo,
+    // ou nada.
+    const TAMANHO_LOTE=50;
+    for(let i=0;i<preparados.length;i+=TAMANHO_LOTE) {
+      const lote=preparados.slice(i,i+TAMANHO_LOTE);
+      const colunas=Object.keys(lote[0].data);
+      const valores=[],marcadores=[];
+      for(const item of lote) {
+        marcadores.push('('+colunas.map(()=>'?').join(',')+')');
+        valores.push(...Object.values(item.data));
+      }
+      await db.run(`INSERT INTO products(${colunas.join(',')}) VALUES ${marcadores.join(',')}`, ...valores);
+      // A auditoria também vai em lote, mas precisa dos ids gerados.
+      await auditBulk(db,user,'product_imported','product', lote.map(x=>({id:x.data.sku,after:{sku:x.data.sku,name:x.data.name}})));
     }
     const result={created:rows.filter(r=>!r.id&&r.operation!=='skip').length,updated:rows.filter(r=>r.id&&r.operation!=='skip').length,skipped:rows.filter(r=>r.operation==='skip').length,total:rows.length,newCategories:newCategories.length};
     await db.run('UPDATE import_previews SET applied_at=CURRENT_TIMESTAMP,result_json=? WHERE id=?', JSON.stringify(result),found.id);

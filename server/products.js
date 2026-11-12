@@ -7,7 +7,10 @@ export const productSelect='SELECT p.*,c.label AS category_label,c.active AS cat
 export async function getProduct(db,id) {const p=await db.get(`${productSelect} WHERE p.id=? AND p.deleted_at IS NULL`, v.integer(id));v.check(p,'Produto inexistente.',404);return p;}
 export async function validateProduct(db,p,options={}) {
   const category=v.slug(p.category);
-  if(!options.allowNewCategory)v.check(await db.get('SELECT 1 FROM categories WHERE id=?', category),'Categoria inexistente.');
+  // A importação em lote passa os dados já carregados: consultar categoria e
+  // configuração a cada linha custava uma ida ao banco por produto.
+  if(options.categories) v.check(options.categories.has(category),'Categoria inexistente.');
+  else if(!options.allowNewCategory)v.check(await db.get('SELECT 1 FROM categories WHERE id=?', category),'Categoria inexistente.');
   const price=v.money(p.price),old=v.money(p.oldPrice ?? null);
   v.check(old===null || (price!==null && old>price),'O preço anterior deve ser maior que o atual.');
   const status=p.status || (old!==null?'promotion':'active');v.check(['active','promotion','unavailable'].includes(status),'Status inválido.');
@@ -22,7 +25,7 @@ export async function validateProduct(db,p,options={}) {
   const stock=p.stock==null?null:p.stock===0?0:quantity(p.stock,unit,100000000);
   if(image.startsWith('uploads/')) v.check(await db.get('SELECT 1 FROM media WHERE filename=?', image.slice(8)),'Imagem não encontrada.');
   for(const photo of images) if(photo.startsWith('uploads/')) v.check(await db.get('SELECT 1 FROM media WHERE filename=?', photo.slice(8)),'Foto da galeria não encontrada.');
-  const defaultLowStock=(await settings(db)).defaultLowStock;
+  const defaultLowStock=options.defaultLowStock ?? (await settings(db)).defaultLowStock;
   return {
     reference:v.text(p.reference || sku,80),name:v.text(p.name),category_id:category,price_cents:price,
     old_price_cents:status==='promotion'?old:null,description:v.text(p.description ?? '',20000,false),
@@ -34,6 +37,16 @@ export async function validateProduct(db,p,options={}) {
 }
 export async function saveProduct(db,user,input,id,action='product_updated') {
   return await transaction(db,async()=>await writeProduct(db,user,input,id,action));
+}
+// Grava um produto já validado. A importação em lote usa este caminho para não
+// repetir, linha a linha, a leitura do registro e do DTO antes/depois.
+export async function writeProductValidated(db,user,data,id,action,before=null) {
+  const chaves=Object.keys(data);
+  let productId=id;
+  if(id) await db.run(`UPDATE products SET ${chaves.map(k=>`${k}=?`).join(',')},version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?`, ...Object.values(data),id);
+  else {const r=await db.get(`INSERT INTO products(${chaves.join(',')}) VALUES(${chaves.map(()=>'?').join(',')}) RETURNING id`, ...Object.values(data));productId=Number(r.id);}
+  await audit(db,user,before?action:'product_created','product',productId,before,{...data,id:productId});
+  return productId;
 }
 export async function writeProduct(db,user,input,id,action='product_updated') {
   const before=id?await getProduct(db,id):null;
