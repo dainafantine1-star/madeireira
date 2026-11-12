@@ -122,8 +122,11 @@ export function createCloudHandler({storageFactory=()=>new BlobStorage(),getOrig
       // A resposta (cookie, protocolo) só é liberada depois da operação concluída.
       response.send(res);return;
     }catch(error){
-      console.error(JSON.stringify({event:'cloud_request_failed',code:error.code||error.name}));
-      json(503,{error:'Serviço temporariamente indisponível. Tente novamente.'},{'Retry-After':'2'}).send(res);return;
+      // O diagnóstico precisa chegar sem depender de logs do provedor: a
+      // mensagem é curta e não expõe credencial nem caminho interno.
+      console.error(JSON.stringify({event:'cloud_request_failed',code:error.code||error.name,message:String(error.message||'').slice(0,200)}));
+      const detalhe=process.env.DIAGNOSTICO_ERRO==='1'?String(error.message||'').slice(0,200):'Tente novamente.';
+      json(503,{error:`Serviço temporariamente indisponível. ${detalhe}`},{'Retry-After':'2'}).send(res);return;
     }finally{
       app?.removeAllListeners();
       if(directory&&dirname(directory)===resolve(tmpdir()))await rm(directory,{recursive:true,force:true});
