@@ -265,7 +265,10 @@ export async function seed(database = db) {
     for (const [i, banner] of banners.entries()) {
       await tx.run('INSERT INTO banners(tag,title,body,sort_order) VALUES(?,?,?,?)', [...banner, i]);
     }
-    await tx.run("INSERT INTO banners(tag,title,body,image,placement) VALUES('HOME','Banner principal da home','','','home')");
+    // O banner da home reusa a arte institucional, como fazia a migração 008 do
+    // SQLite. O valor vem dos defaults, já que o seed não grava heroImage.
+    await tx.run("INSERT INTO banners(tag,title,body,image,placement) VALUES('HOME','Banner principal da home','',?,'home')",
+      [defaults.heroImage || '']);
   });
   return true;
 }

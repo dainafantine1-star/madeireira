@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { resolve, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -218,9 +218,13 @@ test('cron writes an encrypted archive of the Postgres dump and the media', asyn
   t.after(async () => { assert.equal(dirname(directory), resolve(tmpdir())); await rm(directory, { recursive: true, force: true }); });
   const file = resolve(directory, basename(name));
   await writeFile(file, archive);
-  // Lacuna conhecida: `restoreBackup` ainda valida `manifest.format===1` (SQLite)
-  // e recusa o dump SQL do Postgres que `createBackup` passou a gerar.
-  await assert.rejects(() => restoreBackup(file, resolve(directory, 'recovered')), /Manifesto inválido/);
+  // A restauração aceita o formato 2 (dump SQL) e grava o dump e a mídia.
+  const recovered = await restoreBackup(file, resolve(directory, 'recovered'));
+  assert.equal(recovered.sessionsRevoked, true);
+  const dump = await readFile(resolve(directory, 'recovered', 'store.sql'), 'utf8');
+  assert.match(dump, /INSERT INTO categories/);
+  // Nenhuma sessão é restaurada: um backup não reativa logins antigos.
+  assert.doesNotMatch(dump, /INSERT INTO admin_sessions/);
 });
 
 test('the response is buffered and only released after the app finished', () => {

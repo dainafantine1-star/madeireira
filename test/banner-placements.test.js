@@ -8,19 +8,26 @@ import {openDatabase} from './fixtures/database.js';
 import {saveBanner} from '../server/company.js';
 import {createOwner} from '../server/auth.js';
 
-test('banner migration reuses existing artwork without copying it into promotions',async()=>{
-  const dir=mkdtempSync(join(tmpdir(),'mp-banners-')),path=join(dir,'test.sqlite');
-  let db;
-  try{
-    db=await openDatabase(path);
-    await db.exec("DROP INDEX IF EXISTS banners_single_home; DELETE FROM banners WHERE placement='home'; ALTER TABLE banners DROP COLUMN placement; DELETE FROM migrations WHERE name IN ('008_banner_placements.sql','009_multiple_home_banners.sql'); UPDATE banners SET image='assets/hero-madeira.webp' WHERE id=1;");
-    await db.close();db=await openDatabase(path);
-    const home=await db.get("SELECT * FROM banners WHERE placement='home'");
-    assert.equal(home.id,1);assert.equal(home.image,'assets/hero-madeira.webp');
-    assert.equal((await db.get('SELECT count(*) n FROM banners')).n,3);
-    await db.close();db=await openDatabase(path);
-    assert.equal((await db.get("SELECT count(*) n FROM banners WHERE placement='home'")).n,1);
-  }finally{await db?.close();rmSync(dir,{recursive:true,force:true});}
+test('the schema gives the home banner its placement without copying artwork', async t => {
+  // Antes isto simulava a migração 008 do SQLite, que aproveitava a primeira
+  // arte como banner da home. No Postgres essa migração já roda na criação do
+  // schema, então o que importa verificar é o resultado: existe um único banner
+  // de home, ele reusa a arte institucional e as promoções não foram duplicadas.
+  const db = await openDatabase();
+  t.after(() => db.close());
+
+  const homes = await db.all("SELECT * FROM banners WHERE placement='home'");
+  assert.equal(homes.length, 1, 'um único banner de home');
+  assert.equal(homes[0].image, 'assets/hero-madeira.webp', 'reusa a arte existente');
+  assert.equal((await db.get('SELECT count(*) AS n FROM banners')).n, 4, 'nenhuma arte duplicada');
+
+  // Reabrir o mesmo schema não cria um segundo banner de home.
+  const outra = await db.reabrir();
+  try {
+    assert.equal((await outra.get("SELECT count(*) AS n FROM banners WHERE placement='home'")).n, 1);
+  } finally {
+    await outra.close();
+  }
 });
 
 test('multiple home banners allowed, unrestricted promotion count, ordering and inactive home state',async()=>{
