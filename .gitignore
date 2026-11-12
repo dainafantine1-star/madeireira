@@ -22,6 +22,8 @@ previa-*.png
 # Server credentials and persistent data
 .env
 .env.*
+# O .env.test só aponta para o Postgres local; não guarda segredo.
+!.env.test
 !.env.example
 storage/
 *.sqlite
