@@ -106,7 +106,7 @@ export async function createApp({db=app_db,origin=process.env.PUBLIC_ORIGIN,back
       }
       const productPage=requested.match(/^\/produto\/(\d+)(?:\/[a-z0-9-]+)?\/?$/);
       if(productPage){
-        const visible=await catalog(db).products.some(p=>p.id===Number(productPage[1]));
+        const visible=(await catalog(db)).products.some(p=>p.id===Number(productPage[1]));
         if(!visible){res.writeHead(404,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(method==='HEAD'?undefined:'<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Produto indisponível</title><h1>Produto não encontrado</h1><p>Este produto não está disponível no catálogo.</p><a href="/">Voltar para a loja</a></html>');}
         requested='/index.html';
       }

@@ -37,7 +37,9 @@ function cloudIp(req){
 }
 
 async function persistLimit(db,req){
-  await db.exec('CREATE TABLE IF NOT EXISTS cloud_request_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at INTEGER NOT NULL)');
+  // `expires_at` guarda Date.now() em milissegundos, que não cabe em integer:
+  // o INSERT falhava com 22003 no Postgres e toda requisição /api virava 503.
+  await db.exec('CREATE TABLE IF NOT EXISTS cloud_request_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at BIGINT NOT NULL)');
   const now=Date.now(),ip=cloudIp(req);
   await db.run('DELETE FROM cloud_request_limits WHERE expires_at<=?', now);
   const buckets=[['api',180]];
@@ -49,7 +51,8 @@ async function persistLimit(db,req){
     const key=createHash('sha256').update(`${bucket}:${ip}`).digest('hex');
     const row=await db.get('SELECT count FROM cloud_request_limits WHERE key=?', key);
     if(!row&&(await db.get('SELECT count(*) AS n FROM cloud_request_limits')).n>=30000)return false;
-    await db.run('INSERT INTO cloud_request_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1', key,now+60000);
+    // `SET count=count+1` é ambíguo no Postgres (coluna da tabela vs. excluded).
+    await db.run('INSERT INTO cloud_request_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=cloud_request_limits.count+1', key,now+60000);
     if((row?.count||0)+1>maximum)return false;
   }
   return true;
