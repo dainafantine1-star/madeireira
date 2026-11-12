@@ -153,18 +153,28 @@ export async function transaction(primeiro, segundo) {
 
 const MIGRATION_LOCK = 8274531;
 
+// A migração roda na primeira requisição de cada instância. Consultar a tabela
+// de migrações é barato, então a maioria das chamadas não faz nada. Quando há
+// trabalho, um advisory lock evita que duas instâncias apliquem ao mesmo tempo;
+// ele é liberado no finally, e o Postgres também o solta se a conexão cair.
 export async function migrate(database = db) {
   const schema = schemaName();
   // O schema precisa existir antes de qualquer conexão que o use no search_path.
   await database.exec(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
   await database.exec(`CREATE TABLE IF NOT EXISTS ${schema}.migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
-  // Several serverless invocations may start at once; one applies the schema.
+
+  const directory = new URL('./migrations/postgres/', import.meta.url);
+  let files = [];
+  try { files = readdirSync(directory).filter(n => n.endsWith('.sql')).sort(); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (!files.length) return;
+
+  const aplicadas = new Set((await database.all(`SELECT name FROM ${schema}.migrations`)).map(r => r.name));
+  if (files.every(n => aplicadas.has(n))) return;
+
+  // Só as instâncias que realmente têm algo a aplicar disputam o lock.
   await database.exec(`SELECT pg_advisory_lock(${MIGRATION_LOCK})`);
   try {
-    const directory = new URL('./migrations/postgres/', import.meta.url);
-    let files = [];
-    try { files = readdirSync(directory).filter(n => n.endsWith('.sql')).sort(); }
-    catch (error) { if (error.code !== 'ENOENT') throw error; }
     for (const name of files) {
       if (await database.get(`SELECT 1 AS applied FROM ${schema}.migrations WHERE name=?`, [name])) continue;
       // O schema já pode ter sido aplicado pelo painel do Supabase: nesse caso
@@ -214,13 +224,26 @@ export async function seed(database = db) {
   return true;
 }
 
+// A inicialização roda a cada requisição em serverless. Uma vez concluída com
+// sucesso nesta instância, não precisa repetir as consultas de verificação.
+let inicializado = null;
 export async function openDatabase({ runMigrations = true } = {}) {
-  if (runMigrations) await migrate();
-  await seed();
-  return db;
+  if (!inicializado) {
+    inicializado = (async () => {
+      if (runMigrations) await migrate();
+      await seed();
+      return db;
+    })().catch(error => {
+      // Falha não fica memorizada: a próxima requisição tenta de novo.
+      inicializado = null;
+      throw error;
+    });
+  }
+  return inicializado;
 }
 
 export async function closeDatabase() {
+  inicializado = null;
   if (!poolPromise) return;
   const current = await poolPromise;
   await current.end();
