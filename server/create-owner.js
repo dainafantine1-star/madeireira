@@ -1,6 +1,6 @@
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
-import { openDatabase } from './db.js';
+import { openDatabase, closeDatabase } from './db.js';
 import { createOwner } from './auth.js';
 
 // Local console only. There is no public bootstrap endpoint or default password.
@@ -17,4 +17,4 @@ try {
   if(password!==confirmation) throw new Error('As senhas não coincidem.');
   await createOwner(db,{email,password});console.log('Proprietário criado. Acesse /admin para entrar.');
 }catch(error){console.error(error.status?error.message:error.message==='As senhas não coincidem.'||error.message==='O proprietário já está cadastrado.'||error.message==='Execute este comando em um terminal interativo.'?error.message:'Não foi possível criar o proprietário. Verifique o e-mail e tente novamente.');process.exitCode=1;}
-finally{rl?.close();db.close();}
+finally{rl?.close();await closeDatabase();}
