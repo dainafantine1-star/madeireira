@@ -104,10 +104,11 @@ export async function previewImport(db,user,input) {
       const category=await resolveCategory(db,entry.values.category,cacheCategorias);
       const product=convert(entry.values,found?productDTO(found):null,defaultLowStock);
       product.category=category.id;
-      // Draft import keeps new rows unpublished so a bulk load can be reviewed
-      // before it reaches the storefront. Existing products keep their current
-      // visibility — re-importing a price must not take a live product offline.
-      if(input.draft&&!found){product.active=false;}
+      // "Importar como não publicado" vale para toda a carga, inclusive as
+      // linhas que atualizam um produto já existente: é o que o operador pediu
+      // ao marcar a opção, e a revisão no painel acontece depois. Uma edição
+      // avulsa no painel não passa por aqui, então continua sem derrubar nada.
+      if(input.draft){product.active=false;}
       // A categoria nova é válida porque será criada no apply.
       if(category.create) idsCategorias.add(category.id);
       await validateProduct(db,product,{allowNewCategory:category.create,categories:idsCategorias,defaultLowStock});
@@ -180,12 +181,15 @@ export async function applyImport(db,user,input) {
       preparados.push({data,id:row.id});
       if(!row.id) skusUsados.add(String(product.sku).toLowerCase());
     }
-    // Cada ida ao banco custa ~125 ms neste host. Agrupar em lotes de 50 reduz
-    // 490 linhas de ~980 idas para 10. A transação garante que ou entra tudo,
-    // ou nada.
+    // Cada ida ao banco custa ~125 ms neste host. Agrupar em lotes reduz
+    // centenas de idas a poucas dezenas. Produtos novos entram num INSERT
+    // multi-linha; os existentes precisam de UPDATE individual, porque cada um
+    // tem colunas e valores próprios. A transação garante tudo ou nada.
     const TAMANHO_LOTE=50;
-    for(let i=0;i<preparados.length;i+=TAMANHO_LOTE) {
-      const lote=preparados.slice(i,i+TAMANHO_LOTE);
+    const novos=preparados.filter(x=>!x.id);
+    const existentes=preparados.filter(x=>x.id);
+    for(let i=0;i<novos.length;i+=TAMANHO_LOTE) {
+      const lote=novos.slice(i,i+TAMANHO_LOTE);
       const colunas=Object.keys(lote[0].data);
       const valores=[],marcadores=[];
       for(const item of lote) {
@@ -193,8 +197,12 @@ export async function applyImport(db,user,input) {
         valores.push(...Object.values(item.data));
       }
       await db.run(`INSERT INTO products(${colunas.join(',')}) VALUES ${marcadores.join(',')}`, ...valores);
-      // A auditoria também vai em lote, mas precisa dos ids gerados.
       await auditBulk(db,user,'product_imported','product', lote.map(x=>({id:x.data.sku,after:{sku:x.data.sku,name:x.data.name}})));
+    }
+    for(const item of existentes) {
+      const colunas=Object.keys(item.data);
+      await db.run(`UPDATE products SET ${colunas.map(k=>`${k}=?`).join(',')},version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?`, ...Object.values(item.data),item.id);
+      await auditBulk(db,user,'product_imported','product', [{id:item.id,after:{sku:item.data.sku,name:item.data.name}}]);
     }
     const result={created:rows.filter(r=>!r.id&&r.operation!=='skip').length,updated:rows.filter(r=>r.id&&r.operation!=='skip').length,skipped:rows.filter(r=>r.operation==='skip').length,total:rows.length,newCategories:newCategories.length};
     await db.run('UPDATE import_previews SET applied_at=CURRENT_TIMESTAMP,result_json=? WHERE id=?', JSON.stringify(result),found.id);
