@@ -85,11 +85,11 @@ export async function management({db,user,req,url,p,origin}) {
   }
   if(path==='/api/admin/users' || /^\/api\/admin\/users\//.test(path)) {
     v.check(user.isOwner,'Somente o proprietário gerencia acessos.',403);
-    if(path==='/api/admin/users'&&method==='GET')return ok(await db.all('SELECT id,email,role,active,is_owner AS isOwner,created_at FROM admin_users ORDER BY is_owner DESC,id'));
+    if(path==='/api/admin/users'&&method==='GET')return ok(await db.all('SELECT id,email,role,active,is_owner AS "isOwner",created_at FROM admin_users ORDER BY is_owner DESC,id'));
     if(path==='/api/admin/users'&&method==='POST')return {status:201,data:await transaction(db,async()=>{const created=await createAdmin(db,p);const active=v.flag(p.active ?? true);await db.run('UPDATE admin_users SET active=? WHERE id=?', active,created.id);await audit(db,user,'user_created','user',created.id,null,{email:p.email,role:p.role || 'admin',active});return created;})};
     const match=path.match(/^\/api\/admin\/users\/(\d+)$/);
     if(match&&method==='PUT')return ok(await transaction(db,async()=>{
-      const before=await db.get('SELECT id,email,role,active,is_owner AS isOwner FROM admin_users WHERE id=?', Number(match[1]));v.check(before,'Usuário inexistente.',404);
+      const before=await db.get('SELECT id,email,role,active,is_owner AS "isOwner" FROM admin_users WHERE id=?', Number(match[1]));v.check(before,'Usuário inexistente.',404);
       v.check(!before.isOwner,'O acesso do proprietário não pode ser desativado ou rebaixado.',403);
       v.check(['admin','editor'].includes(p.role),'Perfil inválido.');const active=v.flag(p.active);
       await db.run('UPDATE admin_users SET role=?,active=? WHERE id=?', p.role,active,before.id);

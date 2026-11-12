@@ -28,7 +28,7 @@ export async function login(db, input) {
 }
 export async function authorize(db, req, adminOnly = false) {
   const token = sessionToken(req);
-  const user = await db.get('SELECT u.id,u.email,u.role,u.is_owner AS isOwner,s.expires_at AS expiresAt FROM admin_sessions s JOIN admin_users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1', digest(token),Date.now());
+  const user = await db.get('SELECT u.id,u.email,u.role,u.is_owner AS "isOwner",s.expires_at AS "expiresAt" FROM admin_sessions s JOIN admin_users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.active=1', digest(token),Date.now());
   check(user, 'Autenticação necessária.',401); check(!adminOnly || user.isOwner || user.role === 'admin', 'Acesso restrito.',403);
   if (!req.headers.authorization && !['GET','HEAD'].includes(req.method)) check(req.headers['x-csrf-token']===csrfToken(token),'Requisição não autorizada. Atualize a página.',403);
   return user;

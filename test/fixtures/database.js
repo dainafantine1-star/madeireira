@@ -108,5 +108,13 @@ export async function openDatabase(_ignorado, opcoes = {}) {
   isolado.db.close = fechar;
   // Nome do schema descartável, para quem precisa consultá-lo por fora do pool.
   isolado.db.schema = schema;
+  // Abre uma segunda conexão no mesmo schema. O teste de persistência usa isto
+  // para provar que os dados sobrevivem fora do processo que os gravou.
+  isolado.db.reabrir = async () => {
+    const outra = await createIsolatedDatabase(schema);
+    outra.db.close = () => outra.close();
+    outra.db.schema = schema;
+    return outra.db;
+  };
   return isolado.db;
 }

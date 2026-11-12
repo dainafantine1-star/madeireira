@@ -69,26 +69,14 @@ export async function createIsolatedDatabase(nomeSchema) {
   const schemaAlvo = schemaName(nomeSchema);
   const p = criarPool(schemaAlvo);
   const exec = (sql, params = []) => p.query(positional(sql), params);
-  const banco = createDatabase(exec);
+  // `banco` é dono de si mesmo, para que transaction(banco, fn) redirecione
+  // as chamadas feitas nele para a conexão da transação.
+  const banco = criarBancoComDono(exec);
   let fechado = false;
   return {
     db: banco,
     schema: schemaAlvo,
-    async transaction(work) {
-      const conn = await p.connect();
-      try {
-        await conn.query('BEGIN');
-        const escopo = createDatabase((sql, params) => conn.query(positional(sql), params));
-        const resultado = await work(escopo);
-        await conn.query('COMMIT');
-        return resultado;
-      } catch (error) {
-        try { await conn.query('ROLLBACK'); } catch { /* conexão perdida */ }
-        throw error;
-      } finally {
-        conn.release();
-      }
-    },
+    transaction: (work) => transacaoEm(p, banco, work),
     async close() {
       if (fechado) return;
       fechado = true;
@@ -96,6 +84,10 @@ export async function createIsolatedDatabase(nomeSchema) {
     },
   };
 }
+
+// Conexão transacional ativa, por objeto de banco. Declarada antes de
+// createDatabase, que a consulta.
+const pilhaTransacional = new WeakMap();
 
 // Normalises `?` placeholders to `$1, $2, …` so existing queries stay readable.
 function positional(sql) {
@@ -112,12 +104,56 @@ function params(...args) {
   return args;
 }
 
-export function createDatabase(executor) {
+// Cria um banco que é dono de si mesmo: dentro de transacaoEm(pool, banco, fn),
+// as chamadas feitas nele passam a usar a conexão da transação.
+export function criarBancoComDono(executor) {
+  const banco = createDatabase(executor);
+  for (const metodo of ['get', 'all', 'run', 'exec']) {
+    const original = banco[metodo].bind(banco);
+    banco[metodo] = (sql, ...args) => {
+      const ativa = pilhaTransacional.get(banco);
+      if (!ativa) return original(sql, ...args);
+      return createDatabase(ativa)[metodo](sql, ...args);
+    };
+  }
+  return banco;
+}
+
+// Executa `work` numa transação do `p` informado, redirecionando o `banco`.
+export async function transacaoEm(p, banco, work) {
+  const conn = await p.connect();
+  const executor = (sql, params) => conn.query(positional(sql), params);
+  try {
+    await conn.query('BEGIN');
+    const anterior = pilhaTransacional.get(banco);
+    pilhaTransacional.set(banco, executor);
+    try {
+      const resultado = await work(createDatabase(executor));
+      await conn.query('COMMIT');
+      return resultado;
+    } finally {
+      if (anterior) pilhaTransacional.set(banco, anterior);
+      else pilhaTransacional.delete(banco);
+    }
+  } catch (error) {
+    try { await conn.query('ROLLBACK'); } catch { /* conexão perdida */ }
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
+// Banco de fora de transação. Se este objeto estiver marcado como transacional
+// (dentro de um callback de `transaction`), as chamadas vão para a conexão da
+// transação, em vez do pool.
+export function createDatabase(executor, dono = null) {
+  const executar = (sql, params) =>
+    (dono && pilhaTransacional.get(dono)) ? pilhaTransacional.get(dono)(sql, params) : executor(sql, params);
   return {
-    async get(sql, ...args) { return (await executor(sql, params(...args))).rows[0]; },
-    async all(sql, ...args) { return (await executor(sql, params(...args))).rows; },
-    async run(sql, ...args) { return executor(sql, params(...args)); },
-    async exec(sql) { return executor(sql, []); },
+    async get(sql, ...args) { return (await executar(sql, params(...args))).rows[0]; },
+    async all(sql, ...args) { return (await executar(sql, params(...args))).rows; },
+    async run(sql, ...args) { return executar(sql, params(...args)); },
+    async exec(sql) { return executar(sql, []); },
   };
 }
 
@@ -126,7 +162,9 @@ async function query(sql, params) {
   return client.query(positional(sql), params);
 }
 
-const db = createDatabase(query);
+// `db` é o dono de si mesmo: dentro de transaction(db, fn), as chamadas nele
+// passam a usar a conexão da transação, em vez do pool.
+const db = criarBancoComDono(query);
 export { db };
 export default db;
 
@@ -137,23 +175,22 @@ export default db;
 //   transaction(db, work)    — forma herdada do SQLite, onde o db era o 1º argumento
 // Na forma herdada o `db` recebido é ignorado: a transação sempre usa o cliente
 // dedicado, para que escritas concorrentes não compartilhem conexão.
+// Aceita as duas formas usadas no código:
+//   transaction(work)       — recebe o cliente transacional
+//   transaction(db, work)   — forma herdada do SQLite
+//
+// Na forma herdada, o `db` recebido é reaproveitado: durante o callback, as
+// chamadas feitas nele passam a usar a conexão da transação. Sem isso, as
+// funções internas (writeProduct, getProduct) escreveriam fora da transação e
+// um erro no meio do lote deixaria alterações aplicadas.
 export async function transaction(primeiro, segundo) {
-  const work = typeof primeiro === 'function' ? primeiro : segundo;
+  const usarHerdado = typeof primeiro !== 'function';
+  const work = usarHerdado ? segundo : primeiro;
   if (typeof work !== 'function') throw TypeError('transaction exige uma função.');
-  const client = await pool();
-  const conn = await client.connect();
-  try {
-    await conn.query('BEGIN');
-    const scoped = createDatabase((sql, params) => conn.query(positional(sql), params));
-    const result = await work(scoped);
-    await conn.query('COMMIT');
-    return result;
-  } catch (error) {
-    try { await conn.query('ROLLBACK'); } catch { /* connection already lost */ }
-    throw error;
-  } finally {
-    conn.release();
-  }
+  const p = await pool();
+  // Rede redireciona o db recebido; sem ela, o db global, que é dono de si.
+  const alvo = (usarHerdado && primeiro && typeof primeiro === 'object') ? primeiro : db;
+  return transacaoEm(p, alvo, work);
 }
 
 const MIGRATION_LOCK = 8274531;

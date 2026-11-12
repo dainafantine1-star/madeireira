@@ -10,6 +10,9 @@
 // O nome do bucket fica gravado na tabela media, para que leituras saibam onde
 // procurar mesmo depois de o uso mudar.
 import { createClient } from '@supabase/supabase-js';
+import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const mediaName = /^[a-f0-9-]{36}(?:-(?:320|640|960))?\.(?:webp|png)$/;
 
@@ -30,6 +33,12 @@ function supabase() {
 
 const backupBucket = () => process.env.SUPABASE_BACKUP_BUCKET || 'avatars';
 
+// Sem SUPABASE_URL e chave, os arquivos ficam em disco. É o modo dos testes e do
+// desenvolvimento local: nenhum upload de teste chega ao Supabase real.
+const usarDisco = () => !process.env.SUPABASE_URL || !(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+const raizDisco = () => process.env.UPLOAD_DIR || resolve(fileURLToPath(new URL('../storage/uploads', import.meta.url)));
+const arquivoLocal = (filename, bucket) => resolve(raizDisco(), bucket, filename);
+
 // Os arquivos entram numa pasta `uploads/` dentro de cada bucket para separar
 // mídia da loja de qualquer outro conteúdo do projeto.
 const caminho = filename => 'uploads/' + filename;
@@ -39,6 +48,14 @@ export class SupabaseStorage {
   // antigos podem não ter a coluna preenchida.
   async readMedia(filename, bucket) {
     if (!mediaName.test(filename)) throw Error('Invalid media name.');
+    if (usarDisco()) {
+      const tentativas = bucket ? [bucket] : [...new Set(Object.values(BUCKETS))];
+      for (const nome of tentativas) {
+        try { return await readFile(arquivoLocal(filename, nome)); }
+        catch (error) { if (error.code !== 'ENOENT') throw error; }
+      }
+      return null;
+    }
     const tentativas = bucket ? [bucket] : [...new Set(Object.values(BUCKETS))];
     for (const nome of tentativas) {
       const { data, error } = await supabase().storage.from(nome).download(caminho(filename));
@@ -50,6 +67,12 @@ export class SupabaseStorage {
 
   async saveMedia(filename, bytes, bucket = BUCKETS.photo) {
     if (!mediaName.test(filename)) throw Error('Invalid media name.');
+    if (usarDisco()) {
+      const destino = arquivoLocal(filename, bucket);
+      await mkdir(dirname(destino), { recursive: true });
+      await writeFile(destino, bytes);
+      return;
+    }
     const { error } = await supabase().storage.from(bucket).upload(caminho(filename), bytes, {
       contentType: filename.endsWith('.png') ? 'image/png' : 'image/webp',
       cacheControl: '31536000',
@@ -60,6 +83,10 @@ export class SupabaseStorage {
 
   async removeMedia(filename, bucket = BUCKETS.photo) {
     if (!mediaName.test(filename)) throw Error('Invalid media name.');
+    if (usarDisco()) {
+      await unlink(arquivoLocal(filename, bucket)).catch(() => {});
+      return;
+    }
     const { error } = await supabase().storage.from(bucket).remove([caminho(filename)]);
     if (error && !/not found/i.test(error.message)) throw error;
   }

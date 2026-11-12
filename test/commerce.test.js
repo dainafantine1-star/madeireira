@@ -1,13 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { readFileSync,mkdtempSync,rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join,dirname,resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
 import { openDatabase } from '../test/fixtures/database.js';
 import { createApp } from '../server/index.js';
 import { createOwner } from '../server/auth.js';
+import { saveProduct } from '../server/products.js';
+import { createQuote } from '../server/orders.js';
 import '../js/core.js';
 
 test('search normalizes accents, SKU, dimensional notation and metric lengths',()=>{
@@ -66,12 +64,35 @@ test('registered quotes, fractional lines, duplicate prevention, customers, tran
   assert.equal((await req('/api/admin/customers/'+client.id)).data.orders.length,2);
 });
 
-test('migration preserves populated version-2 customers, stock, orders and item snapshots',async()=>{
-  const dir=mkdtempSync(join(tmpdir(),'mp-v2-')),path=join(dir,'store.sqlite');
+test('a schema already applied keeps its data and is not reapplied', async t => {
+  // O teste antigo migrava um arquivo SQLite v2 para v3. Esse mecanismo não
+  // existe mais: o schema é criado do zero no Postgres. O que ainda importa é
+  // que reabrir um schema já migrado preserve os dados e não repita o DDL.
+  const db = await openDatabase();
+  t.after(() => db.close());
+
+  const dono = await createOwner(db, { email: `mig-${crypto.randomUUID()}@example.test`, password: 'MigracaoTest1234' });
+  const categoria = await db.get('SELECT id FROM categories LIMIT 1');
+  const produto = await saveProduct(db, dono, {
+    name: 'Produto anterior', reference: 'OLD', sku: 'OLD', category: categoria.id,
+    price: 10, status: 'active', active: true, unit: 'un', stock: 2,
+  }, undefined);
+
+  const orcamento = await createQuote(db, {
+    requestKey: crypto.randomUUID(),
+    customer: { name: 'Cliente anterior', phone: '71988887777' },
+    items: [{ id: produto.id, qty: 1 }],
+  });
+
+  const outra = await db.reabrir();
   try {
-    let db=new DatabaseSync(path);db.exec(readFileSync(new URL('../server/migrations/001-initial.sql',import.meta.url),'utf8'));db.exec(readFileSync(new URL('../server/migrations/002-management.sql',import.meta.url),'utf8'));
-    db.exec("CREATE TABLE migrations(name TEXT PRIMARY KEY,applied_at TEXT DEFAULT CURRENT_TIMESTAMP);INSERT INTO migrations(name) VALUES('001-initial.sql'),('002-management.sql');INSERT INTO categories(id,label,slug) VALUES('tabuas','Tábuas','tabuas');INSERT INTO products(id,reference,sku,name,category_id,price_cents,stock) VALUES(1,'OLD','OLD','Produto anterior','tabuas',1000,2);INSERT INTO customers(id,name,phone) VALUES(1,'Cliente anterior','71988887777');INSERT INTO company_settings(id,public_json) VALUES(1,'{}');INSERT INTO orders(id,request_key,customer_id,kind,known_total_cents,has_consultation,terms_snapshot) VALUES('old-order','old-key',1,'quote',1000,0,'Condição anterior');INSERT INTO order_items(order_id,product_id,reference_snapshot,name_snapshot,specs_snapshot,terms_snapshot,unit_price_cents,quantity) VALUES('old-order',1,'OLD','Nome original','{}','Termo original',1000,1);");db.close();
-    db=await openDatabase(path);assert.equal((await db.get('SELECT quantity FROM order_items')).quantity,1);assert.equal((await db.get('SELECT stock_milli FROM products')).stock_milli,2000);assert.equal(JSON.parse((await db.get('SELECT customer_snapshot FROM orders')).customer_snapshot).name,'Cliente anterior');assert.equal((await db.get('SELECT count(*) AS n FROM order_history')).n,1);assert.deepEqual(await db.all('PRAGMA foreign_key_check'),[]);await db.close();
-    db=await openDatabase(path);assert.equal((await db.get('SELECT count(*) AS n FROM order_items')).n,1);await db.close();
-  }finally{assert.equal(resolve(dirname(dir)),resolve(tmpdir()));rmSync(dir,{recursive:true,force:true});}
+    assert.equal((await outra.get('SELECT quantity FROM order_items WHERE order_id=?', orcamento.id)).quantity, 1);
+    assert.equal((await outra.get('SELECT stock_milli FROM products WHERE id=?', produto.id)).stock_milli, 2000);
+    assert.equal(JSON.parse((await outra.get('SELECT customer_snapshot FROM orders WHERE id=?', orcamento.id)).customer_snapshot).name, 'Cliente anterior');
+    assert.equal((await outra.get('SELECT count(*) AS n FROM order_history WHERE order_id=?', orcamento.id)).n, 1);
+    // Nenhuma migração foi reaplicada: o registro continua com as mesmas linhas.
+    assert.equal((await outra.get('SELECT count(*) AS n FROM migrations')).n, 4);
+  } finally {
+    await outra.close();
+  }
 });

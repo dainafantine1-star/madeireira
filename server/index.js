@@ -122,7 +122,9 @@ export async function createApp({db=app_db,origin=process.env.PUBLIC_ORIGIN,back
       v.check(mime,'Arquivo não permitido.',404);
       let bytes=await readFile(file);const etag='"'+createHash('sha256').update(bytes).digest('hex')+'"';res.setHeader('ETag',etag);res.setHeader('Cache-Control','no-cache');res.setHeader('Vary','Accept-Encoding');if(req.headers['if-none-match']===etag){res.writeHead(304);return res.end();}if(/(?:text|javascript|svg)/.test(mime)&&/\bgzip\b/.test(req.headers['accept-encoding']||'')){bytes=gzipSync(bytes);res.setHeader('Content-Encoding','gzip');}res.writeHead(200,{'Content-Type':mime+(mime.startsWith('text/')?'; charset=utf-8':''),'Content-Length':bytes.length});res.end(method==='HEAD'?undefined:bytes);
     }catch(error) {
-      const constraint=error.code?.startsWith('ERR_SQLITE') && /constraint/i.test(error.message);
+      // Violação de unicidade ou chave estrangeira: 23505/23503 no Postgres.
+      const postgresIntegridade=error.code==='23505'||error.code==='23503';
+      const constraint=postgresIntegridade || (error.code?.startsWith('ERR_SQLITE') && /constraint/i.test(error.message));
       const status=error.status || (error.code==='ENOENT'?404:constraint?409:500);
       if(status===429)res.setHeader('Retry-After','60');
       if(status===500) console.error(JSON.stringify({event:'request_failed',requestId:res.getHeader('X-Request-ID'),code:error.code||error.name}));
