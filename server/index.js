@@ -100,7 +100,9 @@ export async function createApp({db=app_db,origin=process.env.PUBLIC_ORIGIN,back
       v.check(!requested.split('/').some(segment=>segment==='.'||segment==='..'),'Página inexistente.',404);
       if(/^\/uploads\/[a-f0-9-]{36}(?:-(?:320|640|960))?\.(?:webp|png)$/.test(requested)) {
         const filename=requested.slice(9);v.check(await db.get('SELECT 1 FROM media WHERE filename=? UNION SELECT 1 FROM media_variants WHERE filename=?', filename,filename),'Imagem inexistente.',404);
-        const bytes=readMedia?await readMedia(filename):await readFile(resolve(mediaDirectory(),filename));res.writeHead(200,{'Content-Type':filename.endsWith('.png')?'image/png':'image/webp','Cache-Control':'public, max-age=31536000, immutable'});return res.end(method==='HEAD'?undefined:bytes);
+        // O bucket é registrado na tabela media; variantes herdam o da capa.
+        const dono=await db.get('SELECT bucket FROM media WHERE filename=? UNION SELECT m.bucket FROM media m JOIN media_variants v ON v.media_id=m.id WHERE v.filename=?', filename,filename);
+        const bytes=readMedia?await readMedia(filename,dono?.bucket):await readFile(resolve(mediaDirectory(),filename));res.writeHead(200,{'Content-Type':filename.endsWith('.png')?'image/png':'image/webp','Cache-Control':'public, max-age=31536000, immutable'});return res.end(method==='HEAD'?undefined:bytes);
       }
       const productPage=requested.match(/^\/produto\/(\d+)(?:\/[a-z0-9-]+)?\/?$/);
       if(productPage){

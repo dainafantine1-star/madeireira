@@ -7,6 +7,9 @@ import { audit } from './audit.js';
 import * as v from './validation.js';
 import { withMediaLock } from './media-lock.js';
 import { requestContext } from './request-context.js';
+import { bucketFor, SupabaseStorage } from './blob-storage.js';
+
+const storage = new SupabaseStorage();
 
 export function mediaDirectory() {return requestContext.getStore()?.uploads || process.env.UPLOAD_DIR || resolve(dirname(process.env.DATABASE_PATH || resolve(root,'storage/store.sqlite')),'uploads');}
 export async function uploadImage(db,user,input){return withMediaLock(async()=>await upload(db,user,input));}
@@ -25,17 +28,27 @@ async function upload(db,user,input) {
   const id=randomUUID(),filename=`${id}.webp`;await mkdir(mediaDirectory(),{recursive:true});const path=resolve(mediaDirectory(),filename);
   await writeFile(path,output,{flag:'wx'});
   const variants=[];
-  try{for(const width of [320,640,960]){if(width>=info.width)continue;const data=await sharp(output).resize({width}).webp(input.usage==='logo'?{lossless:true}:{quality:80}).toBuffer();const filename=`${id}-${width}.webp`;await writeFile(resolve(mediaDirectory(),filename),data,{flag:'wx'});variants.push({width,filename,bytes:data.length});}}catch(error){await Promise.all([path,...variants.map(x=>resolve(mediaDirectory(),x.filename))].map(p=>unlink(p).catch(()=>{})));throw error;}
-  try {await transaction(db,async()=>{await db.run('INSERT INTO media(id,filename,original_name,mime,bytes,width,height,created_by) VALUES(?,?,?,?,?,?,?,?)', id,filename,input.name,'image/webp',output.length,info.width,info.height,user.id);for(const x of variants)await db.run('INSERT INTO media_variants VALUES(?,?,?,?)', id,x.width,x.filename,x.bytes);await audit(db,user,'image_uploaded','media',id,null,{filename,bytes:output.length});});}
-  catch(error){await Promise.all([path,...variants.map(x=>resolve(mediaDirectory(),x.filename))].map(p=>unlink(p).catch(()=>{})));throw error;}
+  try{for(const width of [320,640,960]){if(width>=info.width)continue;const data=await sharp(output).resize({width}).webp(input.usage==='logo'?{lossless:true}:{quality:80}).toBuffer();const filename=`${id}-${width}.webp`;await writeFile(resolve(mediaDirectory(),filename),data,{flag:'wx'});variants.push({width,filename,bytes:data.length,data});}}catch(error){await Promise.all([path,...variants.map(x=>resolve(mediaDirectory(),x.filename))].map(p=>unlink(p).catch(()=>{})));throw error;}
+  // O arquivo é enviado ao Supabase Storage antes de ser registrado no banco,
+  // para nunca existir registro apontando para um objeto ausente.
+  const bucket=bucketFor(input.usage);
+  try {
+    await storage.saveMedia(filename,output,bucket);
+    for(const x of variants) await storage.saveMedia(x.filename,x.data,bucket);
+    await transaction(db,async()=>{await db.run('INSERT INTO media(id,filename,original_name,mime,bytes,width,height,created_by,bucket) VALUES(?,?,?,?,?,?,?,?,?)', id,filename,input.name,'image/webp',output.length,info.width,info.height,user.id,bucket);for(const x of variants)await db.run('INSERT INTO media_variants VALUES(?,?,?,?)', id,x.width,x.filename,x.bytes);await audit(db,user,'image_uploaded','media',id,null,{filename,bytes:output.length,bucket});});
+  } catch(error) {
+    await Promise.all([filename,...variants.map(x=>x.filename)].map(f=>storage.removeMedia(f,bucket).catch(()=>{})));
+    await Promise.all([path,...variants.map(x=>resolve(mediaDirectory(),x.filename))].map(p=>unlink(p).catch(()=>{})));
+    throw error;
+  }
   return {id,url:`uploads/${filename}`,width:info.width,height:info.height};
 }
 export async function deleteImage(db,user,id){return withMediaLock(async()=>await remove(db,user,id));}
 export async function bulkDeleteImages(db,user,ids){return withMediaLock(async()=>await bulkRemove(db,user,ids));}
 async function linkReason(db,url) {
-  if(await db.get('SELECT 1 FROM products p,json_each(p.images_json) j WHERE p.deleted_at IS NULL AND j.value=?', url))return 'galeria de produto';
+  if(await db.get('SELECT 1 FROM products p, jsonb_array_elements_text(p.images_json::jsonb) AS j(value) WHERE p.deleted_at IS NULL AND j.value=?', url))return 'galeria de produto';
   if(await db.get('SELECT 1 FROM products WHERE deleted_at IS NULL AND image=? UNION SELECT 1 FROM categories WHERE image=?', url,url))return 'produto ou categoria';
-  if(await db.get("SELECT 1 FROM banners WHERE image=? OR image_mobile=? UNION SELECT 1 FROM company_settings WHERE json_extract(public_json,'$.logo')=? OR json_extract(public_json,'$.heroImage')=?", url,url,url,url))return 'empresa ou campanha';
+  if(await db.get("SELECT 1 FROM banners WHERE image=? OR image_mobile=? UNION SELECT 1 FROM company_settings WHERE (public_json::jsonb->>'logo')=? OR (public_json::jsonb->>'heroImage')=?", url,url,url,url))return 'empresa ou campanha';
   return null;
 }
 async function bulkRemove(db,user,ids) {
@@ -50,6 +63,8 @@ async function bulkRemove(db,user,ids) {
     if(reason){skipped.push({id,name:media.original_name,reason:`Em uso por ${reason}.`});continue;}
     const variants=await db.all('SELECT filename FROM media_variants WHERE media_id=?', id);
     await transaction(db,async()=>{await db.run('DELETE FROM media WHERE id=?', id);await audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});
+  await Promise.all([media.filename,...variants.map(x=>x.filename)].map(filename=>storage.removeMedia(filename,media.bucket).catch(()=>{})));
+    await Promise.all([media.filename,...variants.map(x=>x.filename)].map(filename=>storage.removeMedia(filename,media.bucket).catch(()=>{})));
     await Promise.all([media.filename,...variants.map(x=>x.filename)].map(filename=>unlink(resolve(mediaDirectory(),filename)).catch(()=>{})));
     deleted.push(id);
   }
@@ -63,5 +78,6 @@ async function remove(db,user,id) {
   const variants=await db.all('SELECT filename FROM media_variants WHERE media_id=?', id);
   // Remove access first; a failed filesystem cleanup leaves an inaccessible orphan.
   await transaction(db,async()=>{await db.run('DELETE FROM media WHERE id=?', id);await audit(db,user,'image_deleted','media',id,{filename:media.filename},null);});
+  await Promise.all([media.filename,...variants.map(x=>x.filename)].map(filename=>storage.removeMedia(filename,media.bucket).catch(()=>{})));
   await Promise.all([media.filename,...variants.map(x=>x.filename)].map(filename=>unlink(resolve(mediaDirectory(),filename)).catch(()=>{})));return {ok:true};
 }

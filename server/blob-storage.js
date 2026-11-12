@@ -1,9 +1,20 @@
 // Armazenamento das imagens no Supabase Storage.
-// O banco saiu do Blob: aqui só trafegam arquivos de mídia, servidos por
-// uploads/<nome> e resolvidos pela API antes de chegar ao disco local.
+// O banco vive no Postgres; aqui só trafegam arquivos de mídia.
+//
+// Os buckets já existentes no projeto são separados por finalidade, e o
+// upload escolhe o destino pelo uso declarado:
+//   photo  -> produtos    (público)
+//   banner -> banners     (público)
+//   logo   -> categorias  (público)
+//   avatar -> avatars     (privado)
+// O nome do bucket fica gravado na tabela media, para que leituras saibam onde
+// procurar mesmo depois de o uso mudar.
 import { createClient } from '@supabase/supabase-js';
 
 export const mediaName = /^[a-f0-9-]{36}(?:-(?:320|640|960))?\.(?:webp|png)$/;
+
+export const BUCKETS = Object.freeze({ photo: 'produtos', banner: 'banners', logo: 'categorias', avatar: 'avatars' });
+export const bucketFor = usage => BUCKETS[usage] || BUCKETS.photo;
 
 export class StorageConflict extends Error {}
 
@@ -17,35 +28,47 @@ function supabase() {
   return cliente;
 }
 
-const bucket = () => process.env.SUPABASE_BUCKET || 'media';
+const backupBucket = () => process.env.SUPABASE_BACKUP_BUCKET || 'avatars';
+
+// Os arquivos entram numa pasta `uploads/` dentro de cada bucket para separar
+// mídia da loja de qualquer outro conteúdo do projeto.
+const caminho = filename => 'uploads/' + filename;
 
 export class SupabaseStorage {
-  async readMedia(filename) {
+  // Lê do bucket informado; sem ele, procura nos quatro, já que registros
+  // antigos podem não ter a coluna preenchida.
+  async readMedia(filename, bucket) {
     if (!mediaName.test(filename)) throw Error('Invalid media name.');
-    const { data, error } = await supabase().storage.from(bucket()).download('uploads/' + filename);
-    if (error) {
-      if (/not found|does not exist/i.test(error.message)) return null;
-      throw error;
+    const tentativas = bucket ? [bucket] : [...new Set(Object.values(BUCKETS))];
+    for (const nome of tentativas) {
+      const { data, error } = await supabase().storage.from(nome).download(caminho(filename));
+      if (!error && data) return Buffer.from(await data.arrayBuffer());
+      if (error && !/not found|does not exist|Object not found/i.test(error.message)) throw error;
     }
-    return Buffer.from(await data.arrayBuffer());
+    return null;
   }
 
-  async saveMedia(filename, bytes) {
+  async saveMedia(filename, bytes, bucket = BUCKETS.photo) {
     if (!mediaName.test(filename)) throw Error('Invalid media name.');
-    const { error } = await supabase().storage.from(bucket()).upload('uploads/' + filename, bytes, {
+    const { error } = await supabase().storage.from(bucket).upload(caminho(filename), bytes, {
       contentType: filename.endsWith('.png') ? 'image/png' : 'image/webp',
       cacheControl: '31536000',
-      upsert: false,
+      upsert: true,
     });
-    // Um novo envio do mesmo nome é substituição legítima; não falha.
-    if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+    if (error) throw error;
+  }
+
+  async removeMedia(filename, bucket = BUCKETS.photo) {
+    if (!mediaName.test(filename)) throw Error('Invalid media name.');
+    const { error } = await supabase().storage.from(bucket).remove([caminho(filename)]);
+    if (error && !/not found/i.test(error.message)) throw error;
   }
 
   async saveBackup(filename, bytes) {
     if (!/^backup-[a-zA-Z0-9.-]+\.mpbackup$/.test(filename) || bytes.subarray(0, 4).toString() !== 'MPB1') {
       throw Error('Encrypted backup required.');
     }
-    const { error } = await supabase().storage.from(bucket()).upload('backups/' + filename, bytes, {
+    const { error } = await supabase().storage.from(backupBucket()).upload('backups/' + filename, bytes, {
       contentType: 'application/octet-stream',
       upsert: false,
     });
