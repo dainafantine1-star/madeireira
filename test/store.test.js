@@ -25,6 +25,42 @@ test('HTML attributes and price absence are handled explicitly',()=>{
   for(const value of [null,undefined,0,-1,NaN,'100']) assert.equal(ui.formatPrice(value),'Sob consulta');
   assert.match(ui.formatPrice(12.5),/12,50/);
 });
+test('unit none hides unit labels and quantity stays integer',()=>{
+  const core=globalThis.StoreCore;
+  assert.equal(core.unitLabel('none'),'');
+  assert.equal(core.unitLabel('un'),'unidade');
+  assert.equal(core.unitLabel(null),'unidade a confirmar');
+  assert.equal(core.step('none'),1);
+  assert.equal(core.validQuantity(3,'none'),true);
+  assert.equal(core.validQuantity(1.5,'none'),false);
+  const message=core.shoppingMessage([{id:1,qty:2,lineKey:'L1'}],[{id:1,sku:'SKU-NONE',reference:'REF-NONE',name:'Produto sem unidade',unit:'none',price:10,available:true,specs:{}}],{whatsappMessage:'Olá!',commercialTerms:'Condição.',maxQuoteQuantity:99});
+  assert.match(message,/Quantidade: 2\n/);
+  assert.ok(!message.includes('Quantidade: 2 none'));
+  assert.match(message,/20,00/);
+});
+test('floating cart bar markup and badge update',()=>{
+  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  assert.match(html,/id="cartFloat"/);
+  assert.match(html,/class="cart-float"/);
+  assert.match(html,/data-icon="cart"/);
+  const css=readFileSync(new URL('../css/storefront-base.css',import.meta.url),'utf8');
+  assert.match(css,/\.cart-float\{[^}]*background:#dc6b2b/);
+  const nodes={cartBadge:{textContent:''},mobileCartBadge:{textContent:''},cartFloatBadge:{textContent:''},cartFloat:{hidden:true}};
+  const doc={getElementById:id=>nodes[id]||null};
+  const ui=runInNewContext(`${readFileSync(new URL('../js/ui.js',import.meta.url),'utf8')}\n;UI`,{StoreCore:globalThis.StoreCore,Intl,document:doc});
+  ui.updateBadge(3);
+  assert.equal(nodes.cartBadge.textContent,'3');
+  assert.equal(nodes.cartFloat.hidden,false);
+  ui.updateBadge(0);
+  assert.equal(nodes.cartFloat.hidden,true);
+});
+test('product page button spacing and S/ unidade admin option',()=>{
+  const essential=readFileSync(new URL('../css/storefront-essential.css',import.meta.url),'utf8');
+  assert.match(essential,/\.pdp-summary \.btn\+\.btn\{margin-top:16px\}/);
+  const admin=readFileSync(new URL('../admin/admin.js',import.meta.url),'utf8');
+  assert.match(admin,/\['none','S\/ unidade'\]/);
+  assert.match(admin,/unitText/);
+});
 test('HTTP API, admin access, snapshots, validation, idempotency and persistence',async(t)=>{
   const dir=mkdtempSync(join(tmpdir(),'mp-test-')), path=join(dir,'store.sqlite');
   let db=openDatabase(path);createAdmin(db,{email:'admin@example.com',password:'StrongPassword-123'});
@@ -76,5 +112,5 @@ test('HTTP API, admin access, snapshots, validation, idempotency and persistence
   assert.equal((await request('/api/admin/settings','PUT',cat.settings)).status,403);token=adminToken;
   assert.equal((await request('/api/admin/logout','POST',{})).status,200);assert.equal((await request('/api/admin/orders')).status,401);
   // A separate connection proves the data is persisted outside the process state.
-  const reopened=openDatabase(path);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM orders').get().n,1);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM migrations').get().n,11);reopened.close();
+  const reopened=openDatabase(path);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM orders').get().n,1);assert.equal(reopened.prepare('SELECT COUNT(*) AS n FROM migrations').get().n,12);reopened.close();
 });

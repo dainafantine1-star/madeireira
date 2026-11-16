@@ -26,7 +26,7 @@ globalThis.AnalyticsUI=(()=>{
       table('Produtos mais visualizados',[['name','Produto'],['views','Visualizações'],['clicks','Cliques']],d.products,'products')+
       table('Produtos mais acionados',[['name','Produto'],['clicks','Cliques'],['views','Visualizações']],[...d.products].sort((a,b)=>b.clicks-a.clicks),'products')+
       table('Cliques por origem · ações distintas',[['origin','Origem',x=>origins[x]||x],['clicks','Cliques']],d.origins,'origins')+
-      table('Estoque baixo e zerado · agora',[['name','Produto'],['sku','SKU'],['stock','Saldo'],['lowStock','Limite de alerta'],['unit','Unidade']],d.stock,'stock')+
+      table('Estoque baixo e zerado · agora',[['name','Produto'],['sku','SKU'],['stock','Saldo'],['lowStock','Limite de alerta'],['unit','Unidade',x=>x==='none'?'S/ unidade':x]],d.stock,'stock')+
       table('Desempenho por categoria no momento do evento',[['name','Categoria'],['views','Visualizações'],['clicks','Cliques atribuídos']],d.categories,'categories')+
       table('Interesse em promoções e destaques',[['name','Produto'],['featuredClicks','Cliques em destaque'],['promotionClicks','Cliques em promoção']],d.products,'products');
     $('metricsRange').onsubmit=async e=>{e.preventDefault();dates=Object.fromEntries(new FormData(e.currentTarget));try{await render();$('main').focus();}catch(error){ctx.toast(error.message);}};

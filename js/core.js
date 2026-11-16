@@ -12,7 +12,7 @@ globalThis.StoreCore = Object.freeze({
     },
     validQuantity(value,unit,max=99) { return typeof value==='number'&&Number.isFinite(value)&&value>0&&value<=max&&Math.abs(value*1000-Math.round(value*1000))<0.000001&&(['m','m2','m3','kg'].includes(unit)||Number.isInteger(value)); },
     step(unit) {return ['m','m2','m3','kg'].includes(unit)?0.001:1;},
-    unitLabel(unit) {return {un:'unidade',m:'metro',m2:'m²',m3:'m³',pacote:'pacote',kg:'quilograma'}[unit]||'unidade a confirmar';},
+    unitLabel(unit) {if(unit==='none')return '';return {un:'unidade',m:'metro',m2:'m²',m3:'m³',pacote:'pacote',kg:'quilograma'}[unit]||'unidade a confirmar';},
     dimensions(product) {return product.dimensions || Object.entries(product.specs||{}).filter(([k])=>/medida|largura|espessura|seção|área/i.test(k)).map(([k,v])=>`${k}: ${v}`).join(' · ') || 'Medidas sob consulta';},
     length(product) {return product.lengthMm==null?(product.specs?.Comprimento || 'Comprimento sob consulta'):`Comprimento: ${new Intl.NumberFormat('pt-BR',{maximumFractionDigits:3}).format(product.lengthMm/1000)} m`;},
     shoppingMessage(items,products,company) {
@@ -30,7 +30,7 @@ globalThis.StoreCore = Object.freeze({
             const cents=this.hasPrice(p.price)?Math.round(p.price*100):null;
             const subtotal=cents===null?null:Math.round(cents*item.qty);
             if(subtotal===null)consultation=true;else total+=subtotal;
-            return `Item ${index+1}: ${p.name}\nSKU: ${p.sku||'Não informado'}\nReferência: ${p.reference||'Não informada'}\nMedidas/especificações: ${Object.entries(p.specs||{}).map(([k,v])=>`${k}: ${v}`).join('; ')}\nDimensões: ${this.dimensions(p)}\n${this.length(p)}\nMedidas solicitadas: ${measures}\nEspecificações solicitadas: ${item.specifications||'Conforme catálogo'}\nQuantidade: ${number(item.qty)} ${p.unit}\nPreço unitário estimado: ${money(cents)}\nSubtotal estimado do item: ${money(subtotal)}\nCondição comercial: ${p.commercialTerms||company.commercialTerms||'A confirmar com a equipe.'}`;
+            return `Item ${index+1}: ${p.name}\nSKU: ${p.sku||'Não informado'}\nReferência: ${p.reference||'Não informada'}\nMedidas/especificações: ${Object.entries(p.specs||{}).map(([k,v])=>`${k}: ${v}`).join('; ')}\nDimensões: ${this.dimensions(p)}\n${this.length(p)}\nMedidas solicitadas: ${measures}\nEspecificações solicitadas: ${item.specifications||'Conforme catálogo'}\nQuantidade: ${number(item.qty)}${this.unitLabel(p.unit)?' '+p.unit:''}\nPreço unitário estimado: ${money(cents)}\nSubtotal estimado do item: ${money(subtotal)}\nCondição comercial: ${p.commercialTerms||company.commercialTerms||'A confirmar com a equipe.'}`;
         });
         return `${company.whatsappMessage||'Olá! Gostaria de consultar esta lista.'}\n\nLISTA DE PRODUTOS (${items.length} itens)\n\n${lines.join('\n\n')}\n\n${consultation&&total===0?'Total: Sob consulta':`${consultation?'Subtotal dos itens com preço':'Total estimado'}: ${money(total)}`}${consultation?'\nHá itens sob consulta; total final a confirmar.':''}\n${company.commercialTerms||'Preços e disponibilidade sujeitos à confirmação.'}\nAguardando confirmação da equipe.`;
     },
