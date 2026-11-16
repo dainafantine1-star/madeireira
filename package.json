@@ -9,7 +9,7 @@
   "scripts": {
     "build:vercel": "node scripts/build-vercel.js",
     "start": "node --env-file-if-exists=.env server/index.js",
-    "test": "node --env-file-if-exists=.env.test --env-file-if-exists=.env --test",
+    "test": "node --env-file-if-exists=.env --env-file-if-exists=.env.test --test",
     "admin:create": "node --env-file-if-exists=.env server/create-admin.js",
     "owner:create": "node --env-file-if-exists=.env server/create-owner.js",
     "backup:create": "node --env-file-if-exists=.env server/operations-cli.js backup",
