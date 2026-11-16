@@ -45,6 +45,13 @@ test('storefront keyboard, responsive quote, deduplication, admin and real dashb
   await page.reload();await expect(page.locator('#productOrderForm')).toBeVisible();
   await expect.poll(()=>db.prepare("SELECT count(*) AS n FROM events WHERE name='product_view'").get().n).toBe(1);
   await page.locator('#productAdd').click();await expect(page.locator('#cartClose')).toBeFocused();
+  await expect(page.locator('#cartFloat')).toBeVisible();
+  await expect(page.locator('#cartFloatBadge')).not.toHaveText('0');
+  await page.locator('#cartClose').click();
+  await expect(page.locator('#cartFloat')).toBeVisible();
+  await page.locator('#cartFloat').click();
+  await expect(page.locator('#cartDrawer')).toHaveAttribute('aria-hidden','false');
+  await expect(page.locator('#cartClose')).toBeFocused();
   await page.keyboard.press('Shift+Tab');expect(await page.evaluate(()=>!!document.activeElement.closest('#cartDrawer'))).toBe(true);
   const whatsappPopup=page.waitForEvent('popup');await page.locator('#checkoutBtn').click();
   const conversation=await whatsappPopup;await expect(conversation).toHaveURL(url=>url.origin==='https://wa.me');

@@ -105,6 +105,11 @@ test('products, stock, filters, audit, bulk rollback, CSV import/export and vali
   assert.equal(kg.status,201);assert.equal(kg.data.unit,'kg');
   const kgQuote=await req('/api/quotes','POST',{requestKey:'kg-decimal-quantity-001',items:[{id:kg.data.id,qty:0.5}]});
   assert.equal(kgQuote.status,201);assert.match(kgQuote.data.message,/Quantidade: 0,5 kg/);
+  const none=await req('/api/admin/products','POST',{name:'Cavalete sem unidade',sku:'CAVALETE-NONE',category:'tabuas',price:25,unit:'none'});
+  assert.equal(none.status,201);assert.equal(none.data.unit,'none');assert.equal(none.data.available,true);
+  const noneQuote=await req('/api/quotes','POST',{requestKey:'none-unit-quantity-001',items:[{id:none.data.id,qty:3}]});
+  assert.equal(noneQuote.status,201);assert.match(noneQuote.data.message,/Quantidade: 3\n/);assert.ok(!noneQuote.data.message.includes('Quantidade: 3 none'));
+  assert.equal((await req('/api/admin/products','POST',{name:'Unidade inválida',sku:'UNIT-BAD-01',category:'tabuas',price:10,unit:'xyz'})).status,400);
   p=(await req('/api/admin/products/1')).data;assert.equal((await req('/api/admin/products/1?version='+p.version,'DELETE')).status,200);
   assert.equal((await req('/api/admin/products/1')).status,404);assert.equal((await req('/api/catalog')).data.products.some(p=>p.id===1),false);
   assert.equal((await req(`/api/admin/orders/${quote.data.id}`)).data.items[0].name_snapshot,original.products.find(p=>p.id===1).name);

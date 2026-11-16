@@ -1,5 +1,28 @@
 # Migração para Hostinger — Madeireira Progresso
 
+## Atualização de 05/11/2026 — versão ativada na VPS
+
+- Conferência posterior no GitHub conectado: branch padrão `main`, HEAD `4311aa3622d92dea4bd9217432b0ca04050b6d83`, commit de 05/11/2026 às 13h30 na Bahia, “Corrige imagens, paginação e categorias e importa produtos com imagens ZIP”. HEAD local é o mesmo. Comparados os 64 arquivos rastreados de `index.html`, `js`, `css`, `admin`, `server` e manifests de dependências com o contêiner publicado: 64 equivalentes, nenhuma diferença funcional; 15 diferem somente em CRLF/LF. Esta evidência valida código; não implica que banco e uploads da VPS sejam os mesmos dados locais ou que todos os caches DNS já tenham expirado.
+
+- Versão local implantada como imagem `madeireira-progresso:20261105`, fontes em `/opt/madeireira/releases/20261105`, contêiner `madeireira-progresso`, reinício automático e porta restrita a `127.0.0.1:13000`.
+- Dados existentes copiados com o contêiner anterior parado para `/var/lib/madeireira-progresso/data`; banco e uploads persistentes. Integridade SQLite OK, nenhuma violação de chave estrangeira; contagens preservadas antes/depois e após reinício: 44 produtos brutos, 12 categorias, 4 banners, 42 mídias, 30 variantes, 1 cliente, 1 pedido. Catálogo público: 32 produtos.
+- Nginx continua em `/etc/nginx/sites-available/nac`, proxy para porta 13000. Habilitado IPv6 em 80/443; certificado válido até 19/01/2027 e timer certbot ativo. `TRUST_PROXY_IP=172.17.0.1`, correspondente ao gateway Docker deste servidor.
+- Backup criptografado pré-deploy em `/var/backups/madeireira-20261105/predeploy.mpbackup`; restauração isolada validada (73 arquivos). Cópia local em `.cache/hostinger-access/predeploy-20261105.mpbackup`. SHA-256 local/remoto: `9a22e0fa4fb4fdb19219eb6e2405352c609ec9599689637a18f864aac1af8a33`. Chave de recuperação copiada separadamente, com autorização explícita, para arquivo privado restrito à conta local do usuário; nenhum segredo documentado aqui.
+- Serviços antigos `ecossistema-nac`, `nac-mysql-loopback.service/socket` desligados e socket desabilitado; contêiner `nac-mysql` parado e sem reinício automático. Arquivos antigos e contêiner de reserva preservados, sem necessidade de apagar disco/sistema operacional.
+- Rollback de código: contêiner anterior `madeireira-reserva-20261105` permanece parado e mantém o diretório de dados anterior. Não ativá-lo cegamente após novas gravações: reconciliar/restaurar os dados atuais antes de voltar. Nenhuma migration destrutiva aplicada nesta publicação.
+- Verificações: 53/53 testes passaram em execução autorizada com navegador local; 9/9 limites de desempenho aprovados. Verificação HTTPS de produção completa aprovada, usando resolução explícita para o IP autoritativo durante propagação. HTTP redirecionado para HTTPS; rotas públicas/painel/assets acessíveis e arquivos privados/APIs administrativas protegidos. Backup automático inicial concluído, criptografado.
+- Navegador Edge contra a publicação, com DNS fixado ao A autoritativo: desktop 1440 px e celular emulado 390 px aprovados, 32 cards renderizados, 36 URLs de mídia reais responderam 200, formulário de login habilitado e nenhum erro JavaScript. Capturas privadas em `.cache/hostinger-access/loja-desktop.png` e `loja-celular.png`. Depois do reinício, contêiner saudável e HTTP 301 para HTTPS confirmados. Login real não foi repetido com senha do usuário; login/logout e alterações foram exercitados com dados isolados na suíte aprovada.
+- DNS autoritativo e resolvedores públicos 1.1.1.1/8.8.8.8 retornam A `187.127.32.214`; AAAA `2a02:4780:c6:993::1`. O resolvedor da VPS ainda tinha A antigo `2.57.91.93`, TTL restante de aproximadamente 2923 segundos na última conferência. Não confundir cache antigo com falha da aplicação.
+- Backups automáticos permanecem no disco da VPS; a cópia externa foi manual nesta implantação. Replicação externa recorrente/alertas e homologação em aparelho físico não foram configurados nesta etapa.
+
+### Histórico da preparação de acesso
+
+- Usuário identificou a VPS Hostinger `srv2063229.hstgr.cloud`, IP `187.127.32.214`, usuário SSH `root`, e escolheu `crmdete.tech` para esta publicação.
+- Autorizou apagar o conteúdo existente da VPS nesta conversa, substituindo a exigência anterior de preservar o NAC. A identidade do servidor e os serviços devem ser conferidos antes de qualquer remoção.
+- Conexão SSH alcançou o servidor, mas a autenticação em modo BatchMode foi recusada (`publickey,password`). Nenhum arquivo remoto foi alterado.
+- Gerado par de chaves específico em cache privado ignorado pelo Git; aguarda instalação da chave pública pelo Web console. Não registrar chave privada ou credenciais neste documento.
+- Exportação de 28/10 continua sendo histórica; conferir dados atuais antes de migrar. Nenhuma publicação, limpeza ou alteração DNS executada nesta etapa.
+
 Atualizado em 28/10/2026. Este pedido substitui a estratégia anterior de manter a Madeireira apenas na Vercel: o usuário autorizou fazer backup do projeto NAC na Hostinger e, depois, hospedar a Madeireira lá.
 
 ## Estado e acesso
